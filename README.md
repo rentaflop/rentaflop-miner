@@ -2,6 +2,12 @@
 
 This repo contains the host software for [rentaflop](https://rentaflop.com), the crowdsourced cloud provider.
 
+## limitations
+Commercial use of this software is prohibited. This software may be used, distributed, or modified for any purpose
+other than commercial use. In no event shall the authors, copyright holders, or Rentaflop, INC. be
+liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from,
+out of or in connection with the software or the use or other dealings in the software.
+
 ## about
 The host software controls all actions run by rentaflop hosts. In particular, it contains host hardware registration,
 a daemon that communicates with rentaflop's servers for instructions, and functionality to launch crypto mining and
