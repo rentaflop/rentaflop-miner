@@ -1,4 +1,10 @@
-sudo apt-get update -y && sudo apt-get dist-upgrade -y
+sudo apt-get update -y
+DEBIAN_FRONTEND=noninteractive \
+  sudo apt-get \
+  -o Dpkg::Options::=--force-confold \
+  -o Dpkg::Options::=--force-confdef \
+  -y --allow-downgrades --allow-remove-essential --allow-change-held-packages \
+  dist-upgrade
 # configure cron to run next script at startup, then do a reboot
 sudo apt-get install ca-certificates curl gnupg lsb-release -y
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
