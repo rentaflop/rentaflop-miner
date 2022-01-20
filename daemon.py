@@ -7,16 +7,14 @@ usage:
 """
 import os
 import logging
-
-
+    
+    
 def _get_logger():
     """
     modules use this to create/retrieve and configure how logging works for their specific module
     """
-    name = "daemon"
-    log_path = os.path.dirname(os.path.realpath(__file__))
     module_logger = logging.getLogger(name)
-    handler = logging.FileHandler(os.path.join(log_path, f"{name}.log"))
+    handler = logging.FileHandler(LOG_FILE)
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(logging.Formatter("%(filename)s:%(lineno)d %(levelname)s %(asctime)s - %(message)s"))
     module_logger.addHandler(handler)
@@ -26,6 +24,39 @@ def _get_logger():
 
 
 DAEMON_LOGGER = _get_logger()
+LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log")
+
+
+def _handle_startup():
+    """
+    checks to see if there's an existing log file to handle startup scenarios
+    if no log file, then assume first startup
+    if log file exists, check last command to see if it was an update
+    if not update, assume crash and error state
+    if update, log update completed
+    """
+    log_file_exists = os.path.exists(LOG_FILE)
+    if not log_file_exists:
+        # TODO ensure daemon is run on system startup
+        return
+
+    # get last line of log file
+    with open(LOG_FILE, 'rb') as f:
+        # catch OSError in case of a one line file
+        try:
+            f.seek(-2, os.SEEK_END)
+            while f.read(1) != b'\n':
+                f.seek(-2, os.SEEK_CUR)
+        except OSError:
+            f.seek(0)
+        last_line = f.readline().decode()
+
+    is_update = ("sudo reboot" in last_line) or ("python3 daemon.py" in last_line)
+    if not is_update:
+        # TODO error status
+        return
+
+    DAEMON_LOGGER.debug(f"Exiting update.")
 
 
 def _log_before_after(func, params):
@@ -48,7 +79,8 @@ def _run_shell_cmd(cmd):
     """
     DAEMON_LOGGER.debug(f'''Running command {cmd}...''')
     output = subprocess.check_output(cmd, shell=True, text=True)
-    DAEMON_LOGGER.debug(f'''Command output: {output}''')
+    if output:
+        DAEMON_LOGGER.debug(f'''Output for {cmd}: {output}''')
 
     return output
 
@@ -68,6 +100,10 @@ def update(params):
     update_type = params["type"]
     if update_type == "rentaflop":
         _run_shell_cmd("git pull")
+        # daemon will shut down (but not full system) so this ensures it starts back up again
+        _run_shell_cmd('echo "sleep 3; python3 daemon.py" | at now')
+
+        return True
     elif update_type == "system":
         _run_shell_cmd("sudo apt-get update -y")
         _run_shell_cmd("DEBIAN_FRONTEND=noninteractive \
@@ -76,12 +112,8 @@ def update(params):
         -o Dpkg::Options::=--force-confdef \
         -y --allow-downgrades --allow-remove-essential --allow-change-held-packages \
         dist-upgrade")
-
-    # daemon will shut down so this ensures it starts back up again
-    _run_shell_cmd('echo "sleep 5; python3 daemon.py" | at now')
-
-    return True
-
+        _run_shell_cmd("sudo reboot")
+        
 
 def uninstall(params):
     """
@@ -102,7 +134,7 @@ def send_logs(params):
     """
     gather host logs and send back to rentaflop servers
     """
-    with open("daemon.log", "r") as f:
+    with open(LOG_FILE, "r") as f:
         logs = f.read()
 
     # TODO send logs to server
@@ -115,16 +147,19 @@ def main():
         "uninstall": uninstall,
         "send_logs": send_logs,
     }
+    _handle_startup()
     finished = False
     while not finished:
         # TODO either receive command or request it
         response = {"cmd": "mine", "params": {}}
-        cmd = response["cmd"]
-        params = response["params"]
-        if cmd in cmd_to_func:
-            # TODO try except here
-            func = cmd_to_func[cmd]
-            finished = _log_before_after(func, params)
+        cmd = response.get("cmd")
+        params = response.get("params")
+        func = cmd_to_func.get(cmd)
+        if func:
+            try:
+                finished = _log_before_after(func, params)
+            except Exception as e:
+                DAEMON_LOGGER.exception(f"Caught exception: {e}")
 
 
 if __name__=="__main__":

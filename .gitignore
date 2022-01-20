@@ -132,3 +132,4 @@ dmypy.json
 # Rentaflop
 *.qcow2
 nohup.out
+daemon.log
