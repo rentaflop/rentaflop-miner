@@ -8,14 +8,17 @@ usage:
 import os
 import logging
 import uuid
+import subprocess
+import sys
 from flask import Flask, jsonify, request
+app = Flask(__name__)
 
     
 def _get_logger():
     """
     modules use this to create/retrieve and configure how logging works for their specific module
     """
-    module_logger = logging.getLogger(name)
+    module_logger = logging.getLogger("daemon.log")
     handler = logging.FileHandler(LOG_FILE)
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(logging.Formatter("%(filename)s:%(lineno)d %(levelname)s %(asctime)s - %(message)s"))
@@ -23,16 +26,6 @@ def _get_logger():
     module_logger.setLevel(logging.DEBUG)
 
     return module_logger
-
-
-DAEMON_LOGGER = _get_logger()
-LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log")
-CMD_TO_FUNC = {
-    "mine": mine,
-    "update": update,
-    "uninstall": uninstall,
-    "send_logs": send_logs,
-}
 
 
 def _handle_startup():
@@ -45,7 +38,7 @@ def _handle_startup():
     """
     # ensure daemon flask server is accessible
     internal_ip = _run_shell_cmd("hostname -I | awk '{print $1}'")
-    _run_shell_cmd("upnpc -a {internal_ip} 44443 44443 tcp")
+    _run_shell_cmd(f"upnpc -a {internal_ip} 44443 44443 tcp")
     
     log_file_exists = os.path.exists(LOG_FILE)
     daemon_py = os.path.realpath(__file__)
@@ -94,7 +87,7 @@ def _run_shell_cmd(cmd, quiet=False):
     """
     if not quiet:
         DAEMON_LOGGER.debug(f'''Running command {cmd}...''')
-    output = subprocess.check_output(cmd, shell=True, text=True)
+    output = subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=sys.stdout.buffer)
     if output and not quiet:
         DAEMON_LOGGER.debug(f'''Output for {cmd}: {output}''')
 
@@ -151,7 +144,7 @@ def uninstall(params):
     # clean up rentaflop host software
     _run_shell_cmd("upnpc -d 44443 tcp")
     daemon_py = os.path.realpath(__file__)
-    _run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -"
+    _run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
     _run_shell_cmd("rm -rf ../rentaflop-host", True)
 
     return True
@@ -167,32 +160,47 @@ def send_logs(params):
     # TODO send logs to server
 
 
-@app.route("/", methods=["POST"])
-def index():
-    request_json = request.get_json()
-    cmd = request_json.get("cmd")
-    params = request_json.get("params")
-    func = CMD_TO_FUNC.get(cmd)
-    finished = False
-    if func:
-        try:
-            finished = _log_before_after(func, params)
-        except Exception as e:
-            DAEMON_LOGGER.exception(f"Caught exception: {e}")
-    if finished:
-        shutdown_func = request.environ.get('werkzeug.server.shutdown')
-        if shutdown_func is None:
-            raise RuntimeError('Not running with the Werkzeug Server!')
-        shutdown_func()
+def run_flask_server(q):
+    @app.route("/", methods=["POST"])
+    def index():
+        request_json = request.get_json()
+        cmd = request_json.get("cmd")
+        params = request_json.get("params")
+        func = CMD_TO_FUNC.get(cmd)
+        finished = False
+        if func:
+            try:
+                finished = _log_before_after(func, params)
+            except Exception as e:
+                DAEMON_LOGGER.exception(f"Caught exception: {e}")
+        if finished:
+            q.put(True)
 
-    return jsonify("200")
+        return jsonify("200")
+    
+    app.run(host='0.0.0.0', port=44443)
+    
+    
+LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log")
+DAEMON_LOGGER = _get_logger()
+CMD_TO_FUNC = {
+    "mine": mine,
+    "update": update,
+    "uninstall": uninstall,
+    "send_logs": send_logs,
+}
 
 
 def main():
     _handle_startup()
-    app = Flask(__name__)
     app.secret_key = uuid.uuid4().hex
-    app.run(host='0.0.0.0', port=44443)
+    # run server, allowing it to shut itself down
+    q = multiprocessing.Queue()
+    server = Process(target=run_flask_server, args=(q,))
+    server.start()
+    finished = q.get(block=True)
+    if finished:
+        p.terminate()    
 
 
 if __name__=="__main__":
