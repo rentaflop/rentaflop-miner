@@ -9,8 +9,11 @@ import os
 import logging
 import uuid
 import subprocess
+import multiprocessing
 import sys
 from flask import Flask, jsonify, request
+
+
 app = Flask(__name__)
 
     
@@ -23,6 +26,9 @@ def _get_logger():
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(logging.Formatter("%(filename)s:%(lineno)d %(levelname)s %(asctime)s - %(message)s"))
     module_logger.addHandler(handler)
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.flush = sys.stdout.flush
+    module_logger.addHandler(stream_handler)
     module_logger.setLevel(logging.DEBUG)
 
     return module_logger
@@ -37,7 +43,7 @@ def _handle_startup():
     if update, log update completed
     """
     # ensure daemon flask server is accessible
-    internal_ip = _run_shell_cmd("hostname -I | awk '{print $1}'")
+    internal_ip = _run_shell_cmd("hostname -I | awk '{print $1}'").replace("\n", "")
     _run_shell_cmd(f"upnpc -a {internal_ip} 44443 44443 tcp")
     
     log_file_exists = os.path.exists(LOG_FILE)
@@ -87,7 +93,11 @@ def _run_shell_cmd(cmd, quiet=False):
     """
     if not quiet:
         DAEMON_LOGGER.debug(f'''Running command {cmd}...''')
-    output = subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=sys.stdout.buffer)
+    try:
+        output = subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=sys.stdout.buffer)
+    except subprocess.CalledProcessError as e:
+        if not quiet:
+            DAEMON_LOGGER.error(f"Exception: {e}"
     if output and not quiet:
         DAEMON_LOGGER.debug(f'''Output for {cmd}: {output}''')
 
@@ -170,7 +180,7 @@ def run_flask_server(q):
         finished = False
         if func:
             try:
-                finished = _log_before_after(func, params)
+                finished = _log_before_after(func, params)()
             except Exception as e:
                 DAEMON_LOGGER.exception(f"Caught exception: {e}")
         if finished:
@@ -196,11 +206,11 @@ def main():
     app.secret_key = uuid.uuid4().hex
     # run server, allowing it to shut itself down
     q = multiprocessing.Queue()
-    server = Process(target=run_flask_server, args=(q,))
+    server = multiprocessing.Process(target=run_flask_server, args=(q,))
     server.start()
     finished = q.get(block=True)
     if finished:
-        p.terminate()    
+        server.terminate()
 
 
 if __name__=="__main__":
