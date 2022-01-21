@@ -26,9 +26,6 @@ def _get_logger():
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(logging.Formatter("%(filename)s:%(lineno)d %(levelname)s %(asctime)s - %(message)s"))
     module_logger.addHandler(handler)
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.flush = sys.stdout.flush
-    module_logger.addHandler(stream_handler)
     module_logger.setLevel(logging.DEBUG)
 
     return module_logger
@@ -91,13 +88,14 @@ def _run_shell_cmd(cmd, quiet=False):
     """
     run cmd and log output
     """
+    output = None
     if not quiet:
         DAEMON_LOGGER.debug(f'''Running command {cmd}...''')
     try:
-        output = subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=sys.stdout.buffer)
+        output = subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=sys.stdout.buffer).replace("\n", "\\n")
     except subprocess.CalledProcessError as e:
         if not quiet:
-            DAEMON_LOGGER.error(f"Exception: {e}"
+            DAEMON_LOGGER.error(f"Exception: {e}")
     if output and not quiet:
         DAEMON_LOGGER.debug(f'''Output for {cmd}: {output}''')
 
@@ -211,6 +209,7 @@ def main():
     finished = q.get(block=True)
     if finished:
         server.terminate()
+        logging.shutdown()
 
 
 if __name__=="__main__":
