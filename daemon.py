@@ -43,9 +43,16 @@ def _handle_startup():
     if not update, assume crash and error state
     if update, log update completed
     """
+    # ensure daemon flask server is accessible
+    internal_ip = _run_shell_cmd("hostname -I | awk '{print $1}'")
+    _run_shell_cmd("upnpc -a {internal_ip} 44443 44443 tcp")
+    
     log_file_exists = os.path.exists(LOG_FILE)
+    daemon_py = os.path.realpath(__file__)
     if not log_file_exists:
-        # TODO ensure daemon is run on system startup
+        # ensure daemon is run on system startup
+        _run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
+
         return
 
     # get last line of log file
@@ -81,13 +88,14 @@ def _log_before_after(func, params):
     return wrapper
 
 
-def _run_shell_cmd(cmd):
+def _run_shell_cmd(cmd, quiet=False):
     """
     run cmd and log output
     """
-    DAEMON_LOGGER.debug(f'''Running command {cmd}...''')
+    if not quiet:
+        DAEMON_LOGGER.debug(f'''Running command {cmd}...''')
     output = subprocess.check_output(cmd, shell=True, text=True)
-    if output:
+    if output and not quiet:
         DAEMON_LOGGER.debug(f'''Output for {cmd}: {output}''')
 
     return output
@@ -141,7 +149,10 @@ def uninstall(params):
     # send logs first
     send_logs(params)
     # clean up rentaflop host software
-    _run_shell_cmd("rm -rf ../rentaflop-host")
+    _run_shell_cmd("upnpc -d 44443 tcp")
+    daemon_py = os.path.realpath(__file__)
+    _run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -"
+    _run_shell_cmd("rm -rf ../rentaflop-host", True)
 
     return True
 
