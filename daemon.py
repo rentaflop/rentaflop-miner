@@ -7,7 +7,9 @@ usage:
 """
 import os
 import logging
-    
+import uuid
+from flask import Flask, jsonify, request
+
     
 def _get_logger():
     """
@@ -25,6 +27,12 @@ def _get_logger():
 
 DAEMON_LOGGER = _get_logger()
 LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log")
+CMD_TO_FUNC = {
+    "mine": mine,
+    "update": update,
+    "uninstall": uninstall,
+    "send_logs": send_logs,
+}
 
 
 def _handle_startup():
@@ -88,8 +96,15 @@ def _run_shell_cmd(cmd):
 def mine(params):
     """
     handle commands related to mining, whether crypto mining or guest "mining"
+    params looks like {"type": "crypto" | "gpc"}
     """
-    pass
+    mine_type = params["type"]
+    if mine_type == "crypto":
+        # TODO launch crypto docker
+        return
+    elif mine_type == "gpc":
+        # TODO launch guest sandbox
+        return
 
 
 def update(params):
@@ -123,7 +138,8 @@ def uninstall(params):
     # TODO rename images/containers
     _run_shell_cmd('docker stop $(docker ps --filter "name=ssh*" -q)')
     _run_shell_cmd('docker rmi $(docker images -q "dasokol/*") $(docker images "nvidia/cuda" -a -q)')
-    # TODO send logs first
+    # send logs first
+    send_logs(params)
     # clean up rentaflop host software
     _run_shell_cmd("rm -rf ../rentaflop-host")
 
@@ -140,26 +156,32 @@ def send_logs(params):
     # TODO send logs to server
 
 
-def main():
-    cmd_to_func = {
-        "mine": mine,
-        "update": update,
-        "uninstall": uninstall,
-        "send_logs": send_logs,
-    }
-    _handle_startup()
+@app.route("/", methods=["POST"])
+def index():
+    request_json = request.get_json()
+    cmd = request_json.get("cmd")
+    params = request_json.get("params")
+    func = CMD_TO_FUNC.get(cmd)
     finished = False
-    while not finished:
-        # TODO either receive command or request it
-        response = {"cmd": "mine", "params": {}}
-        cmd = response.get("cmd")
-        params = response.get("params")
-        func = cmd_to_func.get(cmd)
-        if func:
-            try:
-                finished = _log_before_after(func, params)
-            except Exception as e:
-                DAEMON_LOGGER.exception(f"Caught exception: {e}")
+    if func:
+        try:
+            finished = _log_before_after(func, params)
+        except Exception as e:
+            DAEMON_LOGGER.exception(f"Caught exception: {e}")
+    if finished:
+        shutdown_func = request.environ.get('werkzeug.server.shutdown')
+        if shutdown_func is None:
+            raise RuntimeError('Not running with the Werkzeug Server!')
+        shutdown_func()
+
+    return jsonify("200")
+
+
+def main():
+    _handle_startup()
+    app = Flask(__name__)
+    app.secret_key = uuid.uuid4().hex
+    app.run(host='0.0.0.0', port=44443)
 
 
 if __name__=="__main__":
