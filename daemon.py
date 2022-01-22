@@ -43,9 +43,8 @@ def _handle_startup():
     internal_ip = _run_shell_cmd("hostname -I | awk '{print $1}'").replace("\n", "")
     _run_shell_cmd(f"upnpc -a {internal_ip} 44443 44443 tcp")
     
-    log_file_exists = os.path.exists(LOG_FILE)
-    daemon_py = os.path.realpath(__file__)
-    if not log_file_exists:
+    if FIRST_STARTUP:
+        daemon_py = os.path.realpath(__file__)
         # ensure daemon is run on system startup
         _run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
 
@@ -194,6 +193,7 @@ def run_flask_server(q):
     
     
 LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log")
+FIRST_STARTUP = (not os.path.exists(LOG_FILE))
 DAEMON_LOGGER = _get_logger()
 CMD_TO_FUNC = {
     "mine": mine,
