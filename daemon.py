@@ -107,13 +107,15 @@ def mine(params):
     params looks like {"type": "crypto" | "gpc"}
     """
     mine_type = params["type"]
+    _run_shell_cmd("sudo docker run --gpus all --device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
+    --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
+    -p 2222:22 --rm --name rentaflop/sandbox -dt rentaflop/sandbox")
+    # TODO change worker in config.json from rentaflop_one to rentaflop_id
     # TODO figure out how to handle differences between crypto and guest sandbox while trying to keep them in same docker
-    if mine_type == "crypto":
-        # TODO change worker from rentaflop_one to rentaflop_id
-        return
-    elif mine_type == "gpc":
-        # TODO launch guest sandbox
-        return
+    # if mine_type == "crypto":
+    #     return
+    # elif mine_type == "gpc":
+    #     return
 
 
 def update(params):
@@ -144,7 +146,6 @@ def uninstall(params):
     uninstall rentaflop from this machine
     """
     # stop and remove all rentaflop docker containers and images
-    # TODO rename images/containers
     _run_shell_cmd('docker stop $(docker ps --filter "name=rentaflop/*" -q)')
     _run_shell_cmd('docker rmi $(docker images -q "rentaflop/*") $(docker images "nvidia/cuda" -a -q)')
     # send logs first

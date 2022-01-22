@@ -21,4 +21,3 @@ sudo sed -i 's/#no-cgroups = false/no-cgroups = true/' /etc/nvidia-container-run
 sudo sed -i '$s/}/,\n"userns-remap":"default"}/' /etc/docker/daemon.json
 sudo systemctl restart docker
 sudo docker build -f Dockerfile -t rentaflop/sandbox .
-sudo docker run --gpus all --device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools -p 2222:22 --rm --name rentaflop/sandbox -dt rentaflop/sandbox
