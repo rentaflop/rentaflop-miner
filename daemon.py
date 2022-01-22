@@ -165,13 +165,14 @@ def send_logs(params):
     with open(LOG_FILE, "r") as f:
         logs = f.read()
 
-    # TODO send logs to server
+    return {"logs": logs}
 
 
 def run_flask_server(q):
     @app.route("/", methods=["POST"])
     def index():
         request_json = request.get_json()
+        # TODO figure out a way to only run commands from rentaflop, perhaps using keys
         cmd = request_json.get("cmd")
         params = request_json.get("params")
         func = CMD_TO_FUNC.get(cmd)
@@ -181,8 +182,11 @@ def run_flask_server(q):
                 finished = _log_before_after(func, params)()
             except Exception as e:
                 DAEMON_LOGGER.exception(f"Caught exception: {e}")
-        if finished:
-            q.put(True)
+        if finished is True:
+            q.put(finished)
+        # finished isn't True but it's not Falsey, so return it in response
+        if (finished is not True) and finished:
+            return jsonify(finished), 200
 
         return jsonify("200")
     
