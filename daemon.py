@@ -41,7 +41,7 @@ def _handle_startup():
     """
     # ensure daemon flask server is accessible
     internal_ip = _run_shell_cmd("hostname -I | awk '{print $1}'").replace("\n", "")
-    _run_shell_cmd(f"upnpc -a {internal_ip} 44443 44443 tcp")
+    _run_shell_cmd(f"upnpc -a {internal_ip} 46443 46443 tcp")
     
     if FIRST_STARTUP:
         daemon_py = os.path.realpath(__file__)
@@ -107,8 +107,9 @@ def mine(params):
     params looks like {"type": "crypto" | "gpc"}
     """
     mine_type = params["type"]
+    # TODO figure out how to handle differences between crypto and guest sandbox while trying to keep them in same docker
     if mine_type == "crypto":
-        # TODO launch crypto docker
+        # TODO change worker from rentaflop_one to rentaflop_id
         return
     elif mine_type == "gpc":
         # TODO launch guest sandbox
@@ -144,12 +145,12 @@ def uninstall(params):
     """
     # stop and remove all rentaflop docker containers and images
     # TODO rename images/containers
-    _run_shell_cmd('docker stop $(docker ps --filter "name=ssh*" -q)')
-    _run_shell_cmd('docker rmi $(docker images -q "dasokol/*") $(docker images "nvidia/cuda" -a -q)')
+    _run_shell_cmd('docker stop $(docker ps --filter "name=rentaflop/*" -q)')
+    _run_shell_cmd('docker rmi $(docker images -q "rentaflop/*") $(docker images "nvidia/cuda" -a -q)')
     # send logs first
     send_logs(params)
     # clean up rentaflop host software
-    _run_shell_cmd("upnpc -d 44443 tcp")
+    _run_shell_cmd("upnpc -d 46443 tcp")
     daemon_py = os.path.realpath(__file__)
     _run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
     _run_shell_cmd("rm -rf ../rentaflop-host", True)
@@ -189,7 +190,7 @@ def run_flask_server(q):
 
         return jsonify("200")
     
-    app.run(host='0.0.0.0', port=44443)
+    app.run(host='0.0.0.0', port=46443)
     
     
 LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log")

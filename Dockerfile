@@ -9,4 +9,6 @@ RUN sudo echo -en 'Welcome to rentaflop, the crowdsourced cloud provider.\n\n' >
 RUN touch /home/test/.sudo_as_admin_successful
 RUN ssh-keygen -A && mkdir -p /run/sshd
 RUN sudo ldconfig.real
-CMD ["/usr/sbin/sshd", "-D"]
+COPY sandbox_setup.sh .
+COPY config.json .
+CMD ["./sandbox_setup.sh"]
