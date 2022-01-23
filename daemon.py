@@ -44,6 +44,7 @@ def _handle_startup():
     _run_shell_cmd(f"upnpc -a {internal_ip} 46443 46443 tcp")
     
     if FIRST_STARTUP:
+        # TODO move host_install.sh into here
         daemon_py = os.path.realpath(__file__)
         # ensure daemon is run on system startup
         _run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
