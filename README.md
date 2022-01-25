@@ -4,9 +4,10 @@ This repo contains the host software for [rentaflop](https://rentaflop.com), the
 
 ## limitations
 Commercial use of this software is prohibited. This software may be used, distributed, or modified for any purpose
-other than commercial use. In no event shall the authors, copyright holders, or Rentaflop, INC. be
+other than commercial use at the user's risk. In no event shall the authors, copyright holders, or Rentaflop, INC. be
 liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from,
-out of or in connection with the software or the use or other dealings in the software.
+out of or in connection with the software or the use or other dealings in the software. Rentaflop, INC. makes no
+representations or warranties, express or implied, regarding the nature or quality of this software.
 
 ## about
 The host software controls all actions run by rentaflop hosts. In particular, it contains host hardware registration,

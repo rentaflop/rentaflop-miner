@@ -19,17 +19,17 @@ def register_host(wallet):
     # post wallet address and above info to rentaflop server at https://portal.rentaflop.com/api/host/daemon
     # rentaflop to check if info already registered and return appropriate rentaflopID
     rentaflop_id = "TEST_RENTAFLOPID"
+    # TODO refactor to use daemon logger
     print(f"Connected to rentaflop, worker ID={rentaflop_id}")
-    #TODO: write this ID and other information to disk somewhere
+
     return rentaflop_id
 
 
 def check_p2p():
     """
     ensure p2p connection requirements are met
-    we use UPnP to make connections
     """
-    os.system("apt install miniupnpc -y")
+    # TODO refactor to use run_shell_cmd
     command_output = subprocess.check_output(["upnpc", "-s"]).decode("utf-8")
     if "No IGD UPnP Device found on the network" in command_output:
         print("Please ensure you have a router (or other device) configured to use UPnP on your network.")
@@ -44,7 +44,7 @@ def check_drive_size():
     """
     min_drive_size = 25.0
     drive_info = subprocess.check_output(["fdisk", "-l"]).decode("utf-8") 
-    # TODO run disk-expand utility from hive
+    # TODO run disk-expand utility from hive (or better, make it work on all linux distros)
     match = re.search("Disk /dev/sda: [+-]?([0-9]*[.])?[0-9]+", drive_info).group(0)
     drive_size = float(match.split()[-1])
     if drive_size < min_drive_size:

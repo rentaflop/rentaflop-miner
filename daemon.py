@@ -12,43 +12,60 @@ import subprocess
 import multiprocessing
 import sys
 from flask import Flask, jsonify, request
+from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE
+from utils import run_shell_cmd, log_before_after
 
 
 app = Flask(__name__)
 
+
+def _first_startup():
+    """
+    run rentaflop installation and registration steps
+    """
+    daemon_py = os.path.realpath(__file__)
+    # ensure daemon is run on system startup
+    run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
+    # perform system update
+    update({"type": "system"}, reboot=False)
+    # install dependencies
+    run_shell_cmd("sudo apt-get install ca-certificates curl gnupg lsb-release python3-pip -y")
+    run_shell_cmd("curl -fsSL https://download.docker.com/linux/debian/gpg \
+    | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg --batch --yes")
+    run_shell_cmd('echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] \
+    https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null')
+    run_shell_cmd("distribution=$(. /etc/os-release; echo $ID$VERSION_ID) \
+    && curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add - \
+    && curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list")
+    run_shell_cmd("sudo apt-get update -y")
+    run_shell_cmd("sudo apt-get install miniupnpc docker-ce docker-ce-cli containerd.io nvidia-docker2 -y")
+    # docker setup
+    run_shell_cmd("sudo sed -i 's/#no-cgroups = false/no-cgroups = true/' /etc/nvidia-container-runtime/config.toml")
+    run_shell_cmd('''sudo sed -i '$s/}/,\n"userns-remap":"default"}/' /etc/docker/daemon.json''')
+    run_shell_cmd("sudo systemctl restart docker")
+    run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
+
+    # register host with rentaflop
     
-def _get_logger():
-    """
-    modules use this to create/retrieve and configure how logging works for their specific module
-    """
-    module_logger = logging.getLogger("daemon.log")
-    handler = logging.FileHandler(LOG_FILE)
-    handler.setLevel(logging.DEBUG)
-    handler.setFormatter(logging.Formatter("%(filename)s:%(lineno)d %(levelname)s %(asctime)s - %(message)s"))
-    module_logger.addHandler(handler)
-    module_logger.setLevel(logging.DEBUG)
+    run_shell_cmd("sudo reboot")
 
-    return module_logger
-
-
+    
 def _handle_startup():
     """
     checks to see if there's an existing log file to handle startup scenarios
     if no log file, then assume first startup
+    if first startup, run rentaflop installation and registration steps
     if log file exists, check last command to see if it was an update
     if not update, assume crash and error state
     if update, log update completed
     """
     # ensure daemon flask server is accessible
-    internal_ip = _run_shell_cmd("hostname -I | awk '{print $1}'").replace("\n", "")
-    _run_shell_cmd(f"upnpc -a {internal_ip} 46443 46443 tcp")
+    internal_ip = run_shell_cmd("hostname -I | awk '{print $1}'", format_output=False).replace("\n", "")
+    run_shell_cmd(f"upnpc -a {internal_ip} 46443 46443 tcp")
     
     if FIRST_STARTUP:
-        # TODO move host_install.sh into here
-        daemon_py = os.path.realpath(__file__)
-        # ensure daemon is run on system startup
-        _run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
-
+        _first_startup()
+        
         return
 
     # get last line of log file
@@ -64,42 +81,11 @@ def _handle_startup():
 
     is_update = ("sudo reboot" in last_line) or ("python3 daemon.py" in last_line)
     if not is_update:
-        # TODO error status
+        # error state
+        DAEMON_LOGGER.debug(f"Daemon crashed.")
         return
 
     DAEMON_LOGGER.debug(f"Exiting update.")
-
-
-def _log_before_after(func, params):
-    """
-    wrapper to log debug info before and after each daemon command
-    """
-    def wrapper():
-        DAEMON_LOGGER.debug(f"Entering {func.__name__} with params {params}...")
-        ret_val = func(params)
-        DAEMON_LOGGER.debug(f"Exiting {func.__name__}.")
-
-        return ret_val
-
-    return wrapper
-
-
-def _run_shell_cmd(cmd, quiet=False):
-    """
-    run cmd and log output
-    """
-    output = None
-    if not quiet:
-        DAEMON_LOGGER.debug(f'''Running command {cmd}...''')
-    try:
-        output = subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=sys.stdout.buffer).replace("\n", "\\n")
-    except subprocess.CalledProcessError as e:
-        if not quiet:
-            DAEMON_LOGGER.error(f"Exception: {e}")
-    if output and not quiet:
-        DAEMON_LOGGER.debug(f'''Output for {cmd}: {output}''')
-
-    return output
 
 
 def mine(params):
@@ -108,7 +94,7 @@ def mine(params):
     params looks like {"type": "crypto" | "gpc"}
     """
     mine_type = params["type"]
-    _run_shell_cmd("sudo docker run --gpus all --device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
+    run_shell_cmd("sudo docker run --gpus all --device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
     --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
     -p 2222:22 --rm --name rentaflop/sandbox -dt rentaflop/sandbox")
     # TODO change worker in config.json from rentaflop_one to rentaflop_id
@@ -119,27 +105,28 @@ def mine(params):
     #     return
 
 
-def update(params):
+def update(params, reboot=True):
     """
     handle commands related to rentaflop software and system updates
     params looks like {"type": "rentaflop" | "system"}
     """
     update_type = params["type"]
     if update_type == "rentaflop":
-        _run_shell_cmd("git pull")
+        run_shell_cmd("git pull")
         # daemon will shut down (but not full system) so this ensures it starts back up again
-        _run_shell_cmd('echo "sleep 3; python3 daemon.py" | at now')
+        run_shell_cmd('echo "sleep 3; python3 daemon.py" | at now')
 
         return True
     elif update_type == "system":
-        _run_shell_cmd("sudo apt-get update -y")
-        _run_shell_cmd("DEBIAN_FRONTEND=noninteractive \
+        run_shell_cmd("sudo apt-get update -y")
+        run_shell_cmd("DEBIAN_FRONTEND=noninteractive \
         sudo apt-get \
         -o Dpkg::Options::=--force-confold \
         -o Dpkg::Options::=--force-confdef \
         -y --allow-downgrades --allow-remove-essential --allow-change-held-packages \
         dist-upgrade")
-        _run_shell_cmd("sudo reboot")
+        if reboot:
+            run_shell_cmd("sudo reboot")
         
 
 def uninstall(params):
@@ -147,15 +134,15 @@ def uninstall(params):
     uninstall rentaflop from this machine
     """
     # stop and remove all rentaflop docker containers and images
-    _run_shell_cmd('docker stop $(docker ps --filter "name=rentaflop/*" -q)')
-    _run_shell_cmd('docker rmi $(docker images -q "rentaflop/*") $(docker images "nvidia/cuda" -a -q)')
+    run_shell_cmd('docker stop $(docker ps --filter "name=rentaflop/*" -q)')
+    run_shell_cmd('docker rmi $(docker images -q "rentaflop/*") $(docker images "nvidia/cuda" -a -q)')
     # send logs first
     send_logs(params)
     # clean up rentaflop host software
-    _run_shell_cmd("upnpc -d 46443 tcp")
+    run_shell_cmd("upnpc -d 46443 tcp")
     daemon_py = os.path.realpath(__file__)
-    _run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
-    _run_shell_cmd("rm -rf ../rentaflop-host", True)
+    run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
+    run_shell_cmd("rm -rf ../rentaflop-host", True)
 
     return True
 
@@ -195,9 +182,6 @@ def run_flask_server(q):
     app.run(host='0.0.0.0', port=46443)
     
     
-LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log")
-FIRST_STARTUP = (not os.path.exists(LOG_FILE))
-DAEMON_LOGGER = _get_logger()
 CMD_TO_FUNC = {
     "mine": mine,
     "update": update,
