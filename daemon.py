@@ -47,25 +47,11 @@ def _first_startup():
     
     run_shell_cmd("sudo reboot")
 
-    
-def _handle_startup():
-    """
-    checks to see if there's an existing log file to handle startup scenarios
-    if no log file, then assume first startup
-    if first startup, run rentaflop installation and registration steps
-    if log file exists, check last command to see if it was an update
-    if not update, assume crash and error state
-    if update, log update completed
-    """
-    # ensure daemon flask server is accessible
-    internal_ip = run_shell_cmd("hostname -I | awk '{print $1}'", format_output=False).replace("\n", "")
-    run_shell_cmd(f"upnpc -a {internal_ip} 46443 46443 tcp")
-    
-    if FIRST_STARTUP:
-        _first_startup()
-        
-        return
 
+def _subsequent_startup():
+    """
+    handle case where log file already exists and we've had a prior daemon startup
+    """
     # get last line of log file
     with open(LOG_FILE, 'rb') as f:
         # catch OSError in case of a one line file
@@ -78,12 +64,30 @@ def _handle_startup():
         last_line = f.readline().decode()
 
     is_update = ("sudo reboot" in last_line) or ("python3 daemon.py" in last_line)
-    if not is_update:
+    if is_update:
+        DAEMON_LOGGER.debug(f"Exiting update.")
+    else:
         # error state
         DAEMON_LOGGER.debug(f"Daemon crashed.")
-        return
 
-    DAEMON_LOGGER.debug(f"Exiting update.")
+    
+def _handle_startup():
+    """
+    uses log file existence to handle startup scenarios
+    if no log file, then assume first startup
+    if first startup, run rentaflop installation and registration steps
+    if log file exists, check last command to see if it was an update
+    if not update, assume crash and error state
+    if update, log update completed
+    """
+    if FIRST_STARTUP:
+        _first_startup()
+    else:
+        _subsequent_startup()
+
+    # ensure daemon flask server is accessible
+    internal_ip = run_shell_cmd("hostname -I | awk '{print $1}'", format_output=False).replace("\n", "")
+    run_shell_cmd(f"upnpc -a {internal_ip} 46443 46443 tcp")
 
 
 def mine(params):
