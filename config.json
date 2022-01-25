@@ -6,6 +6,7 @@
   "long-format": "false",
   "ssl-strict": "false",
   "url": "stratum+tcp://beamv3.usa.nicehash.com:3387",
+  "TODO": "change worker from rentaflop_one to rentaflop_id",
   "user": "36W2JuifYzGv5ABYGNf6xa2sEoidZvmEnM.rentaflop_one",
   "password": "",
   "url1": "",

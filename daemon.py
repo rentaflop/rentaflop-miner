@@ -97,7 +97,6 @@ def mine(params):
     run_shell_cmd("sudo docker run --gpus all --device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
     --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
     -p 2222:22 --rm --name rentaflop/sandbox -dt rentaflop/sandbox")
-    # TODO change worker in config.json from rentaflop_one to rentaflop_id
     # TODO figure out how to handle differences between crypto and guest sandbox while trying to keep them in same docker
     # if mine_type == "crypto":
     #     return
