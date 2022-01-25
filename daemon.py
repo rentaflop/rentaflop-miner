@@ -8,9 +8,7 @@ usage:
 import os
 import logging
 import uuid
-import subprocess
 import multiprocessing
-import sys
 from flask import Flask, jsonify, request
 from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE
 from utils import run_shell_cmd, log_before_after
@@ -167,7 +165,7 @@ def run_flask_server(q):
         finished = False
         if func:
             try:
-                finished = _log_before_after(func, params)()
+                finished = log_before_after(func, params)()
             except Exception as e:
                 DAEMON_LOGGER.exception(f"Caught exception: {e}")
         if finished is True:

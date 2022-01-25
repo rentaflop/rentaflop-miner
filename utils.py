@@ -1,7 +1,8 @@
 """
 utility functions to be used in various parts of host software
 """
-import logging
+import subprocess
+import sys
 from config import DAEMON_LOGGER
 
 
@@ -18,7 +19,7 @@ def run_shell_cmd(cmd, quiet=False, format_output=True):
             output = output.replace("\n", " \\n ")
     except subprocess.CalledProcessError as e:
         if not quiet:
-            DAEMON_LOGGER.error(f"Exception: {e}")
+            DAEMON_LOGGER.error(f"Exception: {e}\n{e.output}")
     if output and not quiet:
         DAEMON_LOGGER.debug(f'''Output for {cmd}: {output}''')
 
