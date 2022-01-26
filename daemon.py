@@ -39,7 +39,7 @@ def _first_startup():
     run_shell_cmd("sudo apt-get install miniupnpc docker-ce docker-ce-cli containerd.io nvidia-docker2 -y")
     # docker setup
     run_shell_cmd("sudo sed -i 's/#no-cgroups = false/no-cgroups = true/' /etc/nvidia-container-runtime/config.toml")
-    run_shell_cmd('''sudo sed -i '$s/}/,\n"userns-remap":"default"}/' /etc/docker/daemon.json''')
+    run_shell_cmd(r'''sudo sed -i '$s/}/,\n"userns-remap":"default"}/' /etc/docker/daemon.json''')
     run_shell_cmd("sudo systemctl restart docker")
     run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
 
@@ -137,8 +137,8 @@ def uninstall(params):
     # stop and remove all rentaflop docker containers and images
     run_shell_cmd('docker stop $(docker ps --filter "name=rentaflop/*" -q)')
     run_shell_cmd('docker rmi $(docker images -q "rentaflop/*") $(docker images "nvidia/cuda" -a -q)')
-    # send logs first
-    send_logs(params)
+    # send logs first; do we need this?
+    # send_logs(params)
     # clean up rentaflop host software
     run_shell_cmd("upnpc -d 46443 tcp")
     daemon_py = os.path.realpath(__file__)
