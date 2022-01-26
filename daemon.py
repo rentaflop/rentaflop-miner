@@ -9,8 +9,8 @@ import os
 import logging
 import uuid
 import multiprocessing
-from flask import Flask, jsonify, request
-from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE
+from flask import Flask, jsonify, request, abort
+from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, RENTAFLOP_API_KEY
 from utils import run_shell_cmd, log_before_after
 
 
@@ -19,7 +19,7 @@ app = Flask(__name__)
 
 def _first_startup():
     """
-    run rentaflop installation and registration steps
+    run rentaflop installation steps
     """
     daemon_py = os.path.realpath(__file__)
     # ensure daemon is run on system startup
@@ -41,10 +41,7 @@ def _first_startup():
     run_shell_cmd("sudo sed -i 's/#no-cgroups = false/no-cgroups = true/' /etc/nvidia-container-runtime/config.toml")
     run_shell_cmd(r'''sudo sed -i '$s/}/,\n"userns-remap":"default"}/' /etc/docker/daemon.json''')
     run_shell_cmd("sudo systemctl restart docker")
-    run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
-
-    # register host with rentaflop
-    
+    run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")    
     run_shell_cmd("sudo reboot")
 
 
@@ -75,7 +72,7 @@ def _handle_startup():
     """
     uses log file existence to handle startup scenarios
     if no log file, then assume first startup
-    if first startup, run rentaflop installation and registration steps
+    if first startup, run rentaflop installation steps
     if log file exists, check last command to see if it was an update
     if not update, assume crash and error state
     if update, log update completed
@@ -158,11 +155,25 @@ def send_logs(params):
     return {"logs": logs}
 
 
+@app.before_request
+def before_request():
+    # don't allow anyone who isn't rentaflop to communicate with host daemon
+    request_json = request.get_json()
+    request_rentaflop_api_key = request_json.get("rentaflop_api_key", "")
+    if request_rentaflop_api_key != RENTAFLOP_API_KEY:
+        return abort(403)
+    
+    # force https
+    if not request.is_secure:
+        url = request.url.replace('http://', 'https://', 1)
+        code = 301
+        return redirect(url, code=code)
+
+
 def run_flask_server(q):
     @app.route("/", methods=["POST"])
     def index():
         request_json = request.get_json()
-        # TODO figure out a way to only run commands from rentaflop, perhaps using keys
         cmd = request_json.get("cmd")
         params = request_json.get("params")
         func = CMD_TO_FUNC.get(cmd)

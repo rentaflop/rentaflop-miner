@@ -22,3 +22,10 @@ def _get_logger(log_file):
 LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log")
 FIRST_STARTUP = (not os.path.exists(LOG_FILE))
 DAEMON_LOGGER = _get_logger(LOG_FILE)
+if FIRST_STARTUP:
+    # TODO register host with rentaflop
+    # TODO create real api key, perhaps by requesting it from rentaflop servers upon registration and remembering it in a file
+    RENTAFLOP_API_KEY = "TEST_RENTAFLOP_API_KEY"
+else:
+    # TODO read or request key for real
+    RENTAFLOP_API_KEY = "TEST_RENTAFLOP_API_KEY"
