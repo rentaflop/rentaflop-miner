@@ -24,6 +24,8 @@ def _first_startup():
     daemon_py = os.path.realpath(__file__)
     # ensure daemon is run on system startup
     run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
+    # list of sources for security updates
+    run_shell_cmd("sudo sh -c 'grep ^deb /etc/apt/sources.list | grep security > /etc/apt/sources.security.only.list'")
     # perform system update
     update({"type": "system"}, reboot=False)
     # install dependencies
@@ -117,12 +119,11 @@ def update(params, reboot=True):
         return True
     elif update_type == "system":
         run_shell_cmd("sudo apt-get update -y")
-        run_shell_cmd("DEBIAN_FRONTEND=noninteractive \
-        sudo apt-get \
-        -o Dpkg::Options::=--force-confold \
-        -o Dpkg::Options::=--force-confdef \
-        -y --allow-downgrades --allow-remove-essential --allow-change-held-packages \
-        dist-upgrade")
+        # perform only security updates
+        run_shell_cmd(r'''DEBIAN_FRONTEND=noninteractive \
+        sudo apt-get -s dist-upgrade -y -o Dir::Etc::SourceList=/etc/apt/sources.security.only.list \
+        -o Dir::Etc::SourceParts=/dev/null  | grep "^Inst" | awk -F " " {'print $2'}
+        dist-upgrade''')
         if reboot:
             run_shell_cmd("sudo reboot")
         
