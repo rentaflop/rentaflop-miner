@@ -9,7 +9,7 @@ import os
 import logging
 import uuid
 import multiprocessing
-from flask import Flask, jsonify, request, abort
+from flask import Flask, jsonify, request, abort, redirect
 from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, RENTAFLOP_API_KEY
 from utils import run_shell_cmd, log_before_after
 
@@ -85,7 +85,7 @@ def _handle_startup():
         _subsequent_startup()
 
     # ensure daemon flask server is accessible
-    run_shell_cmd(f"upnpc -r 46443 46443 tcp")
+    run_shell_cmd(f"upnpc -r 46443 tcp")
 
 
 def mine(params):
@@ -96,7 +96,7 @@ def mine(params):
     mine_type = params["type"]
     run_shell_cmd("sudo docker run --gpus all --device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
     --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-    -p 2222:22 --rm --name rentaflop/sandbox -dt rentaflop/sandbox")
+    -p 2222:22 --rm --name rentaflop-sandbox -dt rentaflop/sandbox")
     # TODO figure out how to handle differences between crypto and guest sandbox while trying to keep them in same docker
     # if mine_type == "crypto":
     #     return
@@ -131,8 +131,8 @@ def uninstall(params):
     uninstall rentaflop from this machine
     """
     # stop and remove all rentaflop docker containers and images
-    run_shell_cmd('docker stop $(docker ps --filter "name=rentaflop/*" -q)')
-    run_shell_cmd('docker rmi $(docker images -q "rentaflop/*") $(docker images "nvidia/cuda" -a -q)')
+    run_shell_cmd('docker stop $(docker ps --filter "name=rentaflop*" -q)')
+    run_shell_cmd('docker rmi $(docker images -q "rentaflop*") $(docker images "nvidia/cuda" -a -q)')
     # send logs first; do we need this?
     # send_logs(params)
     # clean up rentaflop host software
@@ -190,7 +190,7 @@ def run_flask_server(q):
 
         return jsonify("200")
     
-    app.run(host='0.0.0.0', port=46443)
+    app.run(host='0.0.0.0', port=46443, ssl_context='adhoc')
     
     
 CMD_TO_FUNC = {

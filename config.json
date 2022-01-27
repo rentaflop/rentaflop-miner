@@ -24,5 +24,5 @@
   "secondary-intensity": "",
   "memory-tweak": "",
   "temperature-limit": 85,
-  "verbose": false,
+  "verbose": false
 }
