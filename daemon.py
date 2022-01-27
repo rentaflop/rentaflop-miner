@@ -29,7 +29,7 @@ def _first_startup():
     # perform system update
     update({"type": "system"}, reboot=False)
     # install dependencies
-    run_shell_cmd("sudo apt-get install ca-certificates curl gnupg lsb-release python3-pip -y")
+    run_shell_cmd("sudo apt-get install ca-certificates curl gnupg lsb-release -y")
     run_shell_cmd("curl -fsSL https://download.docker.com/linux/debian/gpg \
     | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg --batch --yes")
     run_shell_cmd('echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] \
@@ -85,8 +85,7 @@ def _handle_startup():
         _subsequent_startup()
 
     # ensure daemon flask server is accessible
-    internal_ip = run_shell_cmd("hostname -I | awk '{print $1}'", format_output=False).replace("\n", "")
-    run_shell_cmd(f"upnpc -a {internal_ip} 46443 46443 tcp")
+    run_shell_cmd(f"upnpc -r 46443 46443 tcp")
 
 
 def mine(params):
@@ -122,8 +121,7 @@ def update(params, reboot=True):
         # perform only security updates
         run_shell_cmd(r'''DEBIAN_FRONTEND=noninteractive \
         sudo apt-get -s dist-upgrade -y -o Dir::Etc::SourceList=/etc/apt/sources.security.only.list \
-        -o Dir::Etc::SourceParts=/dev/null  | grep "^Inst" | awk -F " " {'print $2'}
-        dist-upgrade''')
+        -o Dir::Etc::SourceParts=/dev/null  | grep "^Inst" | awk -F " " {'print $2'}''')
         if reboot:
             run_shell_cmd("sudo reboot")
         

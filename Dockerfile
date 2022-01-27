@@ -1,5 +1,5 @@
 FROM nvidia/cuda:10.2-base
-RUN apt-get update && apt-get install -y sudo openssh-server
+RUN apt-get update && apt-get install -y sudo openssh-server curl
 EXPOSE 22
 RUN sudo groupadd test && sudo useradd -s /bin/bash -m -g test test && echo "test:test_password" | chpasswd
 RUN usermod -aG sudo test
