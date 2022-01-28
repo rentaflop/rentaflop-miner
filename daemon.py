@@ -85,6 +85,7 @@ def _handle_startup():
         _subsequent_startup()
 
     # ensure daemon flask server is accessible
+    # HTTPS
     run_shell_cmd(f"upnpc -r 46443 tcp")
 
 
@@ -96,12 +97,15 @@ def mine(params):
     mine_type = params["type"]
     run_shell_cmd("sudo docker run --gpus all --device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
     --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-    -p 2222:22 --rm --name rentaflop-sandbox -dt rentaflop/sandbox")
-    # TODO figure out how to handle differences between crypto and guest sandbox while trying to keep them in same docker
-    # if mine_type == "crypto":
-    #     return
-    # elif mine_type == "gpc":
-    #     return
+    -p 46422:22 --rm --name rentaflop-sandbox -dt rentaflop/sandbox")
+    # crypto doesn't expose ports externally while gpc does
+    if mine_type == "gpc":
+        # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
+        # SSH
+        run_shell_cmd(f"upnpc -r 46422 tcp")
+        
+    # TODO stop mine command
+    # run_shell_cmd(f"upnpc -d 46422 tcp")
 
 
 def update(params, reboot=True):
