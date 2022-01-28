@@ -92,20 +92,27 @@ def _handle_startup():
 def mine(params):
     """
     handle commands related to mining, whether crypto mining or guest "mining"
-    params looks like {"type": "crypto" | "gpc"}
+    params looks like {"type": "crypto" | "gpc", "action": "start" | "stop", "gpu": "0"}
     """
     mine_type = params["type"]
-    run_shell_cmd("sudo docker run --gpus all --device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
-    --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-    -p 46422:22 --rm --name rentaflop-sandbox -dt rentaflop/sandbox")
-    # crypto doesn't expose ports externally while gpc does
-    if mine_type == "gpc":
-        # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
-        # SSH
-        run_shell_cmd(f"upnpc -r 46422 tcp")
-        
-    # TODO stop mine command
-    # run_shell_cmd(f"upnpc -d 46422 tcp")
+    action = params["action"]
+    gpu = int(params["gpu"])
+    container_name = f"rentaflop-sandbox-{gpu}"
+    # SSH port
+    port = 46422 + gpu
+
+    if action == "start":
+        # TODO '--gpus all' problematic to use? it's supposed to pass all gpus but only specified device is available, but can't seem to get it to work without 'all'
+        run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
+        --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
+        -p {port}:22 --rm --name {container_name} -dt rentaflop/sandbox")
+        # crypto doesn't expose ports externally while gpc does
+        if mine_type == "gpc":
+            # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
+            run_shell_cmd(f"upnpc -r {port} tcp")
+    elif action == "stop":
+        run_shell_cmd(f"docker kill {container_name}")
+        run_shell_cmd(f"upnpc -d {port} tcp")
 
 
 def update(params, reboot=True):
