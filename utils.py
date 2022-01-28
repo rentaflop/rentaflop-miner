@@ -43,5 +43,5 @@ def get_num_gpus():
     """
     returns the number of gpus available
     """
-    return int(run_shell_cmd("nvidia-smi -L | wc -l"))
+    return int(run_shell_cmd("nvidia-smi -L | wc -l", format_output=False))
 
