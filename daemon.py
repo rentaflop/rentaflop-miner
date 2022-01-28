@@ -11,7 +11,7 @@ import uuid
 import multiprocessing
 from flask import Flask, jsonify, request, abort, redirect
 from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, RENTAFLOP_API_KEY
-from utils import run_shell_cmd, log_before_after
+from utils import run_shell_cmd, log_before_after, get_num_gpus
 
 
 app = Flask(__name__)
@@ -85,8 +85,11 @@ def _handle_startup():
         _subsequent_startup()
 
     # ensure daemon flask server is accessible
-    # HTTPS
+    # HTTPS port
     run_shell_cmd(f"upnpc -r 46443 tcp")
+    n_gpus = get_num_gpus()
+    for gpu in range(n_gpus):
+        mine({"type": "crypto", "action": "start", "gpu": str(gpu)})
 
 
 def mine(params):
@@ -112,6 +115,7 @@ def mine(params):
             run_shell_cmd(f"upnpc -r {port} tcp")
     elif action == "stop":
         run_shell_cmd(f"docker kill {container_name}")
+        # does nothing if port is not open
         run_shell_cmd(f"upnpc -d {port} tcp")
 
 
@@ -142,7 +146,9 @@ def uninstall(params):
     uninstall rentaflop from this machine
     """
     # stop and remove all rentaflop docker containers and images
-    run_shell_cmd('docker stop $(docker ps --filter "name=rentaflop*" -q)')
+    n_gpus = get_num_gpus()
+    for gpu in range(n_gpus):
+        mine({"type": "", "action": "stop", "gpu": str(gpu)})
     run_shell_cmd('docker rmi $(docker images -q "rentaflop*") $(docker images "nvidia/cuda" -a -q)')
     # send logs first; do we need this?
     # send_logs(params)

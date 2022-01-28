@@ -17,8 +17,8 @@ def run_shell_cmd(cmd, quiet=False, format_output=True):
         if format_output:
             output = output.replace("\n", " \\n ")
     except subprocess.CalledProcessError as e:
-        if not quiet:
-            DAEMON_LOGGER.error(f"Exception: {e}\n{e.output}")
+        # always print errors
+        DAEMON_LOGGER.error(f"Exception: {e}\n{e.output}")
     if output and not quiet:
         DAEMON_LOGGER.debug(f'''Output for {cmd}: {output}''')
 
@@ -37,3 +37,11 @@ def log_before_after(func, params):
         return ret_val
 
     return wrapper
+
+
+def get_num_gpus():
+    """
+    returns the number of gpus available
+    """
+    return int(run_shell_cmd("nvidia-smi -L | wc -l"))
+
