@@ -11,7 +11,7 @@ import uuid
 import multiprocessing
 from flask import Flask, jsonify, request, abort, redirect
 from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, RENTAFLOP_API_KEY
-from utils import run_shell_cmd, log_before_after, get_num_gpus
+from utils import run_shell_cmd, log_before_after, get_num_gpus, get_state
 
 
 app = Flask(__name__)
@@ -86,7 +86,7 @@ def _handle_startup():
 
     # ensure daemon flask server is accessible
     # HTTPS port
-    run_shell_cmd(f"upnpc -r 46443 tcp")
+    run_shell_cmd(f"upnpc -e 'rentaflop' -r 46443 tcp")
     n_gpus = get_num_gpus()
     for gpu in range(n_gpus):
         mine({"type": "crypto", "action": "start", "gpu": str(gpu)})
@@ -100,19 +100,20 @@ def mine(params):
     mine_type = params["type"]
     action = params["action"]
     gpu = int(params["gpu"])
-    container_name = f"rentaflop-sandbox-{gpu}"
+    container_name = f"rentaflop-sandbox-{gpu}-{mine_type}"
     # SSH port
     port = 46422 + gpu
 
     if action == "start":
         # TODO '--gpus all' problematic to use? it's supposed to pass all gpus but only specified device is available, but can't seem to get it to work without 'all'
+        # TODO set constraints on ram, cpu, bandwidth https://docs.docker.com/engine/reference/run/
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
         -p {port}:22 --rm --name {container_name} -dt rentaflop/sandbox")
         # crypto doesn't expose ports externally while gpc does
         if mine_type == "gpc":
             # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
-            run_shell_cmd(f"upnpc -r {port} tcp")
+            run_shell_cmd(f"upnpc -e 'rentaflop' -r {port} tcp")
     elif action == "stop":
         run_shell_cmd(f"docker kill {container_name}")
         # does nothing if port is not open
@@ -171,6 +172,13 @@ def send_logs(params):
     return {"logs": logs}
 
 
+def status(params):
+    """
+    return the state of this host
+    """
+    return {"state": get_state()}
+
+
 @app.before_request
 def before_request():
     # don't allow anyone who isn't rentaflop to communicate with host daemon
@@ -215,6 +223,7 @@ CMD_TO_FUNC = {
     "update": update,
     "uninstall": uninstall,
     "send_logs": send_logs,
+    "status": status,
 }
 
 

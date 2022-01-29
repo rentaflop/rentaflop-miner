@@ -45,3 +45,25 @@ def get_num_gpus():
     """
     return int(run_shell_cmd("nvidia-smi -L | wc -l", format_output=False))
 
+
+def get_state():
+    """
+    returns a dictionary with all relevant daemon state information
+    this includes gpus, running containers, container use, upnp ports, etc.
+    """
+    state = {}
+    n_gpus = get_num_gpus()
+    state["n_gpus"] = n_gpus
+    gpu_states = {str(gpu):"down" for gpu in range(n_gpus)}
+    # get all container names
+    containers = run_shell_cmd('docker ps --filter "name=rentaflop*" --format {{.Names}}', format_output=False).split()
+    for container in containers:
+        # container looks like f"rentaflop-sandbox-{gpu}-{mine_type}"
+        _, _, gpu, mine_type = container.split("-")
+        gpu_states[gpu] = mine_type
+
+    state["gpu_states"] = gpu_states
+    ports = run_shell_cmd('upnpc -l | grep rentaflop | cut -d " " -f 4 | cut -d "-" -f 1', format_output=False).split()
+    state["ports"] = ports
+
+    return state
