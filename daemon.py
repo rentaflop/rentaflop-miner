@@ -123,6 +123,15 @@ def mine(params):
         run_shell_cmd(f"upnpc -u {IGD} -d {port} tcp")
 
 
+def _stop_all():
+    """
+    stop all rentaflop docker containers
+    """
+    n_gpus = get_num_gpus()
+    for gpu in range(n_gpus):
+        mine({"type": "", "action": "stop", "gpu": str(gpu)})
+
+    
 def update(params, reboot=True):
     """
     handle commands related to rentaflop software and system updates
@@ -131,6 +140,8 @@ def update(params, reboot=True):
     update_type = params["type"]
     if update_type == "rentaflop":
         run_shell_cmd("git pull")
+        # stop all rentaflop docker containers
+        _stop_all()
         # daemon will shut down (but not full system) so this ensures it starts back up again
         run_shell_cmd('echo "sleep 3; python3 daemon.py" | at now')
 
@@ -150,9 +161,7 @@ def uninstall(params):
     uninstall rentaflop from this machine
     """
     # stop and remove all rentaflop docker containers and images
-    n_gpus = get_num_gpus()
-    for gpu in range(n_gpus):
-        mine({"type": "", "action": "stop", "gpu": str(gpu)})
+    _stop_all()
     run_shell_cmd('docker rmi $(docker images -q "rentaflop*") $(docker images "nvidia/cuda" -a -q)')
     # send logs first; do we need this?
     # send_logs(params)
