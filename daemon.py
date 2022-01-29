@@ -4,6 +4,9 @@ functions include, but are not limited to, software updates, system updates,
 guest and crypto mining session initiation/termination, uninstallation
 usage:
     python daemon.py
+    # used to indicate rentaflop code update still in progress so we must call
+    # update function again; not used during system updates or on second update
+    python daemon.py update
 """
 import os
 import logging
@@ -12,6 +15,7 @@ import multiprocessing
 from flask import Flask, jsonify, request, abort, redirect
 from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, RENTAFLOP_API_KEY
 from utils import *
+import sys
 
 
 app = Flask(__name__)
@@ -51,6 +55,14 @@ def _subsequent_startup():
     """
     handle case where log file already exists and we've had a prior daemon startup
     """
+    # if update passed as clarg, then we need to call update again to handle situation when
+    # update function itself has been updated in the rentaflop code update
+    if len(sys.argv) > 1 and sys.argv[1] == "update":
+        update({"type": "rentaflop", second_update=True})
+        DAEMON_LOGGER.debug(f"Exiting update.")
+        # exiting daemon now since it's set to restart in 3 seconds
+        sys.exit(0)
+
     # get last line of log file
     with open(LOG_FILE, 'rb') as f:
         # catch OSError in case of a one line file
@@ -130,18 +142,25 @@ def _stop_all():
     run_shell_cmd('docker stop $(docker ps --filter "name=rentaflop*" -q)')
 
     
-def update(params, reboot=True):
+def update(params, reboot=True, second_update=False):
     """
     handle commands related to rentaflop software and system updates
     params looks like {"type": "rentaflop" | "system"}
+    reboot controls whether system update will reboot
+    second_update is set to True to indicate current update code running is already up to date,
+    False if it hasn't been updated yet
+    if second_update is True, we're performing the real update, as latest code for this function
+    is currently running, whereas on the first update this function may not have been up to date
     """
     update_type = params["type"]
     if update_type == "rentaflop":
+        # must run all commands even if second update
         run_shell_cmd("git pull")
         # stop all rentaflop docker containers
         _stop_all()
+        update_param = "" if second_update else " update"
         # daemon will shut down (but not full system) so this ensures it starts back up again
-        run_shell_cmd('echo "sleep 3; python3 daemon.py" | at now')
+        run_shell_cmd(f'echo "sleep 3; python3 daemon.py{update_param}" | at now')
 
         return True
     elif update_type == "system":
