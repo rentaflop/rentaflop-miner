@@ -196,7 +196,7 @@ def send_logs(params):
     gather host logs and send back to rentaflop servers
     """
     with open(LOG_FILE, "r") as f:
-        logs = f.read()
+        logs = f.readlines()
 
     return {"logs": logs}
 
