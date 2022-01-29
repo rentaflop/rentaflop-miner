@@ -127,9 +127,7 @@ def _stop_all():
     """
     stop all rentaflop docker containers
     """
-    n_gpus = get_num_gpus()
-    for gpu in range(n_gpus):
-        mine({"type": "", "action": "stop", "gpu": str(gpu)})
+    run_shell_cmd('docker stop $(docker ps --filter "name=rentaflop*" -q)')
 
     
 def update(params, reboot=True):
