@@ -39,6 +39,13 @@ def log_before_after(func, params):
     return wrapper
 
 
+def get_igd():
+    """
+    returns internet gateway device URL for upnp to use
+    """
+    return run_shell_cmd('upnpc -s | grep "Found valid IGD" | cut -d " " -f 5', format_output=False).replace("\n", "")
+
+
 def get_num_gpus():
     """
     returns the number of gpus available

@@ -11,7 +11,7 @@ import uuid
 import multiprocessing
 from flask import Flask, jsonify, request, abort, redirect
 from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, RENTAFLOP_API_KEY
-from utils import run_shell_cmd, log_before_after, get_num_gpus, get_state
+from utils import *
 
 
 app = Flask(__name__)
@@ -84,9 +84,12 @@ def _handle_startup():
     else:
         _subsequent_startup()
 
+    # set IGD to speed up upnpc commands
+    global IGD
+    IGD = get_igd()
     # ensure daemon flask server is accessible
     # HTTPS port
-    run_shell_cmd(f"upnpc -e 'rentaflop' -r 46443 tcp")
+    run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r 46443 tcp")
     n_gpus = get_num_gpus()
     for gpu in range(n_gpus):
         mine({"type": "crypto", "action": "start", "gpu": str(gpu)})
@@ -113,11 +116,11 @@ def mine(params):
         # crypto doesn't expose ports externally while gpc does
         if mine_type == "gpc":
             # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
-            run_shell_cmd(f"upnpc -e 'rentaflop' -r {port} tcp")
+            run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {port} tcp")
     elif action == "stop":
         run_shell_cmd(f"docker kill {container_name}")
         # does nothing if port is not open
-        run_shell_cmd(f"upnpc -d {port} tcp")
+        run_shell_cmd(f"upnpc -u {IGD} -d {port} tcp")
 
 
 def update(params, reboot=True):
@@ -154,7 +157,7 @@ def uninstall(params):
     # send logs first; do we need this?
     # send_logs(params)
     # clean up rentaflop host software
-    run_shell_cmd("upnpc -d 46443 tcp")
+    run_shell_cmd("upnpc -u {IGD} -d 46443 tcp")
     daemon_py = os.path.realpath(__file__)
     run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
     run_shell_cmd("rm -rf ../rentaflop-host", True)
@@ -225,6 +228,7 @@ CMD_TO_FUNC = {
     "send_logs": send_logs,
     "status": status,
 }
+IGD = None
 
 
 def main():
