@@ -139,7 +139,9 @@ def _stop_all():
     """
     stop all rentaflop docker containers
     """
-    run_shell_cmd('docker stop $(docker ps --filter "name=rentaflop*" -q)')
+    containers = run_shell_cmd('docker ps --filter "name=rentaflop*" -q')
+    if containers:
+        run_shell_cmd(f'docker stop {containers}')
 
     
 def update(params, reboot=True, second_update=False):
@@ -158,6 +160,7 @@ def update(params, reboot=True, second_update=False):
         run_shell_cmd("git pull")
         # stop all rentaflop docker containers
         _stop_all()
+        run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")    
         update_param = "" if second_update else " update"
         # daemon will shut down (but not full system) so this ensures it starts back up again
         run_shell_cmd(f'echo "sleep 3; python3 daemon.py{update_param}" | at now')
