@@ -58,7 +58,7 @@ def _subsequent_startup():
     # if update passed as clarg, then we need to call update again to handle situation when
     # update function itself has been updated in the rentaflop code update
     if len(sys.argv) > 1 and sys.argv[1] == "update":
-        update({"type": "rentaflop", second_update=True})
+        update({"type": "rentaflop"}, second_update=True)
         DAEMON_LOGGER.debug(f"Exiting update.")
         # exiting daemon now since it's set to restart in 3 seconds
         sys.exit(0)
