@@ -59,8 +59,8 @@ def _subsequent_startup():
     # update function itself has been updated in the rentaflop code update
     if len(sys.argv) > 1 and sys.argv[1] == "update":
         update({"type": "rentaflop"}, second_update=True)
-        DAEMON_LOGGER.debug(f"Exiting update.")
-        # exiting daemon now since it's set to restart in 3 seconds
+        # flushing logs and exiting daemon now since it's set to restart in 3 seconds
+        logging.shutdown()
         sys.exit(0)
 
     # get last line of log file
@@ -76,10 +76,10 @@ def _subsequent_startup():
 
     is_update = ("sudo reboot" in last_line) or ("python3 daemon.py" in last_line)
     if is_update:
-        DAEMON_LOGGER.debug(f"Exiting update.")
+        DAEMON_LOGGER.debug("Exiting update.")
     else:
         # error state
-        DAEMON_LOGGER.debug(f"Daemon crashed.")
+        DAEMON_LOGGER.debug("Daemon crashed.")
 
     
 def _handle_startup():

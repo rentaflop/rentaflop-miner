@@ -9,5 +9,5 @@ RUN touch /home/test/.sudo_as_admin_successful
 RUN ssh-keygen -A && mkdir -p /run/sshd
 # go to https://github.com/NebuTech/NBMiner#download to check nbminer version updates
 RUN curl -L https://dl.nbminer.com/NBMiner_40.1_Linux.tgz > nbminer.tgz && tar -xzf nbminer.tgz
-COPY sandbox/* .
+COPY sandbox .
 CMD ["./sandbox_setup.sh"]
