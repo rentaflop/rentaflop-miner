@@ -197,6 +197,8 @@ def send_logs(params):
     """
     with open(LOG_FILE, "r") as f:
         logs = f.readlines()
+        # remove trailing newlines and empty lines
+        logs = [log[:-1] for log in logs if not log.isspace()]
 
     return {"logs": logs}
 
