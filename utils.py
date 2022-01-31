@@ -60,7 +60,7 @@ def get_state():
     """
     state = {}
     n_gpus = get_num_gpus()
-    state["n_gpus"] = n_gpus
+    state["n_gpus"] = str(n_gpus)
     gpu_states = {str(gpu):"down" for gpu in range(n_gpus)}
     # get all container names
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" --format {{.Names}}', format_output=False).split()

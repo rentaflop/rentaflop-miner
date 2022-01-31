@@ -124,7 +124,7 @@ def mine(params):
         # TODO set constraints on ram, cpu, bandwidth https://docs.docker.com/engine/reference/run/
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        -p {port}:22 --rm --name {container_name} -dt rentaflop/sandbox")
+        -p {port}:22 --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type}-dt rentaflop/sandbox")
         # crypto doesn't expose ports externally while gpc does
         if mine_type == "gpc":
             # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
