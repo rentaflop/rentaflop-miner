@@ -14,13 +14,14 @@ def run_shell_cmd(cmd, quiet=False, format_output=True):
         DAEMON_LOGGER.debug(f'''Running command {cmd}...''')
     try:
         output = subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+        formatted_output = output.replace("\n", " \\n ")
         if format_output:
-            output = output.replace("\n", " \\n ")
+            output = formatted_output
     except subprocess.CalledProcessError as e:
         # always print errors
         DAEMON_LOGGER.error(f"Exception: {e}\n{e.output}")
     if output and not quiet:
-        DAEMON_LOGGER.debug(f'''Output for {cmd}: {output}''')
+        DAEMON_LOGGER.debug(f'''Output for {cmd}: {formatted_output}''')
 
     return output
 
