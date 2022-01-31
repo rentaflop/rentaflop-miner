@@ -54,15 +54,16 @@ def get_num_gpus():
     return int(run_shell_cmd("nvidia-smi -L | wc -l", format_output=False))
 
 
-def get_state():
+def get_state(igd):
     """
     returns a dictionary with all relevant daemon state information
     this includes gpus, running containers, container use, upnp ports, etc.
+    igd is internet gateway device to speed up upnpc command
     """
     state = {}
     n_gpus = get_num_gpus()
     state["n_gpus"] = str(n_gpus)
-    gpu_states = {str(gpu):"down" for gpu in range(n_gpus)}
+    gpu_states = {str(gpu):"stopped" for gpu in range(n_gpus)}
     # get all container names
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" --format {{.Names}}', format_output=False).split()
     for container in containers:
@@ -71,7 +72,7 @@ def get_state():
         gpu_states[gpu] = mine_type
 
     state["gpu_states"] = gpu_states
-    ports = run_shell_cmd('upnpc -l | grep rentaflop | cut -d " " -f 4 | cut -d "-" -f 1', format_output=False).split()
+    ports = run_shell_cmd(f'upnpc -u {igd} -l | grep rentaflop | cut -d " " -f 4 | cut -d "-" -f 1', format_output=False).split()
     state["ports"] = ports
 
     return state

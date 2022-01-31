@@ -19,8 +19,6 @@ def register_host(wallet):
     # post wallet address and above info to rentaflop server at https://portal.rentaflop.com/api/host/daemon
     # rentaflop to check if info already registered and return appropriate rentaflopID
     rentaflop_id = "TEST_RENTAFLOPID"
-    # TODO also create rentaflop_api_key to act as password between rentaflop servers and hosts
-    rentaflop_api_key = "TEST_RENTAFLOP_API_KEY"
     # TODO refactor to use daemon logger
     print(f"Connected to rentaflop, worker ID={rentaflop_id}")
 

@@ -3,6 +3,7 @@ contains shared global variables and configurations
 """
 import os
 import logging
+import requests
 
 
 def _get_logger(log_file):
@@ -19,13 +20,33 @@ def _get_logger(log_file):
     return module_logger
 
 
+def _get_registration():
+    """
+    return registration details from registration file or register if it doesn't exist
+    """
+    is_registered = os.path.exists(REGISTRATION_FILE)
+    rentaflop_id = None
+    if not is_registered:
+        # register host with rentaflop
+        try:
+            response = requests.post(DAEMON_URL, data={})
+            rentaflop_id = response.json()["rentaflop_id"]
+        except:
+            # TODO retry hourly on error state? log to rentaflop endpoint?
+            DAEMON_LOGGER.error("Failed registration! Exiting...")
+            raise
+        with open(REGISTRATION_FILE, "w") as f:
+            f.write(rentaflop_id)
+    else:
+        with open(REGISTRATION_FILE, "r") as f:
+            rentaflop_id = f.read().strip()
+
+    return rentaflop_id
+
+
 LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log")
+REGISTRATION_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "registration.txt")
 FIRST_STARTUP = (not os.path.exists(LOG_FILE))
 DAEMON_LOGGER = _get_logger(LOG_FILE)
-if FIRST_STARTUP:
-    # TODO register host with rentaflop
-    # TODO create real api key, perhaps by requesting it from rentaflop servers upon registration and remembering it in a file
-    RENTAFLOP_API_KEY = "TEST_RENTAFLOP_API_KEY"
-else:
-    # TODO read or request key for real
-    RENTAFLOP_API_KEY = "TEST_RENTAFLOP_API_KEY"
+DAEMON_URL = "https://portal.rentaflop.com/api/host/daemon"
+RENTAFLOP_ID = _get_registration()

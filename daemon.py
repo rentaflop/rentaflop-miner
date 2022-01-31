@@ -13,7 +13,7 @@ import logging
 import uuid
 import multiprocessing
 from flask import Flask, jsonify, request, abort, redirect
-from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, RENTAFLOP_API_KEY
+from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, RENTAFLOP_ID
 from utils import *
 import sys
 
@@ -124,7 +124,7 @@ def mine(params):
         # TODO set constraints on ram, cpu, bandwidth https://docs.docker.com/engine/reference/run/
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        -p {port}:22 --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} -dt rentaflop/sandbox")
+        -p {port}:22 --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} -dt rentaflop/sandbox")
         # crypto doesn't expose ports externally while gpc does
         if mine_type == "gpc":
             # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
@@ -210,15 +210,16 @@ def status(params):
     """
     return the state of this host
     """
-    return {"state": get_state()}
+    return {"state": get_state(IGD)}
 
 
 @app.before_request
 def before_request():
     # don't allow anyone who isn't rentaflop to communicate with host daemon
+    # only people who know a host's rentaflop id are the host and rentaflop
     request_json = request.get_json()
-    request_rentaflop_api_key = request_json.get("rentaflop_api_key", "")
-    if request_rentaflop_api_key != RENTAFLOP_API_KEY:
+    request_rentaflop_id = request_json.get("rentaflop_id", "")
+    if request_rentaflop_id != RENTAFLOP_ID:
         return abort(403)
     
     # force https
