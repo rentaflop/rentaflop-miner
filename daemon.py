@@ -21,13 +21,21 @@ import sys
 app = Flask(__name__)
 
 
+def _enable_restart_on_boot():
+    """
+    places restart in crontab if not already present
+    ensures daemon is run on system startup
+    """
+    daemon_py = os.path.realpath(__file__)
+    # first remove crontab entry if it exists
+    run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
+    run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
+
+    
 def _first_startup():
     """
     run rentaflop installation steps
     """
-    daemon_py = os.path.realpath(__file__)
-    # ensure daemon is run on system startup
-    run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
     # list of sources for security updates
     run_shell_cmd("sudo sh -c 'grep ^deb /etc/apt/sources.list | grep security > /etc/apt/sources.security.only.list'")
     # perform system update
@@ -91,6 +99,7 @@ def _handle_startup():
     if not update, assume crash and error state
     if update, log update completed
     """
+    _enable_restart_on_boot()
     if FIRST_STARTUP:
         _first_startup()
     else:

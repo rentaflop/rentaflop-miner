@@ -44,7 +44,13 @@ def get_igd():
     """
     returns internet gateway device URL for upnp to use
     """
-    return run_shell_cmd('upnpc -s | grep "Found valid IGD" | cut -d " " -f 5', format_output=False).replace("\n", "")
+    timeouts = 5
+    for _ in range(timeouts):
+        output = run_shell_cmd('upnpc -s | grep "Found valid IGD" | cut -d " " -f 5', format_output=False)
+        if "No IGD UPnP Device found" in output:
+            continue
+        
+        return output.replace("\n", "")
 
 
 def get_num_gpus():
