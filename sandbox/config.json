@@ -2,7 +2,7 @@
   "algo": "beamv3",
   "api": "127.0.0.1:22333",
   "devices": "",
-  "log": "false",
+  "log": "true",
   "long-format": "false",
   "ssl-strict": "false",
   "url": "stratum+tcp://beamv3.usa.nicehash.com:3387",
