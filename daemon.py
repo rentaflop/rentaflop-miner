@@ -13,7 +13,7 @@ import logging
 import uuid
 import multiprocessing
 from flask import Flask, jsonify, request, abort, redirect
-from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, RENTAFLOP_ID
+from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE
 from utils import *
 import sys
 

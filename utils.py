@@ -51,8 +51,12 @@ def get_igd():
         if "No IGD UPnP Device found" in output:
             time.sleep(5)
             continue
-        
+
         return output.replace("\n", "")
+
+    if "No IGD UPnP Device found" in output:
+        # TODO enter some sort of error state?
+        return None
 
 
 def get_gpus():
@@ -78,7 +82,7 @@ def get_gpus():
     return gpu_names, gpu_indexes
 
 
-def get_state(igd):
+def get_state(igd=None):
     """
     returns a dictionary with all relevant daemon state information
     this includes gpus, running containers, container use, upnp ports, etc.
@@ -98,7 +102,38 @@ def get_state(igd):
         gpu_states[gpu] = mine_type
 
     state["gpu_states"] = gpu_states
-    ports = run_shell_cmd(f'upnpc -u {igd} -l | grep rentaflop | cut -d " " -f 4 | cut -d "-" -f 1', format_output=False).split()
+    igd_flag = "" if not igd else f" -u {igd}"
+    ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d " " -f 4 | cut -d "-" -f 1', format_output=False).split()
     state["ports"] = ports
 
     return state
+
+
+def _get_registration():
+    """
+    return registration details from registration file or register if it doesn't exist
+    """
+    registration_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "registration.txt")
+    is_registered = os.path.exists(registration_file)
+    daemon_url = "https://portal.rentaflop.com/api/host/daemon"
+    rentaflop_id = None
+    if not is_registered:
+        # register host with rentaflop
+        try:
+            data = get_state()
+            response = requests.post(daemon_url, data=data)
+            rentaflop_id = response.json()["rentaflop_id"]
+        except:
+            # TODO retry hourly on error state? log to rentaflop endpoint?
+            DAEMON_LOGGER.error("Failed registration! Exiting...")
+            raise
+        with open(registration_file, "w") as f:
+            f.write(rentaflop_id)
+    else:
+        with open(registration_file, "r") as f:
+            rentaflop_id = f.read().strip()
+
+    return rentaflop_id
+
+
+RENTAFLOP_ID = _get_registration()
