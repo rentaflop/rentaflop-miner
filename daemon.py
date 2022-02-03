@@ -115,9 +115,9 @@ def _handle_startup():
     # ensure daemon flask server is accessible
     # HTTPS port
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r 46443 tcp")
-    n_gpus = get_num_gpus()
-    for gpu in range(n_gpus):
-        mine({"type": "crypto", "action": "start", "gpu": str(gpu)})
+    _, gpu_indexes = get_gpus()
+    for gpu_index in gpu_indexes:
+        mine({"type": "crypto", "action": "start", "gpu": gpu_index})
 
 
 def mine(params):
