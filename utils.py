@@ -55,11 +55,27 @@ def get_igd():
         return output.replace("\n", "")
 
 
-def get_num_gpus():
+def get_gpus():
     """
-    returns the number of gpus available
+    returns [gpu names], [corresponding gpu indexes] in order from lowest to highest index
     """
-    return int(run_shell_cmd("nvidia-smi -L | wc -l", format_output=False))
+    gpu_info = run_shell_cmd("nvidia-smi --query-gpu=gpu_name,index --format=csv", format_output=False)
+    gpu_info = gpu_info.split()[1:]
+    gpu_names = []
+    gpu_indexes = []
+    for gpu in gpu_info:
+        name, index = gpu.split(", ")
+        gpu_names.append(name)
+        gpu_indexes.append(int(index))
+
+    # order both lists by index
+    zipped_lists = zip(gpu_indexes, gpu_names)
+    sorted_pairs = sorted(zipped_lists)
+    tuples = zip(*sorted_pairs)
+    gpu_indexes, gpu_names = [list(tuple) for tuple in tuples]
+    gpu_indexes = [str(index) for index in gpu_indexes]
+    
+    return gpu_names, gpu_indexes
 
 
 def get_state(igd):
@@ -69,9 +85,11 @@ def get_state(igd):
     igd is internet gateway device to speed up upnpc command
     """
     state = {}
-    n_gpus = get_num_gpus()
+    gpu_names, gpu_indexes = get_gpus()
+    state["gpu_names"] = gpu_names
+    n_gpus = len(gpu_names)
     state["n_gpus"] = str(n_gpus)
-    gpu_states = {str(gpu):"stopped" for gpu in range(n_gpus)}
+    gpu_states = {gpu_index:"stopped" for gpu_index in gpu_indexes}
     # get all container names
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" --format {{.Names}}', format_output=False).split()
     for container in containers:
