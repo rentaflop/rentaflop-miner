@@ -2,6 +2,7 @@
 # don't run crypto mining during guest session
 if [ "$RENTAFLOP_SANDBOX_TYPE" != "gpc" ]
 then
+    # TODO add crontab which runs hourly and restarts nbminer if not running
     sed -i -e "s/rentaflop_id/$RENTAFLOP_ID/g" config.json
     mv config.json NBMiner_Linux
     cd NBMiner_Linux

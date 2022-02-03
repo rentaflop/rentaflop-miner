@@ -3,6 +3,7 @@ utility functions to be used in various parts of host software
 """
 import subprocess
 from config import DAEMON_LOGGER
+import time
 
 
 def run_shell_cmd(cmd, quiet=False, format_output=True):
@@ -44,10 +45,11 @@ def get_igd():
     """
     returns internet gateway device URL for upnp to use
     """
-    timeouts = 5
+    timeouts = 10
     for _ in range(timeouts):
         output = run_shell_cmd('upnpc -s | grep "Found valid IGD" | cut -d " " -f 5', format_output=False)
         if "No IGD UPnP Device found" in output:
+            time.sleep(5)
             continue
         
         return output.replace("\n", "")
