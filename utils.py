@@ -65,8 +65,9 @@ def get_gpus():
     """
     returns [gpu names], [corresponding gpu indexes] in order from lowest to highest index
     """
-    gpu_info = run_shell_cmd("nvidia-smi --query-gpu=gpu_name,index --format=csv", format_output=False)
-    gpu_info = gpu_info.split()[1:]
+    gpu_info = run_shell_cmd("nvidia-smi --query-gpu=gpu_name,index --format=csv", format_output=False).split("\n")
+    gpu_info = [gpu for gpu in gpu_info if gpu]
+    gpu_info = gpu_info[1:]
     gpu_names = []
     gpu_indexes = []
     for gpu in gpu_info:
