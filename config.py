@@ -3,7 +3,6 @@ contains shared global variables and configurations
 """
 import os
 import logging
-import requests
 
 
 def _get_logger(log_file):

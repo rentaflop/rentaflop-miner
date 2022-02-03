@@ -4,6 +4,8 @@ utility functions to be used in various parts of host software
 import subprocess
 from config import DAEMON_LOGGER
 import time
+import os
+import requests
 
 
 def run_shell_cmd(cmd, quiet=False, format_output=True):
