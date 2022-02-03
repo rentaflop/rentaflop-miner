@@ -100,6 +100,7 @@ def _handle_startup():
     if update, log update completed
     """
     _enable_restart_on_boot()
+    run_shell_cmd("sudo nvidia-smi -pm 1")
     if FIRST_STARTUP:
         _first_startup()
     else:
