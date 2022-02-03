@@ -66,7 +66,9 @@ def _subsequent_startup():
     # if update passed as clarg, then we need to call update again to handle situation when
     # update function itself has been updated in the rentaflop code update
     if len(sys.argv) > 1 and sys.argv[1] == "update":
+        DAEMON_LOGGER.debug("Entering second update...")
         update({"type": "rentaflop"}, second_update=True)
+        DAEMON_LOGGER.debug("Exiting second update.")
         # flushing logs and exiting daemon now since it's set to restart in 3 seconds
         logging.shutdown()
         sys.exit(0)
@@ -99,8 +101,9 @@ def _handle_startup():
     if not update, assume crash and error state
     if update, log update completed
     """
+    DAEMON_LOGGER.debug("Starting daemon...")
     _enable_restart_on_boot()
-    run_shell_cmd("sudo nvidia-smi -pm 1")
+    run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
     if FIRST_STARTUP:
         _first_startup()
     else:
@@ -284,6 +287,7 @@ def main():
     finished = q.get(block=True)
     if finished:
         server.terminate()
+        DAEMON_LOGGER.debug("Stopping daemon.")
         logging.shutdown()
 
 
