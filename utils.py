@@ -93,10 +93,10 @@ def get_state(igd=None):
     """
     state = {}
     gpu_names, gpu_indexes = get_gpus()
-    state["gpu_names"] = gpu_names
+    state["gpu_names"] = {gpu_index: gpu_names[i] for i, gpu_index in enumerate(gpu_indexes)}
     n_gpus = len(gpu_names)
     state["n_gpus"] = str(n_gpus)
-    gpu_states = {gpu_index:"stopped" for gpu_index in gpu_indexes}
+    gpu_states = {gpu_index: "stopped" for gpu_index in gpu_indexes}
     # get all container names
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" --format {{.Names}}', format_output=False).split()
     for container in containers:
@@ -123,7 +123,7 @@ def _get_registration():
     if not is_registered:
         # register host with rentaflop
         try:
-            data = get_state()
+            data = {"state": get_state()}
             response = requests.post(daemon_url, data=data)
             rentaflop_id = response.json()["rentaflop_id"]
         except:

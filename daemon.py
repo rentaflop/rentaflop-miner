@@ -84,7 +84,8 @@ def _subsequent_startup():
             f.seek(0)
         last_line = f.readline().decode()
 
-    is_update = ("sudo reboot" in last_line) or ("python3 daemon.py" in last_line)
+    is_update = ("sudo reboot" in last_line) or ("python3 daemon.py" in last_line) or \
+        ("Exiting second update." in last_line)
     if is_update:
         DAEMON_LOGGER.debug("Exiting update.")
     else:
@@ -101,14 +102,15 @@ def _handle_startup():
     if not update, assume crash and error state
     if update, log update completed
     """
-    DAEMON_LOGGER.debug("Starting daemon...")
-    _enable_restart_on_boot()
-    run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
+    # NOTE: this if else must be first as we need to immediately check last line in log file during updates
     if FIRST_STARTUP:
         _first_startup()
     else:
         _subsequent_startup()
 
+    DAEMON_LOGGER.debug("Starting daemon...")
+    _enable_restart_on_boot()
+    run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
     # set IGD to speed up upnpc commands
     global IGD
     IGD = get_igd()
