@@ -56,6 +56,7 @@ def _first_startup():
     run_shell_cmd(r'''sudo sed -i '$s/}/,\n"userns-remap":"default"}/' /etc/docker/daemon.json''')
     run_shell_cmd("sudo systemctl restart docker")
     run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")    
+    _enable_restart_on_boot()
     run_shell_cmd("sudo reboot")
 
 
@@ -92,7 +93,9 @@ def _subsequent_startup():
         # error state
         DAEMON_LOGGER.debug("Daemon crashed.")
 
-    
+    _enable_restart_on_boot()
+
+
 def _handle_startup():
     """
     uses log file existence to handle startup scenarios
@@ -109,7 +112,6 @@ def _handle_startup():
         _subsequent_startup()
 
     DAEMON_LOGGER.debug("Starting daemon...")
-    _enable_restart_on_boot()
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
     # set IGD to speed up upnpc commands
     global IGD
