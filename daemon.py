@@ -85,8 +85,6 @@ def _first_startup():
     run_shell_cmd(r'''sudo sed -i '$s/}/,\n"userns-remap":"default"}/' /etc/docker/daemon.json''')
     run_shell_cmd("sudo systemctl restart docker")
     run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
-    global RENTAFLOP_ID
-    RENTAFLOP_ID = _get_registration()
     _enable_restart_on_boot()
     run_shell_cmd("sudo reboot")
 
@@ -146,7 +144,9 @@ def _handle_startup():
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
     # set IGD to speed up upnpc commands
     global IGD
+    global RENTAFLOP_ID
     IGD = get_igd()
+    RENTAFLOP_ID = _get_registration()
     # ensure daemon flask server is accessible
     # HTTPS port
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r 46443 tcp")
