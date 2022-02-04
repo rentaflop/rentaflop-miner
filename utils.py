@@ -4,8 +4,6 @@ utility functions to be used in various parts of host software
 import subprocess
 from config import DAEMON_LOGGER
 import time
-import os
-import requests
 
 
 def run_shell_cmd(cmd, quiet=False, format_output=True):
@@ -110,34 +108,3 @@ def get_state(igd=None):
     state["ports"] = ports
 
     return state
-
-
-def _get_registration():
-    """
-    return registration details from registration file or register if it doesn't exist
-    """
-    registration_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "registration.txt")
-    is_registered = os.path.exists(registration_file)
-    daemon_url = "https://portal.rentaflop.com/api/host/daemon"
-    rentaflop_id = None
-    if not is_registered:
-        # register host with rentaflop
-        try:
-            ip = run_shell_cmd('upnpc -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
-            data = {"state": get_state(), "ip": ip}
-            response = requests.post(daemon_url, data=data)
-            rentaflop_id = response.json()["rentaflop_id"]
-        except:
-            # TODO retry hourly on error state? log to rentaflop endpoint?
-            DAEMON_LOGGER.error("Failed registration! Exiting...")
-            raise
-        with open(registration_file, "w") as f:
-            f.write(rentaflop_id)
-    else:
-        with open(registration_file, "r") as f:
-            rentaflop_id = f.read().strip()
-
-    return rentaflop_id
-
-
-RENTAFLOP_ID = _get_registration()

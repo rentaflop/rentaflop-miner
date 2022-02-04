@@ -17,4 +17,10 @@ priority, therefore commands run on the host machine (either by the host or gues
 
 If you spot a vulnerability, or something that could be improved, please create a pull request or contact support@rentaflop.com.
 
+## installation
+To install rentaflop miner, run the following command:
+```
+git clone https://github.com/rentaflop/rentaflop-host.git && ./rentaflop-host/run.sh
+```
+
 ## structure

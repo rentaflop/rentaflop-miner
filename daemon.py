@@ -16,9 +16,38 @@ from flask import Flask, jsonify, request, abort, redirect
 from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE
 from utils import *
 import sys
+import requests
 
 
 app = Flask(__name__)
+
+
+def _get_registration():
+    """
+    return registration details from registration file or register if it doesn't exist
+    """
+    registration_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "registration.txt")
+    is_registered = os.path.exists(registration_file)
+    daemon_url = "https://portal.rentaflop.com/api/host/daemon"
+    rentaflop_id = None
+    if not is_registered:
+        # register host with rentaflop
+        try:
+            ip = run_shell_cmd('upnpc -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
+            data = {"state": get_state(), "ip": ip}
+            response = requests.post(daemon_url, data=data)
+            rentaflop_id = response.json()["rentaflop_id"]
+        except:
+            # TODO retry hourly on error state? log to rentaflop endpoint?
+            DAEMON_LOGGER.error("Failed registration! Exiting...")
+            raise
+        with open(registration_file, "w") as f:
+            f.write(rentaflop_id)
+    else:
+        with open(registration_file, "r") as f:
+            rentaflop_id = f.read().strip()
+
+    return rentaflop_id
 
 
 def _enable_restart_on_boot():
@@ -55,7 +84,9 @@ def _first_startup():
     run_shell_cmd("sudo sed -i 's/#no-cgroups = false/no-cgroups = true/' /etc/nvidia-container-runtime/config.toml")
     run_shell_cmd(r'''sudo sed -i '$s/}/,\n"userns-remap":"default"}/' /etc/docker/daemon.json''')
     run_shell_cmd("sudo systemctl restart docker")
-    run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")    
+    run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
+    global RENTAFLOP_ID
+    RENTAFLOP_ID = _get_registration()
     _enable_restart_on_boot()
     run_shell_cmd("sudo reboot")
 
@@ -279,6 +310,7 @@ CMD_TO_FUNC = {
     "status": status,
 }
 IGD = None
+RENTAFLOP_ID = None
 
 
 def main():
