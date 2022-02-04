@@ -197,14 +197,14 @@ def uninstall(params):
     """
     # stop and remove all rentaflop docker containers and images
     _stop_all()
-    run_shell_cmd('docker rmi $(docker images -q "rentaflop*") $(docker images "nvidia/cuda" -a -q)')
+    run_shell_cmd('docker rmi $(docker images -a -q "rentaflop/sandbox") $(docker images | grep none | awk "{ print $3; }") $(docker images "nvidia/cuda" -a -q)')
     # send logs first; do we need this?
     # send_logs(params)
     # clean up rentaflop host software
-    run_shell_cmd("upnpc -u {IGD} -d 46443 tcp")
+    run_shell_cmd(f"upnpc -u {IGD} -d 46443 tcp")
     daemon_py = os.path.realpath(__file__)
     run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
-    run_shell_cmd("rm -rf ../rentaflop-host", True)
+    run_shell_cmd("rm -rf ../rentaflop-host", quiet=True)
 
     return True
 
