@@ -17,7 +17,6 @@ from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE
 from utils import *
 import sys
 import requests
-import time
 
 
 app = Flask(__name__)
@@ -53,15 +52,32 @@ def _get_registration():
 
 def _enable_restart_on_boot():
     """
-    places restart in crontab if not already present
+    places restart command in /etc/rc.local, which is run at boot
     ensures daemon is run on system startup
     """
     daemon_py = os.path.realpath(__file__)
-    # first remove crontab entry if it exists
-    run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
-    run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
+    file_contents = f"""
+    #!/bin/bash
+    ##!/bin/sh -e
+    #
+    # rc.local
+    #
+    # This script is executed at the end of each multiuser runlevel.
+    # Make sure that the script will "exit 0" on success or any other
+    # value on error.
+    #
+    # In order to enable or disable this script just change the execution
+    # bits.
+    #
+    # By default this script does nothing.
 
-    
+    python3 {daemon_py} &
+    exit 0
+    """
+    with open("/etc/rc.local", "w") as f:
+        f.write(file_contents)
+
+
 def _first_startup():
     """
     run rentaflop installation steps
@@ -123,10 +139,6 @@ def _subsequent_startup():
         # error state
         DAEMON_LOGGER.debug("Daemon crashed.")
 
-    # TODO better way to do this? sleeping so we write to cron only after hiveos does and so nvidia-uvm appears
-    time.sleep(10)
-    _enable_restart_on_boot()
-
 
 def _handle_startup():
     """
@@ -144,6 +156,7 @@ def _handle_startup():
         _subsequent_startup()
 
     DAEMON_LOGGER.debug("Starting daemon...")
+    _enable_restart_on_boot()
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
     # set IGD to speed up upnpc commands
     global IGD
