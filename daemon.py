@@ -17,6 +17,7 @@ from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE
 from utils import *
 import sys
 import requests
+import time
 
 
 app = Flask(__name__)
@@ -122,6 +123,8 @@ def _subsequent_startup():
         # error state
         DAEMON_LOGGER.debug("Daemon crashed.")
 
+    # TODO better way to do this? sleeping so we write to cron only after hiveos does and so nvidia-uvm appears
+    time.sleep(10)
     _enable_restart_on_boot()
 
 
@@ -142,7 +145,6 @@ def _handle_startup():
 
     DAEMON_LOGGER.debug("Starting daemon...")
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
-    run_shell_cmd("nvidia-modprobe -u")
     # set IGD to speed up upnpc commands
     global IGD
     global RENTAFLOP_ID
