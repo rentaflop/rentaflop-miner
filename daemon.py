@@ -142,6 +142,7 @@ def _handle_startup():
 
     DAEMON_LOGGER.debug("Starting daemon...")
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
+    run_shell_cmd("nvidia-modprobe -u")
     # set IGD to speed up upnpc commands
     global IGD
     global RENTAFLOP_ID
