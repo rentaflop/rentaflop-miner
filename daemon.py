@@ -13,6 +13,7 @@ import logging
 import uuid
 import multiprocessing
 from flask import Flask, jsonify, request, abort, redirect
+from flask_apscheduler import APScheduler
 from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE
 from utils import *
 import sys
@@ -20,6 +21,17 @@ import requests
 
 
 app = Flask(__name__)
+
+
+def _start_mining():
+    """
+    starts mining on any stopped GPUs
+    """
+    state = get_state(gpu_only=True)
+    gpu_states = state["gpu_states"]
+    for gpu_index in gpu_states:
+        if gpu_states[gpu_index] == "stopped":
+            mine({"type": "crypto", "action": "start", "gpu": gpu_index})
 
 
 def _get_registration():
@@ -166,9 +178,7 @@ def _handle_startup():
     # ensure daemon flask server is accessible
     # HTTPS port
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r 46443 tcp")
-    _, gpu_indexes = get_gpus()
-    for gpu_index in gpu_indexes:
-        mine({"type": "crypto", "action": "start", "gpu": gpu_index})
+    _start_mining()
 
 
 def mine(params):
@@ -206,8 +216,8 @@ def _stop_all():
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" -q', format_output=False).replace("\n", " ")
     if containers:
         run_shell_cmd(f'docker stop {containers}')
-
-    
+            
+            
 def update(params, reboot=True, second_update=False):
     """
     handle commands related to rentaflop software and system updates
@@ -332,6 +342,10 @@ RENTAFLOP_ID = None
 def main():
     _handle_startup()
     app.secret_key = uuid.uuid4().hex
+    # create a scheduler that periodically checks for stopped GPUs and starts mining on them
+    scheduler = APScheduler()
+    scheduler.add_job(id = 'Start Miners', func=_start_mining, trigger="interval", seconds=60)
+    scheduler.start()
     # run server, allowing it to shut itself down
     q = multiprocessing.Queue()
     server = multiprocessing.Process(target=run_flask_server, args=(q,))

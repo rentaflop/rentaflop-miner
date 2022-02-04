@@ -83,11 +83,12 @@ def get_gpus():
     return gpu_names, gpu_indexes
 
 
-def get_state(igd=None):
+def get_state(igd=None, gpu_only=False):
     """
     returns a dictionary with all relevant daemon state information
     this includes gpus, running containers, container use, upnp ports, etc.
     igd is internet gateway device to speed up upnpc command
+    gpu_only will determine whether to only get gpu-related info
     """
     state = {}
     gpu_names, gpu_indexes = get_gpus()
@@ -103,8 +104,9 @@ def get_state(igd=None):
         gpu_states[gpu] = mine_type
 
     state["gpu_states"] = gpu_states
-    igd_flag = "" if not igd else f" -u {igd}"
-    ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d " " -f 4 | cut -d "-" -f 1', format_output=False).split()
-    state["ports"] = ports
+    if not gpu_only:
+        igd_flag = "" if not igd else f" -u {igd}"
+        ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d " " -f 4 | cut -d "-" -f 1', format_output=False).split()
+        state["ports"] = ports
 
-    return state
+    return state            
