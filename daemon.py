@@ -154,7 +154,7 @@ def _stop_all():
     """
     stop all rentaflop docker containers
     """
-    containers = run_shell_cmd('docker ps --filter "name=rentaflop*" -q', format_output=False)
+    containers = run_shell_cmd('docker ps --filter "name=rentaflop*" -q', format_output=False).replace("\n", " ")
     if containers:
         run_shell_cmd(f'docker stop {containers}')
 
