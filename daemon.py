@@ -68,22 +68,23 @@ def _enable_restart_on_boot():
     ensures daemon is run on system startup
     """
     daemon_py = os.path.realpath(__file__)
-    file_contents = f"""#!/bin/bash
-    ##!/bin/sh -e
-    #
-    # rc.local
-    #
-    # This script is executed at the end of each multiuser runlevel.
-    # Make sure that the script will "exit 0" on success or any other
-    # value on error.
-    #
-    # In order to enable or disable this script just change the execution
-    # bits.
-    #
-    # By default this script does nothing.
+    file_contents = \
+    f"""#!/bin/bash
+##!/bin/sh -e
+#
+# rc.local
+#
+# This script is executed at the end of each multiuser runlevel.
+# Make sure that the script will "exit 0" on success or any other
+# value on error.
+#
+# In order to enable or disable this script just change the execution
+# bits.
+#
+# By default this script does nothing.
 
-    python3 {daemon_py} &
-    exit 0"""
+python3 {daemon_py} &
+exit 0"""
     with open("/etc/rc.local", "w") as f:
         f.write(file_contents)
 
