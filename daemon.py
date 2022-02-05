@@ -64,29 +64,13 @@ def _get_registration():
 
 def _enable_restart_on_boot():
     """
-    places restart command in /etc/rc.local, which is run at boot
+    places restart in crontab if not already present
     ensures daemon is run on system startup
     """
     daemon_py = os.path.realpath(__file__)
-    file_contents = \
-    f"""#!/bin/bash
-##!/bin/sh -e
-#
-# rc.local
-#
-# This script is executed at the end of each multiuser runlevel.
-# Make sure that the script will "exit 0" on success or any other
-# value on error.
-#
-# In order to enable or disable this script just change the execution
-# bits.
-#
-# By default this script does nothing.
-
-python3 {daemon_py} &
-exit 0"""
-    with open("/etc/rc.local", "w") as f:
-        f.write(file_contents)
+    # first remove crontab entry if it exists
+    run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
+    run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
 
 
 def _first_startup():
@@ -248,6 +232,8 @@ def update(params, reboot=True, second_update=False):
         sudo apt-get -s dist-upgrade -y -o Dir::Etc::SourceList=/etc/apt/sources.security.only.list \
         -o Dir::Etc::SourceParts=/dev/null  | grep "^Inst" | awk -F " " {'print $2'}''')
         if reboot:
+            # enabling restart again for good measure
+            _enable_restart_on_boot()
             run_shell_cmd("sudo reboot")
         
 
@@ -353,6 +339,8 @@ def main():
     server.start()
     finished = q.get(block=True)
     if finished:
+        # enabling restart again for good measure
+        _enable_restart_on_boot()
         server.terminate()
         DAEMON_LOGGER.debug("Stopping daemon.")
         logging.shutdown()
