@@ -27,7 +27,7 @@ def _start_mining():
     """
     starts mining on any stopped GPUs
     """
-    state = get_state(igd=IGD, gpu_only=True)
+    state = get_state(igd=IGD, gpu_only=True, quiet=True)
     gpu_states = state["gpu_states"]
     for gpu_index in gpu_states:
         if gpu_states[gpu_index] == "stopped":
@@ -253,7 +253,8 @@ def uninstall(params):
     daemon_py = os.path.realpath(__file__)
     run_shell_cmd("sed -i '/rentaflop/d' /hive/etc/crontab.root")
     run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
-    run_shell_cmd("rm -rf ../rentaflop-host", quiet=True)
+    rentaflop_miner_dir = os.path.dirname(daemon_py)
+    run_shell_cmd(f"rm -rf {rentaflop_miner_dir}", quiet=True)
 
     return True
 

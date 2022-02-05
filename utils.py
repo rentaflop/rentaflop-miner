@@ -61,11 +61,11 @@ def get_igd():
         return None
 
 
-def get_gpus():
+def get_gpus(quiet=False):
     """
     returns [gpu names], [corresponding gpu indexes] in order from lowest to highest index
     """
-    gpu_info = run_shell_cmd("nvidia-smi --query-gpu=gpu_name,index --format=csv", format_output=False).split("\n")
+    gpu_info = run_shell_cmd("nvidia-smi --query-gpu=gpu_name,index --format=csv", quiet=quiet, format_output=False).split("\n")
     gpu_info = [gpu for gpu in gpu_info if gpu]
     gpu_info = gpu_info[1:]
     gpu_names = []
@@ -85,7 +85,7 @@ def get_gpus():
     return gpu_names, gpu_indexes
 
 
-def get_state(igd=None, gpu_only=False):
+def get_state(igd=None, gpu_only=False, quiet=False):
     """
     returns a dictionary with all relevant daemon state information
     this includes gpus, running containers, container use, upnp ports, etc.
@@ -93,13 +93,13 @@ def get_state(igd=None, gpu_only=False):
     gpu_only will determine whether to only get gpu-related info
     """
     state = {}
-    gpu_names, gpu_indexes = get_gpus()
+    gpu_names, gpu_indexes = get_gpus(quiet)
     state["gpu_names"] = {gpu_index: gpu_names[i] for i, gpu_index in enumerate(gpu_indexes)}
     n_gpus = len(gpu_names)
     state["n_gpus"] = str(n_gpus)
     gpu_states = {gpu_index: "stopped" for gpu_index in gpu_indexes}
     # get all container names
-    containers = run_shell_cmd('docker ps --filter "name=rentaflop*" --format {{.Names}}', format_output=False).split()
+    containers = run_shell_cmd('docker ps --filter "name=rentaflop*" --format {{.Names}}', quiet=quiet, format_output=False).split()
     for container in containers:
         # container looks like f"rentaflop-sandbox-{gpu}-{mine_type}"
         _, _, gpu, mine_type = container.split("-")
@@ -108,7 +108,7 @@ def get_state(igd=None, gpu_only=False):
     state["gpu_states"] = gpu_states
     if not gpu_only:
         igd_flag = "" if not igd else f" -u {igd}"
-        ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d " " -f 4 | cut -d "-" -f 1', format_output=False).split()
+        ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d " " -f 4 | cut -d "-" -f 1', quiet=quiet, format_output=False).split()
         state["ports"] = ports
 
     return state            
