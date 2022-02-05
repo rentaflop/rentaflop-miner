@@ -68,9 +68,11 @@ def _enable_restart_on_boot():
     ensures daemon is run on system startup
     """
     daemon_py = os.path.realpath(__file__)
+    # TODO hive specific, use below crontab editing if normal system that doesn't overwrite crontab constantly
+    run_shell_cmd(f'printf "\n@reboot python3 {daemon_py}" >> /hive/etc/crontab.root')
     # first remove crontab entry if it exists
-    run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
-    run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
+    # run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
+    # run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
 
 
 def _first_startup():
@@ -151,7 +153,6 @@ def _handle_startup():
         _subsequent_startup()
 
     DAEMON_LOGGER.debug("Starting daemon...")
-    _enable_restart_on_boot()
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
     # set IGD to speed up upnpc commands
     global IGD
@@ -232,8 +233,6 @@ def update(params, reboot=True, second_update=False):
         sudo apt-get -s dist-upgrade -y -o Dir::Etc::SourceList=/etc/apt/sources.security.only.list \
         -o Dir::Etc::SourceParts=/dev/null  | grep "^Inst" | awk -F " " {'print $2'}''')
         if reboot:
-            # enabling restart again for good measure
-            _enable_restart_on_boot()
             run_shell_cmd("sudo reboot")
         
 
@@ -339,8 +338,6 @@ def main():
     server.start()
     finished = q.get(block=True)
     if finished:
-        # enabling restart again for good measure
-        _enable_restart_on_boot()
         server.terminate()
         DAEMON_LOGGER.debug("Stopping daemon.")
         logging.shutdown()
