@@ -68,8 +68,7 @@ def _enable_restart_on_boot():
     ensures daemon is run on system startup
     """
     daemon_py = os.path.realpath(__file__)
-    file_contents = f"""
-    #!/bin/bash
+    file_contents = f"""#!/bin/bash
     ##!/bin/sh -e
     #
     # rc.local
@@ -84,8 +83,7 @@ def _enable_restart_on_boot():
     # By default this script does nothing.
 
     python3 {daemon_py} &
-    exit 0
-    """
+    exit 0"""
     with open("/etc/rc.local", "w") as f:
         f.write(file_contents)
 
@@ -178,6 +176,8 @@ def _handle_startup():
     # ensure daemon flask server is accessible
     # HTTPS port
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r 46443 tcp")
+    # TODO remove after rentaflop miner is on hive; temporarily here to stop nbminer
+    run_shell_cmd("miner stop")
     _start_mining()
 
 
@@ -344,7 +344,7 @@ def main():
     app.secret_key = uuid.uuid4().hex
     # create a scheduler that periodically checks for stopped GPUs and starts mining on them
     scheduler = APScheduler()
-    scheduler.add_job(id = 'Start Miners', func=_start_mining, trigger="interval", seconds=60)
+    scheduler.add_job(id = 'Start Miners', func=_start_mining, trigger="interval", seconds=300)
     scheduler.start()
     # run server, allowing it to shut itself down
     q = multiprocessing.Queue()
