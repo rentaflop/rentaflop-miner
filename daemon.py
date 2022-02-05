@@ -64,7 +64,7 @@ def _get_registration():
 
 def _enable_restart_on_boot():
     """
-    places restart in crontab if not already present
+    places restart in crontab without duplication
     ensures daemon is run on system startup
     """
     daemon_py = os.path.realpath(__file__)
