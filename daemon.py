@@ -251,6 +251,7 @@ def uninstall(params):
     # clean up rentaflop host software
     run_shell_cmd(f"upnpc -u {IGD} -d 46443 tcp")
     daemon_py = os.path.realpath(__file__)
+    run_shell_cmd("sed -i '/rentaflop/d' /hive/etc/crontab.root")
     run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
     run_shell_cmd("rm -rf ../rentaflop-host", quiet=True)
 
