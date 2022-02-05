@@ -50,7 +50,7 @@ def _get_registration():
             DAEMON_LOGGER.debug(f"Sent to /api/daemon: {data}")
             response = requests.post(daemon_url, json=data)
             response_json = response.json()
-            DAEMON_LOGGER.debug(f"Received from /api/daemon: {response_json}")
+            DAEMON_LOGGER.debug(f"Received from /api/daemon: {response.status_code} {response_json}")
             rentaflop_id = response_json["rentaflop_id"]
         except Exception as e:
             # TODO retry hourly on error state? log to rentaflop endpoint?
@@ -286,6 +286,7 @@ def status(params):
 def before_request():
     # don't allow anyone who isn't rentaflop to communicate with host daemon
     # only people who know a host's rentaflop id are the host and rentaflop
+    # TODO check size first to prevent DOS attack
     request_json = request.get_json()
     request_rentaflop_id = request_json.get("rentaflop_id", "")
     if request_rentaflop_id != RENTAFLOP_ID:
