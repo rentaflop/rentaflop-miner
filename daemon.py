@@ -69,7 +69,10 @@ def _enable_restart_on_boot():
     """
     daemon_py = os.path.realpath(__file__)
     # TODO hive specific, use below crontab editing if normal system that doesn't overwrite crontab constantly
-    run_shell_cmd(f'printf "\n@reboot python3 {daemon_py}" >> /hive/etc/crontab.root')
+    already_restart = run_shell_cmd("grep rentaflop /hive/etc/crontab.root")
+    if not already_restart:
+        run_shell_cmd(f'printf "\n@reboot python3 {daemon_py}" >> /hive/etc/crontab.root')
+    run_shell_cmd("crontab /hive/etc/crontab.root")
     # first remove crontab entry if it exists
     # run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
     # run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
