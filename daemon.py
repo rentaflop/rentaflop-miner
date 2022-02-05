@@ -27,7 +27,7 @@ def _start_mining():
     """
     starts mining on any stopped GPUs
     """
-    state = get_state(gpu_only=True)
+    state = get_state(igd=IGD, gpu_only=True)
     gpu_states = state["gpu_states"]
     for gpu_index in gpu_states:
         if gpu_states[gpu_index] == "stopped":
@@ -45,8 +45,8 @@ def _get_registration():
     if not is_registered:
         # register host with rentaflop
         try:
-            ip = run_shell_cmd('upnpc -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
-            data = {"state": get_state(), "ip": ip}
+            ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
+            data = {"state": get_state(igd=IGD), "ip": ip}
             response = requests.post(daemon_url, data=data)
             rentaflop_id = response.json()["rentaflop_id"]
         except:

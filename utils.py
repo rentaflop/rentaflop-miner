@@ -46,10 +46,12 @@ def get_igd():
     returns internet gateway device URL for upnp to use
     """
     timeouts = 10
+    time_length = 1
     for _ in range(timeouts):
         output = run_shell_cmd('upnpc -s | grep "Found valid IGD" | cut -d " " -f 5', format_output=False)
         if "No IGD UPnP Device found" in output:
-            time.sleep(5)
+            time.sleep(time_length)
+            time_length *= 2
             continue
 
         return output.replace("\n", "")
