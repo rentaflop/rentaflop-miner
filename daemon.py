@@ -47,10 +47,11 @@ def _get_registration():
         try:
             ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
             data = {"state": get_state(igd=IGD), "ip": ip}
-            response = requests.post(daemon_url, data=data)
+            response = requests.post(daemon_url, json=data)
             rentaflop_id = response.json()["rentaflop_id"]
-        except:
+        except Exception as e:
             # TODO retry hourly on error state? log to rentaflop endpoint?
+            DAEMON_LOGGER.error(f"Exception: {e}\n{e.output}")
             DAEMON_LOGGER.error("Failed registration! Exiting...")
             raise
         with open(registration_file, "w") as f:
