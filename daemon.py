@@ -191,7 +191,7 @@ def mine(params):
     if action == "start":
         # TODO add pending status to ensure scheduled job doesn't happen to restart crypto mining
         # stop any crypto job already running
-        mine({"type": "crypto", "action": "stop", "gpu": gpu)
+        mine({"type": "crypto", "action": "stop", "gpu": gpu})
         # TODO '--gpus all' problematic to use? it's supposed to pass all gpus but only specified device is available, but can't seem to get it to work without 'all'
         # TODO set constraints on ram, cpu, bandwidth https://docs.docker.com/engine/reference/run/
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
