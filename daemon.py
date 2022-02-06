@@ -52,6 +52,7 @@ def _get_registration():
             response_json = response.json()
             DAEMON_LOGGER.debug(f"Received from /api/daemon: {response.status_code} {response_json}")
             rentaflop_id = response_json["rentaflop_id"]
+            DAEMON_LOGGER.debug("Registration successful.")
         except Exception as e:
             # TODO retry hourly on error state? log to rentaflop endpoint?
             DAEMON_LOGGER.error(f"Exception: {e}")
@@ -185,13 +186,17 @@ def mine(params):
     container_name = f"rentaflop-sandbox-{gpu}-{mine_type}"
     # SSH port
     port = 46422 + gpu
+    port_flag = "" if mine_type != "gpc" else f"-p {port}:22 "
 
     if action == "start":
+        # TODO add pending status to ensure scheduled job doesn't happen to restart crypto mining
+        # stop any crypto job already running
+        mine({"type": "crypto", "action": "stop", "gpu": gpu)
         # TODO '--gpus all' problematic to use? it's supposed to pass all gpus but only specified device is available, but can't seem to get it to work without 'all'
         # TODO set constraints on ram, cpu, bandwidth https://docs.docker.com/engine/reference/run/
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        -p {port}:22 --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} -dt rentaflop/sandbox")
+        {port_flag}--rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} -dt rentaflop/sandbox")
         # crypto doesn't expose ports externally while gpc does
         if mine_type == "gpc":
             # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
@@ -200,6 +205,7 @@ def mine(params):
         run_shell_cmd(f"docker kill {container_name}")
         # does nothing if port is not open
         run_shell_cmd(f"upnpc -u {IGD} -d {port} tcp")
+        # TODO restart mining if we just stopped a gpc job?
 
 
 def _stop_all():
