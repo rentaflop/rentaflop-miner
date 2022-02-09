@@ -110,5 +110,6 @@ def get_state(igd=None, gpu_only=False, quiet=False):
         igd_flag = "" if not igd else f" -u {igd}"
         ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d " " -f 4 | cut -d "-" -f 1', quiet=quiet, format_output=False).split()
         state["ports"] = ports
+        state["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")
 
     return state            
