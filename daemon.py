@@ -205,7 +205,9 @@ def mine(params):
         run_shell_cmd(f"docker kill {container_name}")
         # does nothing if port is not open
         run_shell_cmd(f"upnpc -u {IGD} -d {port} tcp")
-        # TODO restart mining if we just stopped a gpc job?
+        # restart crypto mining if we just stopped a gpc job
+        if mine_type == "gpc":
+            mine({"type": "crypto", "action": "start", "gpu": gpu})
 
 
 def _stop_all():
