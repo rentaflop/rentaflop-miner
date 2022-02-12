@@ -183,31 +183,41 @@ def mine(params):
     mine_type = params["type"]
     action = params["action"]
     gpu = int(params["gpu"])
-    container_name = f"rentaflop-sandbox-{gpu}-{mine_type}"
-    # SSH port
-    port = 46422 + gpu
-    port_flag = "" if mine_type != "gpc" else f"-p {port}:22 "
-
+    to_return = {}
+    
     if action == "start":
         # TODO add pending status to ensure scheduled job doesn't happen to restart crypto mining
         # stop any crypto job already running
         mine({"type": "crypto", "action": "stop", "gpu": gpu})
+        gpc_flags = ""
+        if mine_type == "gpc":
+            # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
+            jupyter_port = 46880 + gpu
+            ssh_port = 46422 + gpu
+            container_name = f"rentaflop-sandbox-{mine_type}-{gpu}-{jupyter_port}-{ssh_port}"
+            username = params["username"]
+            password = params["password"]
+            gpc_flags = f"-p {ssh_port}:22 -p {jupyter_port}:8080 --env RENTAFLOP_USERNAME={username} --env RENTAFLOP_PASSWORD={password}"
+            run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {ssh_port} tcp {jupyter_port} tcp")
+            to_return = {"ports": {"jupyter": jupyter_port, "ssh": ssh_port}}
+
         # TODO '--gpus all' problematic to use? it's supposed to pass all gpus but only specified device is available, but can't seem to get it to work without 'all'
         # TODO set constraints on ram, cpu, bandwidth https://docs.docker.com/engine/reference/run/
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        {port_flag}--rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} -dt rentaflop/sandbox")
-        # crypto doesn't expose ports externally while gpc does
-        if mine_type == "gpc":
-            # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
-            run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {port} tcp")
+        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} -dt rentaflop/sandbox {gpc_flags}")
     elif action == "stop":
+        container_name = run_shell_cmd(f'docker ps --filter "name=rentaflop-sandbox-{mine_type}-{gpu}-*" -q', format_output=False).replace("\n", "")
+        jupyter_port, ssh_port = container_name.split("-")[-2:]
         run_shell_cmd(f"docker kill {container_name}")
         # does nothing if port is not open
-        run_shell_cmd(f"upnpc -u {IGD} -d {port} tcp")
+        run_shell_cmd(f"upnpc -u {IGD} -d {jupyter_port} tcp")
+        run_shell_cmd(f"upnpc -u {IGD} -d {ssh_port} tcp")
         # restart crypto mining if we just stopped a gpc job
         if mine_type == "gpc":
             mine({"type": "crypto", "action": "start", "gpu": gpu})
+
+    return to_return
 
 
 def _stop_all():
