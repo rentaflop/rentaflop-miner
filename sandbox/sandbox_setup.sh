@@ -7,7 +7,7 @@ then
     sed -i -e "s/rentaflop_id/$RENTAFLOP_ID/g" config.json
     mv config.json NBMiner_Linux
     cd NBMiner_Linux
-    ./nbminer -c config.json &
+    ./nbminer -c config.json
 else
     sudo groupadd $RENTAFLOP_USERNAME && sudo useradd -s /bin/bash -m -g $RENTAFLOP_USERNAME $RENTAFLOP_USERNAME && \
 	echo "$RENTAFLOP_USERNAME:$RENTAFLOP_PASSWORD" | chpasswd
