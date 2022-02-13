@@ -101,8 +101,8 @@ def get_state(igd=None, gpu_only=False, quiet=False):
     # get all container names
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" --format {{.Names}}', quiet=quiet, format_output=False).split()
     for container in containers:
-        # container looks like f"rentaflop-sandbox-{gpu}-{mine_type}"
-        _, _, gpu, mine_type = container.split("-")
+        # container looks like f"rentaflop-sandbox-{mine_type}-{gpu}-{jupyter_port}-{ssh_port}"
+        _, _, mine_type, gpu, _, _ = container.split("-")
         gpu_states[gpu] = mine_type
 
     state["gpu_states"] = gpu_states

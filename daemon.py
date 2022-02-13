@@ -199,7 +199,7 @@ def mine(params):
             ssh_port = 46422 + gpu
             username = params["username"]
             password = params["password"]
-            gpc_flags = f"-p {ssh_port}:22 -p {jupyter_port}:8080 --env RENTAFLOP_USERNAME={username} --env RENTAFLOP_PASSWORD={password}"
+            gpc_flags = f"-p {ssh_port}:22 -p {jupyter_port}:8080 --env RENTAFLOP_USERNAME='{username}' --env RENTAFLOP_PASSWORD={password}"
             run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {ssh_port} tcp {jupyter_port} tcp")
             to_return = {"ports": {"jupyter": jupyter_port, "ssh": ssh_port}}
 
@@ -208,7 +208,7 @@ def mine(params):
         # TODO set constraints on ram, cpu, bandwidth https://docs.docker.com/engine/reference/run/
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} -dt rentaflop/sandbox {gpc_flags}")
+        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} {gpc_flags} -dt rentaflop/sandbox")
     elif action == "stop":
         container_name = run_shell_cmd(f'docker ps --filter "name=rentaflop-sandbox-{mine_type}-{gpu}-*" -q', format_output=False).replace("\n", "")
         if container_name:
