@@ -210,11 +210,12 @@ def mine(params):
         --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} -dt rentaflop/sandbox {gpc_flags}")
     elif action == "stop":
         container_name = run_shell_cmd(f'docker ps --filter "name=rentaflop-sandbox-{mine_type}-{gpu}-*" -q', format_output=False).replace("\n", "")
-        jupyter_port, ssh_port = container_name.split("-")[-2:]
-        run_shell_cmd(f"docker kill {container_name}")
-        # does nothing if port is not open
-        run_shell_cmd(f"upnpc -u {IGD} -d {jupyter_port} tcp")
-        run_shell_cmd(f"upnpc -u {IGD} -d {ssh_port} tcp")
+        if container_name:
+            jupyter_port, ssh_port = container_name.split("-")[-2:]
+            run_shell_cmd(f"docker kill {container_name}")
+            # does nothing if port is not open
+            run_shell_cmd(f"upnpc -u {IGD} -d {jupyter_port} tcp")
+            run_shell_cmd(f"upnpc -u {IGD} -d {ssh_port} tcp")
         # restart crypto mining if we just stopped a gpc job
         if mine_type == "gpc":
             mine({"type": "crypto", "action": "start", "gpu": gpu})
