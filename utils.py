@@ -113,3 +113,12 @@ def get_state(igd=None, gpu_only=False, quiet=False):
         state["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")
 
     return state            
+
+
+def reserve_port(igd, port_type):
+    """
+    finds next available port by port_type
+    each type of port start at a minimum number and ascends
+    """
+    # TODO implement
+    return 46443

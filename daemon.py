@@ -46,7 +46,8 @@ def _get_registration():
         # register host with rentaflop
         try:
             ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
-            data = {"state": get_state(igd=IGD), "ip": ip}
+            daemon_port = reserve_port(IGD, "daemon")
+            data = {"state": get_state(igd=IGD), "ip": ip, "port": daemon_port}
             DAEMON_LOGGER.debug(f"Sent to /api/daemon: {data}")
             response = requests.post(daemon_url, json=data)
             response_json = response.json()
@@ -59,12 +60,12 @@ def _get_registration():
             DAEMON_LOGGER.error("Failed registration! Exiting...")
             raise
         with open(registration_file, "w") as f:
-            f.write(rentaflop_id)
+            f.write(f"{rentaflop_id}\n{daemon_port}")
     else:
         with open(registration_file, "r") as f:
-            rentaflop_id = f.read().strip()
+            rentaflop_id, daemon_port = f.read().strip().splitlines()
 
-    return rentaflop_id
+    return rentaflop_id, daemon_port
 
 
 def _enable_restart_on_boot():
@@ -165,11 +166,12 @@ def _handle_startup():
     # set IGD to speed up upnpc commands
     global IGD
     global RENTAFLOP_ID
+    global DAEMON_PORT
     IGD = get_igd()
-    RENTAFLOP_ID = _get_registration()
+    RENTAFLOP_ID, DAEMON_PORT = _get_registration()
     # ensure daemon flask server is accessible
     # HTTPS port
-    run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r 46443 tcp")
+    run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
     # TODO remove after rentaflop miner is on hive; temporarily here to stop nbminer
     run_shell_cmd("miner stop")
     _start_mining()
@@ -271,7 +273,7 @@ def uninstall(params):
     # send logs first; do we need this?
     # send_logs(params)
     # clean up rentaflop host software
-    run_shell_cmd(f"upnpc -u {IGD} -d 46443 tcp")
+    run_shell_cmd(f"upnpc -u {IGD} -d {DAEMON_PORT} tcp")
     daemon_py = os.path.realpath(__file__)
     run_shell_cmd("sed -i '/rentaflop/d' /hive/etc/crontab.root")
     run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
@@ -339,7 +341,7 @@ def run_flask_server(q):
 
         return jsonify("200")
     
-    app.run(host='0.0.0.0', port=46443, ssl_context='adhoc')
+    app.run(host='0.0.0.0', port=DAEMON_PORT, ssl_context='adhoc')
     
     
 CMD_TO_FUNC = {
@@ -351,6 +353,7 @@ CMD_TO_FUNC = {
 }
 IGD = None
 RENTAFLOP_ID = None
+DAEMON_PORT = None
 
 
 def main():
