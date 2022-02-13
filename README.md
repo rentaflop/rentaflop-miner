@@ -1,6 +1,8 @@
-# rentaflop-host
+# rentaflop-miner
 
-This repo contains the host software for [rentaflop](https://rentaflop.com), the crowdsourced cloud provider.
+Rentaflop miner is the cryptocurrency mining software for [rentaflop](https://rentaflop.com), the crowdsourced cloud provider.
+Rentaflop is the best way to earn passive income from your NVIDIA GPU while you’re not using it. We mine crypto and solve
+AI calculations for others on your device, earning you more crypto without having to lift a finger.
 
 ## limitations
 Commercial use of this software is prohibited. This software may be used, distributed, or modified for any purpose
@@ -10,7 +12,7 @@ out of or in connection with the software or the use or other dealings in the so
 representations or warranties, express or implied, regarding the nature or quality of this software.
 
 ## about
-The host software controls all actions run by rentaflop hosts. In particular, it contains host hardware registration,
+This software controls all actions run by rentaflop hosts. In particular, it contains host hardware registration,
 a daemon that communicates with rentaflop's servers for instructions, and functionality to launch crypto mining and
 guest sandbox connections. We've open sourced our host software in the interest of security. Security is rentaflop's
 priority, therefore commands run on the host machine (either by the host or guests) must be carried out safely.
@@ -20,7 +22,7 @@ If you spot a vulnerability, or something that could be improved, please create 
 ## installation
 To install rentaflop miner, run the following command:
 ```
-git clone https://github.com/rentaflop/rentaflop-host.git && ./rentaflop-host/run.sh
+git clone https://github.com/rentaflop/rentaflop-miner.git && ./rentaflop-miner/run.sh
 ```
 
 ## structure
