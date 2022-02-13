@@ -192,17 +192,18 @@ def mine(params):
         # stop any crypto job already running
         mine({"type": "crypto", "action": "stop", "gpu": gpu})
         gpc_flags = ""
+        jupyter_port, ssh_port = [None]*2
         if mine_type == "gpc":
             # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
             jupyter_port = 46880 + gpu
             ssh_port = 46422 + gpu
-            container_name = f"rentaflop-sandbox-{mine_type}-{gpu}-{jupyter_port}-{ssh_port}"
             username = params["username"]
             password = params["password"]
             gpc_flags = f"-p {ssh_port}:22 -p {jupyter_port}:8080 --env RENTAFLOP_USERNAME={username} --env RENTAFLOP_PASSWORD={password}"
             run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {ssh_port} tcp {jupyter_port} tcp")
             to_return = {"ports": {"jupyter": jupyter_port, "ssh": ssh_port}}
 
+        container_name = f"rentaflop-sandbox-{mine_type}-{gpu}-{jupyter_port}-{ssh_port}"
         # TODO '--gpus all' problematic to use? it's supposed to pass all gpus but only specified device is available, but can't seem to get it to work without 'all'
         # TODO set constraints on ram, cpu, bandwidth https://docs.docker.com/engine/reference/run/
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
