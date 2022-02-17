@@ -164,7 +164,7 @@ def _handle_startup():
         _subsequent_startup()
 
     DAEMON_LOGGER.debug("Starting daemon...")
-    os.chdir(os.path.realpath(__file__))
+    os.chdir(os.path.dirname(os.path.realpath(__file__)))
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
     # set IGD to speed up upnpc commands
     global IGD
@@ -368,7 +368,7 @@ def main():
     app.secret_key = uuid.uuid4().hex
     # create a scheduler that periodically checks for stopped GPUs and starts mining on them
     scheduler = APScheduler()
-    scheduler.add_job(id = 'Start Miners', func=_start_mining, trigger="interval", seconds=300)
+    scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=300)
     scheduler.start()
     # run server, allowing it to shut itself down
     q = multiprocessing.Queue()
