@@ -6,10 +6,14 @@ from config import DAEMON_LOGGER
 import time
 
 
-def run_shell_cmd(cmd, quiet=False, format_output=True):
+def run_shell_cmd(cmd, quiet=False, very_quiet=False, format_output=True):
     """
+    if quiet will only print errors, if very_quiet will silence everything including errors
+    if not format_output will return exact cmd output
     run cmd and log output
     """
+    if very_quiet:
+        quiet = True
     output = None
     if not quiet:
         DAEMON_LOGGER.debug(f'''Running command {cmd}...''')
@@ -19,8 +23,9 @@ def run_shell_cmd(cmd, quiet=False, format_output=True):
         if format_output:
             output = formatted_output
     except subprocess.CalledProcessError as e:
-        # always print errors
-        DAEMON_LOGGER.error(f"Exception: {e}\n{e.output}")
+        # print errors unless very quiet
+        if not very_quiet:
+            DAEMON_LOGGER.error(f"Exception: {e}\n{e.output}")
     if output and not quiet:
         DAEMON_LOGGER.debug(f'''Output for {cmd}: {formatted_output}''')
 

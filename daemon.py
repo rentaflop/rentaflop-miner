@@ -27,6 +27,8 @@ def _start_mining():
     """
     starts mining on any stopped GPUs
     """
+    # TODO remove after rentaflop miner is on hive; temporarily here to stop nbminer
+    run_shell_cmd("miner stop", very_quiet=True)
     state = get_state(igd=IGD, gpu_only=True, quiet=True)
     gpu_states = state["gpu_states"]
     for gpu_index in gpu_states:
@@ -162,6 +164,7 @@ def _handle_startup():
         _subsequent_startup()
 
     DAEMON_LOGGER.debug("Starting daemon...")
+    os.chdir(os.path.realpath(__file__))
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
     # set IGD to speed up upnpc commands
     global IGD
@@ -173,7 +176,7 @@ def _handle_startup():
     # HTTPS port
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
     # TODO remove after rentaflop miner is on hive; temporarily here to stop nbminer
-    run_shell_cmd("miner stop")
+    run_shell_cmd("miner stop", very_quiet=True)
     _start_mining()
 
 
