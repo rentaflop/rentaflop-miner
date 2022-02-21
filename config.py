@@ -21,5 +21,5 @@ def _get_logger(log_file):
 
 LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log")
 REGISTRATION_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "registration.txt")
-FIRST_STARTUP = (not os.path.exists(REGISTRATION_FILE))
+FIRST_STARTUP = not os.path.exists(REGISTRATION_FILE) and not os.path.exists(LOG_FILE)
 DAEMON_LOGGER = _get_logger(LOG_FILE)

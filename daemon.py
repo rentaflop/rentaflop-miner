@@ -14,7 +14,7 @@ import uuid
 import multiprocessing
 from flask import Flask, jsonify, request, abort, redirect
 from flask_apscheduler import APScheduler
-from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE
+from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, REGISTRATION_FILE
 from utils import *
 import sys
 import requests
@@ -40,8 +40,7 @@ def _get_registration():
     """
     return registration details from registration file or register if it doesn't exist
     """
-    registration_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "registration.txt")
-    is_registered = os.path.exists(registration_file)
+    is_registered = os.path.exists(REGISTRATION_FILE)
     daemon_url = "https://portal.rentaflop.com/api/host/daemon"
     rentaflop_id = None
     if not is_registered:
