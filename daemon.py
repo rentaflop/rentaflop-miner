@@ -48,7 +48,7 @@ def _get_registration():
         # register host with rentaflop
         try:
             ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
-            daemon_port = reserve_port(IGD, "daemon")
+            daemon_port = select_port(IGD, "daemon")
             data = {"state": get_state(igd=IGD), "ip": ip, "port": daemon_port}
             DAEMON_LOGGER.debug(f"Sent to /api/daemon: {data}")
             response = requests.post(daemon_url, json=data)
@@ -198,8 +198,8 @@ def mine(params):
         jupyter_port, ssh_port = [None]*2
         if mine_type == "gpc":
             # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
-            jupyter_port = 46880 + gpu
-            ssh_port = 46422 + gpu
+            jupyter_port = select_port(IGD, "jupyter")
+            ssh_port = select_port(IGD, "ssh")
             username = params["username"]
             password = params["password"]
             gpc_flags = f"-p {ssh_port}:22 -p {jupyter_port}:8080 --env RENTAFLOP_USERNAME='{username}' --env RENTAFLOP_PASSWORD={password}"
