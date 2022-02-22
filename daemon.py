@@ -48,7 +48,7 @@ def _get_registration():
         try:
             ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
             daemon_port = select_port(IGD, "daemon")
-            data = {"state": get_state(igd=IGD), "ip": ip, "port": daemon_port}
+            data = {"state": get_state(igd=IGD), "ip": ip, "port": str(daemon_port)}
             DAEMON_LOGGER.debug(f"Sent to /api/daemon: {data}")
             response = requests.post(daemon_url, json=data)
             response_json = response.json()
