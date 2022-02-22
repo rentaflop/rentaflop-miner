@@ -1,4 +1,4 @@
-FROM nvidia/cuda:10.2-base
+FROM nvidia/cuda:11.6.0-devel-ubuntu20.04
 RUN apt-get update && apt-get install -y sudo openssh-server curl
 EXPOSE 22
 EXPOSE 8080
