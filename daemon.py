@@ -252,7 +252,7 @@ def update(params, reboot=True, second_update=False):
         # must run all commands even if second update
         run_shell_cmd("git pull")
         # stop all rentaflop docker containers
-        _stop_all()
+        # _stop_all()
         run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
         update_param = "" if second_update else " update"
         # daemon will shut down (but not full system) so this ensures it starts back up again
