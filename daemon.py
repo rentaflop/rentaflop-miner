@@ -60,10 +60,10 @@ def _get_registration():
             DAEMON_LOGGER.error(f"Exception: {e}")
             DAEMON_LOGGER.error("Failed registration! Exiting...")
             raise
-        with open(registration_file, "w") as f:
+        with open(REGISTRATION_FILE, "w") as f:
             f.write(f"{rentaflop_id}\n{daemon_port}")
     else:
-        with open(registration_file, "r") as f:
+        with open(REGISTRATION_FILE, "r") as f:
             rentaflop_id, daemon_port = f.read().strip().splitlines()
 
     return rentaflop_id, daemon_port
