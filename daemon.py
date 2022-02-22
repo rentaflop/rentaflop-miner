@@ -213,7 +213,8 @@ def mine(params):
         --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} {gpc_flags} -dt rentaflop/sandbox")
     elif action == "stop":
         container_name = run_shell_cmd(f'docker ps --filter "name=rentaflop-sandbox-{mine_type}-{gpu}-*"' + \
-                                       ' --format {{.Names}}', format_output=False).replace("\n", "")
+                                       ' --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
+                                       format_output=False).replace("\n", "")
         if container_name:
             jupyter_port, ssh_port = container_name.split("-")[-2:]
             run_shell_cmd(f"docker kill {container_name}")
