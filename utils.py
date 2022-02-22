@@ -115,7 +115,7 @@ def get_state(igd=None, gpu_only=False, quiet=False):
     if not gpu_only:
         igd_flag = "" if not igd else f" -u {igd}"
         # TODO keep track of ports for this host specifically and only return those
-        ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d " " -f 4 | cut -d "-" -f 1', quiet=quiet, format_output=False).split()
+        ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d "-" -f 1 | rev | cut -d " " -f 1 | rev', quiet=quiet, format_output=False).split()
         state["ports"] = ports
         state["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")
 
@@ -135,7 +135,7 @@ def select_port(igd, port_type):
     each type of port starts at a minimum number and ascends
     """
     selected_port = _PORT_TYPE_TO_START[port_type]
-    ports_in_use = run_shell_cmd(f'upnpc -u {igd} -l | grep rentaflop | cut -d " " -f 4 | cut -d "-" -f 1', format_output=False).split()
+    ports_in_use = run_shell_cmd(f'upnpc -u {igd} -l | grep rentaflop | cut -d "-" -f 1 | rev | cut -d " " -f 1 | rev', format_output=False).split()
     while str(selected_port) in ports_in_use:
         selected_port += 1
 
