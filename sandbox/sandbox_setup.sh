@@ -1,5 +1,4 @@
 #!/bin/bash
-hostname rentaflop
 sudo ldconfig.real
 # don't run crypto mining during guest session
 if [ "$RENTAFLOP_SANDBOX_TYPE" != "gpc" ]

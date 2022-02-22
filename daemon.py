@@ -210,7 +210,8 @@ def mine(params):
         # TODO set constraints on ram, cpu, bandwidth https://docs.docker.com/engine/reference/run/
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} {gpc_flags} -dt rentaflop/sandbox")
+        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} {gpc_flags} -h rentaflop \
+        -dt rentaflop/sandbox")
     elif action == "stop":
         container_name = run_shell_cmd(f'docker ps --filter "name=rentaflop-sandbox-{mine_type}-{gpu}-*"' + \
                                        ' --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
@@ -252,8 +253,6 @@ def update(params, reboot=True, second_update=False):
     if update_type == "rentaflop":
         # must run all commands even if second update
         run_shell_cmd("git pull")
-        # stop all rentaflop docker containers
-        # _stop_all()
         run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
         update_param = "" if second_update else " update"
         # daemon will shut down (but not full system) so this ensures it starts back up again
