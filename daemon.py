@@ -179,10 +179,11 @@ def _handle_startup():
     _start_mining()
 
 
-def mine(params):
+def mine(params, restart=True):
     """
     handle commands related to mining, whether crypto mining or guest "mining"
     params looks like {"type": "crypto" | "gpc", "action": "start" | "stop", "gpu": "0"}
+    restart indicates whether or not to start crypto job immediately after stopping gpc job
     """
     mine_type = params["type"]
     action = params["action"]
@@ -191,7 +192,8 @@ def mine(params):
     
     if action == "start":
         # TODO add pending status to ensure scheduled job doesn't happen to restart crypto mining
-        # stop any crypto job already running
+        # stop any crypto or gpc job already running
+        mine({"type": "gpc", "action": "stop", "gpu": gpu}, restart=False)
         mine({"type": "crypto", "action": "stop", "gpu": gpu})
         gpc_flags = ""
         jupyter_port, ssh_port = [None]*2
@@ -213,19 +215,19 @@ def mine(params):
         --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} {gpc_flags} -h rentaflop \
         -dt rentaflop/sandbox")
     elif action == "stop":
-        container_name = run_shell_cmd(f'docker ps --filter "name=rentaflop-sandbox-{mine_type}-{gpu}-*"' + \
-                                       ' --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
-                                       format_output=False).replace("\n", "")
-        if container_name:
+        container_names = run_shell_cmd(f'docker ps --filter "name=rentaflop-sandbox-{mine_type}-{gpu}-*"' + \
+                                       ' --format {{.Names}}',
+                                       format_output=False).split()
+        for container_name in container_names:
             jupyter_port, ssh_port = container_name.split("-")[-2:]
             run_shell_cmd(f"docker kill {container_name}")
             if mine_type == "gpc":
                 # does nothing if port is not open
                 run_shell_cmd(f"upnpc -u {IGD} -d {jupyter_port} tcp")
                 run_shell_cmd(f"upnpc -u {IGD} -d {ssh_port} tcp")
-        # restart crypto mining if we just stopped a gpc job
-        if mine_type == "gpc":
-            mine({"type": "crypto", "action": "start", "gpu": gpu})
+                # restart crypto mining if we just stopped a gpc job
+                if restart:
+                    mine({"type": "crypto", "action": "start", "gpu": gpu})
 
     return to_return
 
