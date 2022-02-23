@@ -94,6 +94,8 @@ def _first_startup():
     # perform system update
     update({"type": "system"}, reboot=False)
     # install dependencies
+    run_shell_cmd("nvidia-uninstall -s")
+    run_shell_cmd("sudo apt-get install -y nvidia-driver-510")
     run_shell_cmd("sudo apt-get install ca-certificates curl gnupg lsb-release -y")
     run_shell_cmd("curl -fsSL https://download.docker.com/linux/debian/gpg \
     | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg --batch --yes")
