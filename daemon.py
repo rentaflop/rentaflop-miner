@@ -257,6 +257,7 @@ def update(params, reboot=True, second_update=False):
     if update_type == "rentaflop":
         # must run all commands even if second update
         run_shell_cmd("git pull")
+        run_shell_cmd("sudo docker pull rentaflop/deep_learning:latest")
         run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
         update_param = "" if second_update else " update"
         # daemon will shut down (but not full system) so this ensures it starts back up again
