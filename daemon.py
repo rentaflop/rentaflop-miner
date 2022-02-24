@@ -110,6 +110,7 @@ def _first_startup():
     run_shell_cmd("sudo sed -i 's/#no-cgroups = false/no-cgroups = true/' /etc/nvidia-container-runtime/config.toml")
     run_shell_cmd(r'''sudo sed -i '$s/}/,\n"userns-remap":"default"}/' /etc/docker/daemon.json''')
     run_shell_cmd("sudo systemctl restart docker")
+    run_shell_cmd("sudo apt-get install iptables-persistent -y")
     run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
     _enable_restart_on_boot()
     run_shell_cmd("sudo reboot")
@@ -176,9 +177,14 @@ def _handle_startup():
     # ensure daemon flask server is accessible
     # HTTPS port
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
-    # TODO remove after rentaflop miner is on hive; temporarily here to stop nbminer
-    run_shell_cmd("miner stop", very_quiet=True)
     _start_mining()
+    # prevent guests from connecting to LAN, run every startup since rules don't seem to stay at top of /etc/iptables/rules.v4
+    run_shell_cmd("iptables -I FORWARD -i docker0 -d 192.168.0.0/16 -j DROP")
+    run_shell_cmd("iptables -I FORWARD -i docker0 -d 10.0.0.0/8 -j DROP")
+    run_shell_cmd("iptables -I FORWARD -i docker0 -d 172.16.0.0/12 -j DROP")
+    local_lan_ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep "Local LAN ip address" | cut -d ":" -f 2', format_output=False).strip()
+    run_shell_cmd(f"iptables -A INPUT -i docker0 -d {local_lan_ip} -j DROP")
+    run_shell_cmd("sudo iptables-save > /etc/iptables/rules.v4")
 
 
 def mine(params, restart=True):
