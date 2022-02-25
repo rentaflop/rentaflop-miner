@@ -206,12 +206,11 @@ def mine(params, restart=True):
         gpc_flags = ""
         jupyter_port, ssh_port = [None]*2
         if mine_type == "gpc":
-            # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
             jupyter_port = select_port(IGD, "jupyter")
             ssh_port = select_port(IGD, "ssh")
             username = params["username"]
             password = params["password"]
-            gpc_flags = f"-p {ssh_port}:22 -p {jupyter_port}:8080 --env RENTAFLOP_USERNAME='{username}' --env RENTAFLOP_PASSWORD={password}"
+            gpc_flags = f"-p {ssh_port}:22 -p {jupyter_port}:8888 --env RENTAFLOP_USERNAME='{username}' --env RENTAFLOP_PASSWORD={password}"
             run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {ssh_port} tcp {jupyter_port} tcp")
             to_return = {"ports": {"jupyter": jupyter_port, "ssh": ssh_port}}
 

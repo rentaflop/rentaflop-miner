@@ -122,9 +122,10 @@ def get_state(igd=None, gpu_only=False, quiet=False):
     return state            
 
 
+# find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
 _PORT_TYPE_TO_START = {
     "daemon": 46443,
-    "jupyter": 46880,
+    "jupyter": 46888,
     "ssh": 46422
 }
 

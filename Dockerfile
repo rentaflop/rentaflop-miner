@@ -2,7 +2,7 @@ FROM rentaflop/deep_learning:latest
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y sudo openssh-server curl
 EXPOSE 22
-EXPOSE 8080
+EXPOSE 8888
 RUN sudo chmod -x /etc/update-motd.d/* && sudo rm /etc/legal
 RUN sudo echo -en 'Welcome to rentaflop, the crowdsourced cloud provider.\n\n' > /etc/motd
 RUN ssh-keygen -A && mkdir -p /run/sshd
