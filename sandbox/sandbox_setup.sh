@@ -21,6 +21,6 @@ else
     echo "c.NotebookApp.keyfile = u'/jupyter.key'" >> /root/.jupyter/jupyter_notebook_config.py
     echo "c.NotebookApp.open_browser = False" >> /root/.jupyter/jupyter_notebook_config.py
     echo "c.NotebookApp.ip = '*'" >> /root/.jupyter/jupyter_notebook_config.py
-    jupyter notebook &
+    jupyter notebook --allow-root &
     /usr/sbin/sshd -D
 fi
