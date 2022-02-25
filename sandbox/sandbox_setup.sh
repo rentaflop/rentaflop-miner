@@ -12,15 +12,18 @@ else
     sudo groupadd $RENTAFLOP_USERNAME && sudo useradd -s /bin/bash -m -g $RENTAFLOP_USERNAME $RENTAFLOP_USERNAME && \
 	echo "$RENTAFLOP_USERNAME:$RENTAFLOP_PASSWORD" | chpasswd
     usermod -aG sudo $RENTAFLOP_USERNAME
-    touch /home/$RENTAFLOP_USERNAME/.sudo_as_admin_successful
-    jupyter_passwd_hash=$(python3 -c "from notebook.auth import passwd; print(passwd('$RENTAFLOP_PASSWORD'))")
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout jupyter.key -out jupyter.pem -subj '/C=US/ST=Virginia/L=Arlington/O=Rentaflop, Inc.'
+    user_home=/home/$RENTAFLOP_USERNAME
+    touch $user_home/.sudo_as_admin_successful
+    su $RENTAFLOP_USERNAME
+    cd $user_home
     jupyter notebook --generate-config
-    echo "c.NotebookApp.password='$jupyter_passwd_hash'" >> /root/.jupyter/jupyter_notebook_config.py
-    echo "c.NotebookApp.certfile = u'/jupyter.pem'" >> /root/.jupyter/jupyter_notebook_config.py
-    echo "c.NotebookApp.keyfile = u'/jupyter.key'" >> /root/.jupyter/jupyter_notebook_config.py
-    echo "c.NotebookApp.open_browser = False" >> /root/.jupyter/jupyter_notebook_config.py
-    echo "c.NotebookApp.ip = '*'" >> /root/.jupyter/jupyter_notebook_config.py
-    jupyter notebook --allow-root &
-    /usr/sbin/sshd -D
+    jupyter_passwd_hash=$(python3 -c "from notebook.auth import passwd; print(passwd('$RENTAFLOP_PASSWORD'))")
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout .jupyter/jupyter.key -out .jupyter/jupyter.pem -subj '/C=US/ST=Virginia/L=Arlington/O=Rentaflop, Inc.'
+    echo "c.NotebookApp.password='$jupyter_passwd_hash'" >> .jupyter/jupyter_notebook_config.py
+    echo "c.NotebookApp.certfile = u'$user_home/.jupyter/jupyter.pem'" >> .jupyter/jupyter_notebook_config.py
+    echo "c.NotebookApp.keyfile = u'$user_home/.jupyter/jupyter.key'" >> .jupyter/jupyter_notebook_config.py
+    echo "c.NotebookApp.open_browser = False" >> .jupyter/jupyter_notebook_config.py
+    echo "c.NotebookApp.ip = '*'" >> .jupyter/jupyter_notebook_config.py
+    jupyter notebook &
+    sudo /usr/sbin/sshd -D
 fi
