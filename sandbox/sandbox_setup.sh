@@ -14,9 +14,8 @@ else
     usermod -aG sudo $RENTAFLOP_USERNAME
     user_home=/home/$RENTAFLOP_USERNAME
     touch $user_home/.sudo_as_admin_successful
-    su $RENTAFLOP_USERNAME
     cd $user_home
-    jupyter notebook --generate-config
+    sudo -H -u $RENTAFLOP_USERNAME bash -c 'jupyter notebook --generate-config'
     jupyter_passwd_hash=$(python3 -c "from notebook.auth import passwd; print(passwd('$RENTAFLOP_PASSWORD'))")
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout .jupyter/jupyter.key -out .jupyter/jupyter.pem -subj '/C=US/ST=Virginia/L=Arlington/O=Rentaflop, Inc.'
     echo "c.NotebookApp.password='$jupyter_passwd_hash'" >> .jupyter/jupyter_notebook_config.py
@@ -24,6 +23,6 @@ else
     echo "c.NotebookApp.keyfile = u'$user_home/.jupyter/jupyter.key'" >> .jupyter/jupyter_notebook_config.py
     echo "c.NotebookApp.open_browser = False" >> .jupyter/jupyter_notebook_config.py
     echo "c.NotebookApp.ip = '*'" >> .jupyter/jupyter_notebook_config.py
-    jupyter notebook &
-    sudo /usr/sbin/sshd -D
+    sudo -H -u $RENTAFLOP_USERNAME bash -c 'jupyter notebook &'
+    /usr/sbin/sshd -D    
 fi
