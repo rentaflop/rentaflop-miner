@@ -1,12 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
-
-
-get_ipython().run_line_magic('matplotlib', 'inline')
-
-
 # 
 # `Learn the Basics <intro.html>`_ ||
 # **Quickstart** ||
@@ -32,8 +26,6 @@ get_ipython().run_line_magic('matplotlib', 'inline')
 # 
 # 
 
-# In[ ]:
-
 
 import torch
 from torch import nn
@@ -52,8 +44,6 @@ from torchvision.transforms import ToTensor
 # ``target_transform`` to modify the samples and labels respectively.
 # 
 # 
-
-# In[ ]:
 
 
 # Download training data from open datasets.
@@ -78,8 +68,6 @@ test_data = datasets.FashionMNIST(
 # in the dataloader iterable will return a batch of 64 features and labels.
 # 
 # 
-
-# In[ ]:
 
 
 batch_size = 64
@@ -112,8 +100,6 @@ for X, y in test_dataloader:
 # operations in the neural network, we move it to the GPU if available.
 # 
 # 
-
-# In[ ]:
 
 
 # Get cpu or gpu device for training.
@@ -159,8 +145,6 @@ print(model)
 # 
 # 
 
-# In[ ]:
-
 
 loss_fn = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
@@ -170,8 +154,6 @@ optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
 # backpropagates the prediction error to adjust the model's parameters.
 # 
 # 
-
-# In[ ]:
 
 
 def train(dataloader, model, loss_fn, optimizer):
@@ -198,8 +180,6 @@ def train(dataloader, model, loss_fn, optimizer):
 # 
 # 
 
-# In[ ]:
-
 
 def test(dataloader, model, loss_fn):
     size = len(dataloader.dataset)
@@ -222,8 +202,6 @@ def test(dataloader, model, loss_fn):
 # accuracy increase and the loss decrease with every epoch.
 # 
 # 
-
-# In[ ]:
 
 
 epochs = 5
@@ -250,8 +228,6 @@ print("Done!")
 # 
 # 
 
-# In[ ]:
-
 
 torch.save(model.state_dict(), "model.pth")
 print("Saved PyTorch Model State to model.pth")
@@ -265,8 +241,6 @@ print("Saved PyTorch Model State to model.pth")
 # 
 # 
 
-# In[ ]:
-
 
 model = NeuralNetwork()
 model.load_state_dict(torch.load("model.pth"))
@@ -275,8 +249,6 @@ model.load_state_dict(torch.load("model.pth"))
 # This model can now be used to make predictions.
 # 
 # 
-
-# In[ ]:
 
 
 classes = [
