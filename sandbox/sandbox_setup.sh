@@ -14,6 +14,9 @@ else
     usermod -aG sudo $RENTAFLOP_USERNAME
     user_home=/home/$RENTAFLOP_USERNAME
     touch $user_home/.sudo_as_admin_successful
+    mv quickstart_tutorial.ipynb $user_home
+    mv quickstart_tutorial.py $user_home
+    mv README.md $user_home
     cd $user_home
     sudo -H -u $RENTAFLOP_USERNAME bash -c 'jupyter notebook --generate-config'
     jupyter_passwd_hash=$(python3 -c "from notebook.auth import passwd; print(passwd('$RENTAFLOP_PASSWORD'))")
