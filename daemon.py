@@ -218,11 +218,12 @@ def mine(params, restart=True):
 
         container_name = f"rentaflop-sandbox-{mine_type}-{gpu}-{jupyter_port}-{ssh_port}"
         # TODO '--gpus all' problematic to use? it's supposed to pass all gpus but only specified device is available, but can't seem to get it to work without 'all'
-        # TODO set constraints on ram, cpu, bandwidth https://docs.docker.com/engine/reference/run/
+        # TODO set constraints on bandwidth https://stackoverflow.com/questions/25497523/how-can-i-rate-limit-network-traffic-on-a-docker-container
+        # TODO use actual system resources to divide up and set memory, storage, and cpu flags
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} {gpc_flags} -h rentaflop \
-        -dt rentaflop/sandbox")
+        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} -m 15G --cpus=6 --storage-opt size=15G \
+        {gpc_flags} -h rentaflop -dt rentaflop/sandbox")
     elif action == "stop":
         container_names = run_shell_cmd(f'docker ps --filter "name=rentaflop-sandbox-{mine_type}-{gpu}-*"' + \
                                        ' --format {{.Names}}',
