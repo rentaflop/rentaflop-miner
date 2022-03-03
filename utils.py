@@ -6,6 +6,25 @@ from config import DAEMON_LOGGER
 import time
 
 
+SUPPORTED_GPUS = [
+    "NVIDIA GeForce GTX 1070 Ti",
+    "NVIDIA GeForce GTX 1080",
+    "NVIDIA GeForce GTX 1080 Ti",
+    "NVIDIA GeForce RTX 2070 Super",
+    "NVIDIA GeForce RTX 2080",
+    "NVIDIA GeForce RTX 2080 Super",
+    "NVIDIA GeForce RTX 2080 Ti",
+    "NVIDIA GeForce RTX 3050",
+    "NVIDIA GeForce RTX 3060",
+    "NVIDIA GeForce RTX 3060 Ti",
+    "NVIDIA GeForce RTX 3070",
+    "NVIDIA GeForce RTX 3070 Ti",
+    "NVIDIA GeForce RTX 3080",
+    "NVIDIA GeForce RTX 3080 Ti",
+    "NVIDIA GeForce RTX 3090",
+]
+
+
 def run_shell_cmd(cmd, quiet=False, very_quiet=False, format_output=True):
     """
     if quiet will only print errors, if very_quiet will silence everything including errors
