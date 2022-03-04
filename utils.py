@@ -118,7 +118,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
         # container looks like f"rentaflop-sandbox-{mine_type}-{gpu}-{jupyter_port}-{ssh_port}"
         _, _, mine_type, gpu, _, _ = container.split("-")
         for i, gpu_dict in enumerate(state["gpus"]):
-            if gpu_dict["index"] == int(gpu):
+            if gpu_dict["index"] == gpu:
                 state["gpus"][i]["state"] = mine_type
 
     if not gpu_only:
