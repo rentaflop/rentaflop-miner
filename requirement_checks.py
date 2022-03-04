@@ -69,12 +69,18 @@ def check_bandwidth(include_stdout=False):
     min_download_per_vm = 10
     # TODO upload bandwidth per vm at some point?
     min_upload = 5
-    command_output = run_shell_cmd("speedtest-cli --simple", format_output=False, quiet=True)
-    _, download_line, upload_line = command_output.splitlines()
-    download_match = re.search("Download: [+-]?([0-9]*[.])?[0-9]+", download_line).group(0)
-    download = float(download_match.split()[-1])
-    upload_match = re.search("Upload: [+-]?([0-9]*[.])?[0-9]+", upload_line).group(0)
-    upload = float(upload_match.split()[-1])
+    download, upload = 0, 0
+    # repeat because of inconsistency
+    tries = 3
+    for _ in range(tries):
+        command_output = run_shell_cmd("speedtest-cli --simple", format_output=False, quiet=True)
+        _, download_line, upload_line = command_output.splitlines()
+        download_match = re.search("Download: [+-]?([0-9]*[.])?[0-9]+", download_line).group(0)
+        current_download = float(download_match.split()[-1])
+        upload_match = re.search("Upload: [+-]?([0-9]*[.])?[0-9]+", upload_line).group(0)
+        current_upload = float(upload_match.split()[-1])
+        download = max(current_download, download)
+        upload = max(current_upload, upload)
 
     if download < min_download_per_vm:
         _log_and_print(include_stdout, "INFO", f"Please ensure download speed is at least {min_download_per_vm} mbps per GPU.")
@@ -204,6 +210,6 @@ def perform_host_requirement_checks():
     # if more available gpus than vms, select gpus to use based on first n_vms indexes
     # TODO do better than first n_vms selection
     if n_vms_gpu > n_vms:
-        gpus = gpus[:n_vms]
+        gpus = gpus[:int(n_vms)]
 
     return n_vms, vm_storage, vm_download, vm_cpus, vm_ram, gpus
