@@ -171,6 +171,7 @@ def _get_available_resources():
     n_vms, vm_storage, vm_download, vm_cpus, vm_ram, gpus = perform_host_requirement_checks()
     resources = {"n_vms": n_vms, "vm_storage": vm_storage, "vm_download": vm_download, "vm_cpus": vm_cpus,
                  "vm_ram": vm_ram, "gpu_indexes": gpus}
+    DAEMON_LOGGER.debug(f"Finished requirement checks, found available vm resources: {resources}")
 
     return resources
 
