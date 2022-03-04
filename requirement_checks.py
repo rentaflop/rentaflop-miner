@@ -49,7 +49,7 @@ def check_drive_size(include_stdout=False):
     # TODO run disk-expand utility from hive (or better, make it work on all linux distros)
     match = re.search("Disk /dev/sda: [+-]?([0-9]*[.])?[0-9]+", drive_info).group(0)
     drive_size = float(match.split()[-1])
-    if drive_size < min_drive_size:
+    if drive_size < min_rentaflop_size+min_per_vm_size:
         _log_and_print(include_stdout, "INFO", f"Please ensure storage drive is at least {min_rentaflop_size} GB plus {min_per_vm_size} per GPU.")
 
         return 0, 0
