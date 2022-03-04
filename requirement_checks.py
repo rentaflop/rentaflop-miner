@@ -95,7 +95,7 @@ def _check_pcie(gpu):
     ensure gpu pcie resources pass minimum benchmark
     return generation and width
     """
-    command_output = run_shell_cmd("nvidia-smi -i {gpu} --query-gpu=pcie.link.gen.current,pcie.link.width.current --format=csv",
+    command_output = run_shell_cmd(f"nvidia-smi -i {gpu} --query-gpu=pcie.link.gen.current,pcie.link.width.current --format=csv",
                                    format_output=False, quiet=True).splitlines()
     pci_generation, pci_width = command_output.split(", ")
     pci_generation = int(pci_generation)
