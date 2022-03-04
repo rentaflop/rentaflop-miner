@@ -45,9 +45,12 @@ def _get_registration(is_checkin=True):
     daemon_url = "https://portal.rentaflop.com/api/host/daemon"
     rentaflop_id, daemon_port = "", ""
 
-    if is_registered and not is_checkin:
-        with open(REGISTRATION_FILE, "r") as f:
-            rentaflop_id, daemon_port = f.read().strip().splitlines()
+    if is_registered:
+        if not is_checkin:
+            with open(REGISTRATION_FILE, "r") as f:
+                rentaflop_id, daemon_port = f.read().strip().splitlines()
+        else:
+            rentaflop_id, daemon_port = RENTAFLOP_ID, DAEMON_PORT
 
     # register host with rentaflop or perform checkin if already registered
     try:

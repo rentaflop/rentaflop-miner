@@ -196,7 +196,7 @@ def perform_host_requirement_checks():
     n_vms_ram, ram = check_memory_resources(include_stdout=True)
     n_vms, vm_storage, vm_download, vm_cpus, vm_ram = [0]*5
     if passed_p2p:
-        n_vms = min(n_vms_storage, n_vms_download, n_vms_gpu, n_vms_cpu, n_vms_ram)
+        n_vms = float(min(n_vms_storage, n_vms_download, n_vms_gpu, n_vms_cpu, n_vms_ram))
         vm_storage = storage/n_vms
         vm_download = download/n_vms
         vm_cpus = cpus/n_vms
