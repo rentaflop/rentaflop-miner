@@ -117,7 +117,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
     for container in containers:
         # container looks like f"rentaflop-sandbox-{mine_type}-{gpu}-{jupyter_port}-{ssh_port}"
         _, _, mine_type, gpu, _, _ = container.split("-")
-        state["gpus"][gpu]["state"] = mine_type
+        state["gpus"][int(gpu)]["state"] = mine_type
 
     if not gpu_only:
         igd_flag = "" if not igd else f" -u {igd}"

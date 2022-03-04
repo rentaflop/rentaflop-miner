@@ -31,10 +31,10 @@ def _start_mining():
     # TODO remove after rentaflop miner is on hive; temporarily here to stop nbminer
     run_shell_cmd("miner stop", very_quiet=True)
     state = get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD, gpu_only=True, quiet=True)
-    gpu_states = state["gpu_states"]
-    for gpu_index in gpu_states:
-        if gpu_states[gpu_index] == "stopped":
-            mine({"type": "crypto", "action": "start", "gpu": gpu_index})
+    gpus = state["gpus"]
+    for gpu in gpus:
+        if gpu["state"] == "stopped":
+            mine({"type": "crypto", "action": "start", "gpu": gpu["index"]})
 
 
 def _get_registration(is_checkin=True):
