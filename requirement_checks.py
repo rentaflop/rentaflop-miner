@@ -55,7 +55,7 @@ def check_drive_size(include_stdout=False):
         return 0, 0
         
     _log_and_print(include_stdout, "DEBUG", "Passed drive size check.")
-    n_vms_possible = drive_size)//min_per_vm_size
+    n_vms_possible = drive_size//min_per_vm_size
     
     return n_vms_possible, drive_size
 
