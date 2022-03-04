@@ -97,7 +97,7 @@ def _check_pcie(gpu):
     """
     command_output = run_shell_cmd(f"nvidia-smi -i {gpu} --query-gpu=pcie.link.gen.current,pcie.link.width.current --format=csv",
                                    format_output=False, quiet=True).splitlines()
-    pci_generation, pci_width = command_output.split(", ")
+    pci_generation, pci_width = command_output[1].split(", ")
     pci_generation = int(pci_generation)
     pci_width = int(pci_width)
 
@@ -171,8 +171,8 @@ def check_memory_resources(include_stdout=False):
     command_output = run_shell_cmd("free --giga", format_output=False, quiet=True)
     command_output = command_output.splitlines()
     ram = float(command_output[1].split()[1])
-    if ram < min_ram:
-        _log_and_print(include_stdout, "INFO", f"Please ensure your machine has at least {min_ram} GB of RAM per GPU.")
+    if ram < min_ram_per_vm:
+        _log_and_print(include_stdout, "INFO", f"Please ensure your machine has at least {min_ram_per_vm} GB of RAM per GPU.")
 
         return 0, 0
     
