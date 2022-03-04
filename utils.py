@@ -105,6 +105,40 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
     this includes gpus, running containers, container use, upnp ports, etc.
     igd is internet gateway device to speed up upnpc command
     gpu_only will determine whether to only get gpu-related info
+    state looks like this:
+    {
+      "state": {
+        "gpus": [
+          {
+            "index": "0",
+            "name": "NVIDIA GeForce RTX 3080",
+            "state": "crypto"
+          },
+          {
+            "index": "1",
+            "name": "NVIDIA GeForce RTX 3060 Ti",
+            "state": "crypto"
+          }
+        ],
+        "n_gpus": "2",
+        "ports": [
+          "46443",
+          "46444"
+        ],
+        "resources": {
+          "gpu_indexes": [
+            "0",
+            "1"
+          ],
+          "n_vms": 2,
+          "vm_cpus": 10,
+          "vm_download": 45.42,
+          "vm_ram": 16,
+          "vm_storage": 428.72025
+        },
+        "version": "01e243e"
+      }
+    }
     """
     state = {}
     gpu_names, gpu_indexes = get_gpus(available_resources, quiet)
