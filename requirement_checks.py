@@ -43,20 +43,19 @@ def check_drive_size(include_stdout=False):
     """
     ensure storage requirements are met
     """
-    # TODO don't need rentaflop size since rentaflop is already fully installed prior to when this gets run
-    min_rentaflop_size = 10.0
+    # don't need rentaflop size since rentaflop is already fully installed prior to when this gets run
     min_per_vm_size = 15.0
     drive_info = run_shell_cmd("""df / | grep "/dev" | awk -v N=4 '{print $N}'""", format_output=False, quiet=True)
     # TODO run disk-expand utility from hive (or better, make it work on all linux distros)
     # free drive space in GB
     drive_size = float(drive_info)/1000000
-    if drive_size < min_rentaflop_size+min_per_vm_size:
-        _log_and_print(include_stdout, "INFO", f"Please ensure storage drive is at least {min_rentaflop_size} GB plus {min_per_vm_size} per GPU.")
+    if drive_size < min_per_vm_size:
+        _log_and_print(include_stdout, "INFO", f"Please ensure storage drive is at least {min_per_vm_size} per GPU.")
 
         return 0, 0
         
     _log_and_print(include_stdout, "DEBUG", "Passed drive size check.")
-    n_vms_possible = (drive_size-min_rentaflop_size)//min_per_vm_size
+    n_vms_possible = drive_size)//min_per_vm_size
     
     return n_vms_possible, drive_size
 
