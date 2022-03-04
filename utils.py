@@ -93,7 +93,7 @@ def get_gpus(available_resources, quiet=False):
     gpu_indexes = available_resources["gpu_indexes"]
     for gpu_index in gpu_indexes:
         gpu_info = run_shell_cmd(f"nvidia-smi -i {gpu_index} --query-gpu=gpu_name --format=csv", quiet=quiet, format_output=False).split("\n")
-        gpu_name = gpu_info[1:]
+        gpu_name = gpu_info[1]
         gpu_names.append(gpu_name)
     
     return gpu_names, gpu_indexes
