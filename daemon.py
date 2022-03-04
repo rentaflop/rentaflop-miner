@@ -52,7 +52,7 @@ def _get_registration(is_checkin=True):
     # register host with rentaflop or perform checkin if already registered
     try:
         ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
-        if not is_checkin:
+        if not is_registered:
             daemon_port = select_port(IGD, "daemon")
         data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id}
         DAEMON_LOGGER.debug(f"Sent to /api/daemon: {data}")
