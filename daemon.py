@@ -59,7 +59,7 @@ def _get_registration(is_checkin=True):
         response = requests.post(daemon_url, json=data)
         response_json = response.json()
         DAEMON_LOGGER.debug(f"Received from /api/daemon: {response.status_code} {response_json}")
-        if not is_checkin:
+        if not is_registered:
             rentaflop_id = response_json["rentaflop_id"]
     except Exception as e:
         type_str = "checkin" if is_checkin else "registration"
