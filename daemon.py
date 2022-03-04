@@ -18,6 +18,7 @@ from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, REGISTRATION_FILE
 from utils import *
 import sys
 import requests
+from requirement_checks import perform_host_requirement_checks
 
 
 app = Flask(__name__)
@@ -29,42 +30,50 @@ def _start_mining():
     """
     # TODO remove after rentaflop miner is on hive; temporarily here to stop nbminer
     run_shell_cmd("miner stop", very_quiet=True)
-    state = get_state(igd=IGD, gpu_only=True, quiet=True)
+    state = get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD, gpu_only=True, quiet=True)
     gpu_states = state["gpu_states"]
     for gpu_index in gpu_states:
         if gpu_states[gpu_index] == "stopped":
             mine({"type": "crypto", "action": "start", "gpu": gpu_index})
 
 
-def _get_registration():
+def _get_registration(is_checkin=True):
     """
     return registration details from registration file or register if it doesn't exist
     """
     is_registered = os.path.exists(REGISTRATION_FILE)
     daemon_url = "https://portal.rentaflop.com/api/host/daemon"
-    rentaflop_id = None
-    if not is_registered:
-        # register host with rentaflop
-        try:
-            ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
-            daemon_port = select_port(IGD, "daemon")
-            data = {"state": get_state(igd=IGD), "ip": ip, "port": str(daemon_port)}
-            DAEMON_LOGGER.debug(f"Sent to /api/daemon: {data}")
-            response = requests.post(daemon_url, json=data)
-            response_json = response.json()
-            DAEMON_LOGGER.debug(f"Received from /api/daemon: {response.status_code} {response_json}")
-            rentaflop_id = response_json["rentaflop_id"]
-            DAEMON_LOGGER.debug("Registration successful.")
-        except Exception as e:
-            # TODO retry hourly on error state? log to rentaflop endpoint?
-            DAEMON_LOGGER.error(f"Exception: {e}")
-            DAEMON_LOGGER.error("Failed registration! Exiting...")
-            raise
-        with open(REGISTRATION_FILE, "w") as f:
-            f.write(f"{rentaflop_id}\n{daemon_port}")
-    else:
+    rentaflop_id, daemon_port = "", ""
+
+    if is_registered and not is_checkin:
         with open(REGISTRATION_FILE, "r") as f:
             rentaflop_id, daemon_port = f.read().strip().splitlines()
+
+    # register host with rentaflop or perform checkin if already registered
+    try:
+        ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
+        if not is_checkin:
+            daemon_port = select_port(IGD, "daemon")
+        data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id}
+        DAEMON_LOGGER.debug(f"Sent to /api/daemon: {data}")
+        response = requests.post(daemon_url, json=data)
+        response_json = response.json()
+        DAEMON_LOGGER.debug(f"Received from /api/daemon: {response.status_code} {response_json}")
+        if not is_checkin:
+            rentaflop_id = response_json["rentaflop_id"]
+    except Exception as e:
+        type_str = "checkin" if is_checkin else "registration"
+        DAEMON_LOGGER.error(f"Exception: {e}")
+        DAEMON_LOGGER.error(f"Failed {type_str}!")
+        if is_checkin:
+            return
+        raise
+
+    # if we just registered, save registration info
+    if not is_registered:
+        with open(REGISTRATION_FILE, "w") as f:
+            f.write(f"{rentaflop_id}\n{daemon_port}")
+        DAEMON_LOGGER.debug("Registration successful.")
 
     return rentaflop_id, daemon_port
 
@@ -152,6 +161,17 @@ def _subsequent_startup():
         DAEMON_LOGGER.debug("Daemon crashed.")
 
 
+def _get_available_resources():
+    """
+    run requirement checks and return dict containing available VM system resources
+    """
+    n_vms, vm_storage, vm_download, vm_cpus, vm_ram, gpus = perform_host_requirement_checks()
+    resources = {"n_vms": n_vms, "vm_storage": vm_storage, "vm_download": vm_download, "vm_cpus": vm_cpus,
+                 "vm_ram": vm_ram, "gpu_indexes": gpus}
+
+    return resources
+
+
 def _handle_startup():
     """
     uses log file existence to handle startup scenarios
@@ -172,10 +192,12 @@ def _handle_startup():
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
     # set IGD to speed up upnpc commands
     global IGD
+    global AVAILABLE_RESOURCES
     global RENTAFLOP_ID
     global DAEMON_PORT
     IGD = get_igd()
-    RENTAFLOP_ID, DAEMON_PORT = _get_registration()
+    AVAILABLE_RESOURCES = _get_available_resources()
+    RENTAFLOP_ID, DAEMON_PORT = _get_registration(is_checkin=False)
     # ensure daemon flask server is accessible
     # HTTPS port
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
@@ -318,7 +340,7 @@ def status(params):
     """
     return the state of this host
     """
-    return {"state": get_state(IGD)}
+    return {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD)}
 
 
 @app.before_request
@@ -373,14 +395,16 @@ CMD_TO_FUNC = {
 IGD = None
 RENTAFLOP_ID = None
 DAEMON_PORT = None
+AVAILABLE_RESOURCES = None
 
 
 def main():
     _handle_startup()
     app.secret_key = uuid.uuid4().hex
-    # create a scheduler that periodically checks for stopped GPUs and starts mining on them
+    # create a scheduler that periodically checks for stopped GPUs and starts mining on them; periodic checkin to rentaflop servers
     scheduler = APScheduler()
     scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=300)
+    scheduler.add_job(id='Rentaflop Checkin', func=_get_registration, trigger="interval", seconds=3600)
     scheduler.start()
     # run server, allowing it to shut itself down
     q = multiprocessing.Queue()

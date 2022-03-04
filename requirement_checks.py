@@ -43,27 +43,31 @@ def check_drive_size(include_stdout=False):
     """
     ensure storage requirements are met
     """
-    min_drive_size = 25.0
+    min_rentaflop_size = 10.0
+    min_per_vm_size = 15.0
     drive_info = run_shell_cmd("fdisk -l", format_output=False, quiet=True)
     # TODO run disk-expand utility from hive (or better, make it work on all linux distros)
     match = re.search("Disk /dev/sda: [+-]?([0-9]*[.])?[0-9]+", drive_info).group(0)
     drive_size = float(match.split()[-1])
     if drive_size < min_drive_size:
-        _log_and_print(include_stdout, "INFO", f"Please ensure drive is at least {min_drive_size} GB.")
+        _log_and_print(include_stdout, "INFO", f"Please ensure storage drive is at least {min_rentaflop_size} GB plus {min_per_vm_size} per GPU.")
 
-        return False
+        return 0, 0
         
     _log_and_print(include_stdout, "DEBUG", "Passed drive size check.")
-
-    return True
+    n_vms_possible = (drive_size-min_rentaflop_size)//min_per_vm_size
+    
+    return n_vms_possible, drive_size
 
 
 def check_bandwidth(include_stdout=False):
     """
     ensure download and upload speeds meet minimum requirements
     """
-    min_download = 20
-    min_upload = 1
+    # TODO at some point, figure out whether there are other hosts at this ip that split the bandwidth
+    min_download_per_vm = 10
+    # TODO upload bandwidth per vm at some point?
+    min_upload = 5
     command_output = run_shell_cmd("speedtest-cli --simple", format_output=False, quiet=True)
     _, download_line, upload_line = command_output.splitlines()
     download_match = re.search("Download: [+-]?([0-9]*[.])?[0-9]+", download_line).group(0)
@@ -71,18 +75,19 @@ def check_bandwidth(include_stdout=False):
     upload_match = re.search("Upload: [+-]?([0-9]*[.])?[0-9]+", upload_line).group(0)
     upload = float(upload_match.split()[-1])
 
-    if download < min_download:
-        _log_and_print(include_stdout, "INFO", f"Please ensure download speed is at least {min_download} mbps.")
+    if download < min_download_per_vm:
+        _log_and_print(include_stdout, "INFO", f"Please ensure download speed is at least {min_download_per_vm} mbps per GPU.")
         
-        return False
+        return 0, 0
     if upload < min_upload:
         _log_and_print(include_stdout, "INFO", f"Please ensure upload speed is at least {min_upload} mbps.")
 
-        return False
+        return 0, 0
 
     _log_and_print(include_stdout, "DEBUG", "Passed bandwidth check.")
-
-    return True
+    n_vms_possible = download//min_download_per_vm
+    
+    return n_vms_possible, download
 
 
 def _check_pcie(gpu):
@@ -114,9 +119,9 @@ def check_gpu_resources(include_stdout=False):
             gpus.append(int(gpu_idx))
 
     if not gpus:
-        _log_and_print(include_stdout, "INFO", f"Please ensure your machine has at least one compatible GPU.")
+        _log_and_print(include_stdout, "INFO", f"Please ensure your machine has at least one supported GPU.")
 
-        return False, {}
+        return 0, []
     
     gpu_to_result = {}
     for gpu in gpus:
@@ -130,60 +135,74 @@ def check_gpu_resources(include_stdout=False):
             gpu_to_result[gpu_str] = False
 
     if not any(gpu_to_result.values()):
-        _log_and_print(include_stdout, "INFO", "No valid GPUs found.")
+        _log_and_print(include_stdout, "INFO", "Supported GPUs found, but none meet minimum PCIe bandwidth requirements.")
 
-        return False, gpu_to_result
+        return 0, []
 
     _log_and_print(include_stdout, "DEBUG", "Passed GPU resources check with at least one GPU.")
+    passed_gpus = [key for key in gpu_to_result if gpu_to_result[key]]
 
-    return True, gpu_to_result
+    return len(passed_gpus), sorted(passed_gpus)
         
 
 def check_cpu_resources(include_stdout=False):
     """
     ensure cpu resources meet minimum requirements
     """
-    min_cpus = 2.0
+    min_cpus_per_vm = 2.0
     command_output = run_shell_cmd("nproc", format_output=False, quiet=True)
     cpus = float(command_output)
-    if cpus < min_cpus:
-        _log_and_print(include_stdout, "INFO", f"Please ensure your machine has at least {min_cpus} CPUs.")
+    if cpus < min_cpus_per_vm:
+        _log_and_print(include_stdout, "INFO", f"Please ensure your machine has at least {min_cpus_per_vm} CPU threads per GPU.")
 
-        return False
+        return 0, 0
     
     _log_and_print(include_stdout, "DEBUG", "Passed CPU resources check.")
-
-    return True
+    n_vms_possible = cpus//min_cpus_per_vm
+    
+    return n_vms_possible, cpus
 
 
 def check_memory_resources(include_stdout=False):
     """
     ensure system has enough ram for rentaflop
     """
-    min_ram = 8.0
+    min_ram_per_vm = 8.0
     command_output = run_shell_cmd("free --giga", format_output=False, quiet=True)
     command_output = command_output.splitlines()
     ram = float(command_output[1].split()[1])
     if ram < min_ram:
-        _log_and_print(include_stdout, "INFO", f"Please ensure your machine has at least {min_ram} GB of RAM.")
+        _log_and_print(include_stdout, "INFO", f"Please ensure your machine has at least {min_ram} GB of RAM per GPU.")
 
-        return False
+        return 0, 0
     
     _log_and_print(include_stdout, "DEBUG", "Passed memory resources check.")
-
-    return True
+    n_vms_possible = ram//min_ram_per_vm
+    
+    return n_vms_possible, ram
 
 
 def perform_host_requirement_checks():
     """
     performs all the necessary checks to ensure host can be added to rentaflop network
+    returns number of vms to create, resources per vm, and list of gpu indexes to use
     """
-    passed_gpu, gpus = check_gpu_resources(include_stdout=True)
     passed_p2p = check_p2p(include_stdout=True)
-    passed_storage = check_drive_size(include_stdout=True)
-    passed_bandwidth = check_bandwidth(include_stdout=True)
-    passed_cpu = check_cpu_resources(include_stdout=True)
-    passed_memory = check_memory_resources(include_stdout=True)
-    passed_all_checks = passed_p2p and passed_storage and passed_bandwidth and passed_gpu and passed_cpu and passed_memory
+    n_vms_storage, storage = check_drive_size(include_stdout=True)
+    n_vms_download, download = check_bandwidth(include_stdout=True)
+    n_vms_gpu, gpus = check_gpu_resources(include_stdout=True)
+    n_vms_cpu, cpus = check_cpu_resources(include_stdout=True)
+    n_vms_ram, ram = check_memory_resources(include_stdout=True)
+    n_vms, vm_storage, vm_download, vm_cpus, vm_ram = [0]*5
+    if passed_p2p:
+        n_vms = min(n_vms_storage, n_vms_download, n_vms_gpu, n_vms_cpu, n_vms_ram)
+        vm_storage = storage/n_vms
+        vm_download = download/n_vms
+        vm_cpus = cpus/n_vms
+        vm_ram = ram/n_vms
+    # if more available gpus than vms, select gpus to use based on first n_vms indexes
+    # TODO do better than first n_vms selection
+    if n_vms_gpu > n_vms:
+        gpus = gpus[:n_vms]
 
-    return passed_all_checks, gpus
+    return n_vms, vm_storage, vm_download, vm_cpus, vm_ram, gpus

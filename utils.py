@@ -85,31 +85,21 @@ def get_igd():
         return None
 
 
-def get_gpus(quiet=False):
+def get_gpus(available_resources, quiet=False):
     """
     returns [gpu names], [corresponding gpu indexes] in order from lowest to highest index
     """
-    gpu_info = run_shell_cmd("nvidia-smi --query-gpu=gpu_name,index --format=csv", quiet=quiet, format_output=False).split("\n")
-    gpu_info = [gpu for gpu in gpu_info if gpu]
-    gpu_info = gpu_info[1:]
     gpu_names = []
-    gpu_indexes = []
-    for gpu in gpu_info:
-        name, index = gpu.split(", ")
-        gpu_names.append(name)
-        gpu_indexes.append(int(index))
-
-    # order both lists by index
-    zipped_lists = zip(gpu_indexes, gpu_names)
-    sorted_pairs = sorted(zipped_lists)
-    tuples = zip(*sorted_pairs)
-    gpu_indexes, gpu_names = [list(tuple) for tuple in tuples]
-    gpu_indexes = [str(index) for index in gpu_indexes]
+    gpu_indexes = available_resources["gpu_indexes"]
+    for gpu_index in gpu_indexes:
+        gpu_info = run_shell_cmd(f"nvidia-smi -i {gpu_index} --query-gpu=gpu_name --format=csv", quiet=quiet, format_output=False).split("\n")
+        gpu_name = gpu_info[1:]
+        gpu_names.append(gpu_name)
     
     return gpu_names, gpu_indexes
 
 
-def get_state(igd=None, gpu_only=False, quiet=False):
+def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
     """
     returns a dictionary with all relevant daemon state information
     this includes gpus, running containers, container use, upnp ports, etc.
@@ -117,26 +107,25 @@ def get_state(igd=None, gpu_only=False, quiet=False):
     gpu_only will determine whether to only get gpu-related info
     """
     state = {}
-    gpu_names, gpu_indexes = get_gpus(quiet)
-    state["gpu_names"] = {gpu_index: gpu_names[i] for i, gpu_index in enumerate(gpu_indexes)}
+    gpu_names, gpu_indexes = get_gpus(available_resources, quiet)
+    state["gpus"] = [{"index":gpu_index, "name": gpu_names[i], "state": "stopped"} for i, gpu_index in enumerate(gpu_indexes)]
     n_gpus = len(gpu_names)
     state["n_gpus"] = str(n_gpus)
-    gpu_states = {gpu_index: "stopped" for gpu_index in gpu_indexes}
     # get all container names
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
                                quiet=quiet, format_output=False).split()
     for container in containers:
         # container looks like f"rentaflop-sandbox-{mine_type}-{gpu}-{jupyter_port}-{ssh_port}"
         _, _, mine_type, gpu, _, _ = container.split("-")
-        gpu_states[gpu] = mine_type
+        state["gpus"][gpu]["state"] = mine_type
 
-    state["gpu_states"] = gpu_states
     if not gpu_only:
         igd_flag = "" if not igd else f" -u {igd}"
         # TODO keep track of ports for this host specifically and only return those
         ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d "-" -f 1 | rev | cut -d " " -f 1 | rev', quiet=quiet, format_output=False).split()
         state["ports"] = ports
         state["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")
+        state["resources"] = available_resources
 
     return state            
 
