@@ -251,7 +251,7 @@ def mine(params, restart=True):
         rentaflop_id_vm = RENTAFLOP_ID if mine_type != "gpc" else ""
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={rentaflop_id_vm} -m {ram} --cpus={cpus} --shm-size=256m \
+        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={rentaflop_id_vm} -m {ram} --cpus={cpus} --shm-size=512m \
         {gpc_flags} -h rentaflop -dt rentaflop/sandbox")
     elif action == "stop":
         container_names = run_shell_cmd(f'docker ps --filter "name=rentaflop-sandbox-{mine_type}-{gpu}-*"' + \
