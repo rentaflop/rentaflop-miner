@@ -14,6 +14,7 @@ else
     usermod -aG sudo $RENTAFLOP_USERNAME
     user_home=/home/$RENTAFLOP_USERNAME
     touch $user_home/.sudo_as_admin_successful
+    # sudo setquota -u $RENTAFLOP_USERNAME 10GB 10GB 0 0 /
     mv quickstart_tutorial.ipynb $user_home
     mv quickstart_tutorial.py $user_home
     mv README.md $user_home
