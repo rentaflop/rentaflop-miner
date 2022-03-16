@@ -86,6 +86,7 @@ def _enable_restart_on_boot():
     places restart in crontab without duplication
     ensures daemon is run on system startup
     """
+    # TODO delete function once on hive
     daemon_py = os.path.realpath(__file__)
     # TODO hive specific, use below crontab editing if normal system that doesn't overwrite crontab constantly
     already_restart = run_shell_cmd("grep rentaflop /hive/etc/crontab.root")
@@ -101,14 +102,12 @@ def _first_startup():
     """
     run rentaflop installation steps
     """
+    # skipping system update
     # list of sources for security updates
-    run_shell_cmd("sudo sh -c 'grep ^deb /etc/apt/sources.list | grep security > /etc/apt/sources.security.only.list'")
+    # run_shell_cmd("sudo sh -c 'grep ^deb /etc/apt/sources.list | grep security > /etc/apt/sources.security.only.list'")
     # perform system update
-    update({"type": "system"}, reboot=False)
+    # update({"type": "system"}, reboot=False)
     # install dependencies
-    # TODO should we really be messing with the driver here?
-    # run_shell_cmd("nvidia-uninstall -s")
-    # run_shell_cmd("sudo apt-get install -y nvidia-driver-510")
     run_shell_cmd("sudo apt-get install ca-certificates curl gnupg lsb-release -y")
     run_shell_cmd("curl -fsSL https://download.docker.com/linux/debian/gpg \
     | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg --batch --yes")
@@ -126,6 +125,7 @@ def _first_startup():
     run_shell_cmd("sudo apt-get install iptables-persistent -y")
     run_shell_cmd("sudo apt-get install python3-pip -y && pip3 install speedtest-cli")
     run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
+    # TODO delete once on hive
     _enable_restart_on_boot()
     run_shell_cmd("sudo reboot")
 
