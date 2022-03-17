@@ -48,9 +48,9 @@ def _get_registration(is_checkin=True):
     if is_registered:
         if not is_checkin:
             with open(REGISTRATION_FILE, "r") as f:
-                rentaflop_id, daemon_port = f.read().strip().splitlines()
+                rentaflop_id, wallet_address, daemon_port = f.read().strip().splitlines()
         else:
-            rentaflop_id, daemon_port = RENTAFLOP_ID, DAEMON_PORT
+            rentaflop_id, wallet_address, daemon_port = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT
 
     # register host with rentaflop or perform checkin if already registered
     try:
@@ -202,10 +202,11 @@ def _handle_startup():
     global IGD
     global AVAILABLE_RESOURCES
     global RENTAFLOP_ID
+    global WALLET_ADDRESS
     global DAEMON_PORT
     IGD = get_igd()
     AVAILABLE_RESOURCES = _get_available_resources()
-    RENTAFLOP_ID, DAEMON_PORT = _get_registration(is_checkin=False)
+    RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT = _get_registration(is_checkin=False)
     # ensure daemon flask server is accessible
     # HTTPS port
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
@@ -244,7 +245,7 @@ def mine(params, restart=True):
 
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} --shm-size=256m \
+        --rm --name {container_name} --env WALLET_ADDRESS={WALLET_ADDRESS} --env RENTAFLOP_ID={RENTAFLOP_ID} --shm-size=256m \
         {gpc_flags} -h rentaflop -dt rentaflop/sandbox")
     elif action == "stop":
         run_shell_cmd(f"docker kill {container_name}")
@@ -382,6 +383,7 @@ CMD_TO_FUNC = {
 }
 IGD = None
 RENTAFLOP_ID = None
+WALLET_ADDRESS = None
 DAEMON_PORT = None
 AVAILABLE_RESOURCES = None
 
