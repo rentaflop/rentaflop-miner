@@ -168,10 +168,14 @@ def _get_available_resources():
     """
     run requirement checks and return dict containing available VM system resources
     """
-    n_vms, vm_storage, vm_download, vm_cpus, vm_ram, gpus = perform_host_requirement_checks()
-    resources = {"n_vms": n_vms, "vm_storage": vm_storage, "vm_download": vm_download, "vm_cpus": vm_cpus,
-                 "vm_ram": vm_ram, "gpu_indexes": gpus}
-    DAEMON_LOGGER.debug(f"Finished requirement checks, found available vm resources: {resources}")
+    passed_checks, gpus = perform_host_requirement_checks()
+    if not passed_checks:
+        # TODO create min requirement page
+        print("Failed minimum requirement checks. Please see our minimum requirement page.")
+        DAEMON_LOGGER.error("Failed requirement checks. Exiting...")
+        sys.exit(1)
+    resources = {"gpu_indexes": gpus}
+    DAEMON_LOGGER.debug(f"Finished requirement checks, found available resources: {resources}")
 
     return resources
 
@@ -243,15 +247,10 @@ def mine(params, restart=True):
             to_return = {"ports": {"jupyter": jupyter_port, "ssh": ssh_port}}
 
         container_name = f"rentaflop-sandbox-{mine_type}-{gpu}-{jupyter_port}-{ssh_port}"
-        # TODO '--gpus all' problematic to use? it's supposed to pass all gpus but only specified device is available, but can't seem to get it to work without 'all'
-        # TODO set constraints on bandwidth https://stackoverflow.com/questions/25497523/how-can-i-rate-limit-network-traffic-on-a-docker-container
-        # use system resources to divide up and set memory, storage, bandwidth, and cpu flags
-        ram = f'{AVAILABLE_RESOURCES["vm_ram"]}G'
-        cpus = AVAILABLE_RESOURCES["vm_cpus"]
         rentaflop_id_vm = RENTAFLOP_ID if mine_type != "gpc" else ""
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={rentaflop_id_vm} -m {ram} --cpus={cpus} --shm-size=512m \
+        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={rentaflop_id_vm} --shm-size=512m \
         {gpc_flags} -h rentaflop -dt rentaflop/sandbox")
     elif action == "stop":
         container_names = run_shell_cmd(f'docker ps --filter "name=rentaflop-sandbox-{mine_type}-{gpu}-*"' + \

@@ -130,11 +130,6 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
             "0",
             "1"
           ],
-          "n_vms": 2,
-          "vm_cpus": 10,
-          "vm_download": 45.42,
-          "vm_ram": 16,
-          "vm_storage": 428.72025
         },
         "version": "01e243e"
       }
