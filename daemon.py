@@ -4,6 +4,8 @@ functions include, but are not limited to, software updates, system updates,
 guest and crypto mining session initiation/termination, uninstallation
 usage:
     python daemon.py
+    # if not yet registered
+    python daemon.py wallet_address
     # used to indicate rentaflop code update still in progress so we must call
     # update function again; not used during system updates or on second update
     python daemon.py update
@@ -43,7 +45,7 @@ def _get_registration(is_checkin=True):
     """
     is_registered = os.path.exists(REGISTRATION_FILE)
     daemon_url = "https://portal.rentaflop.com/api/host/daemon"
-    rentaflop_id, daemon_port = "", ""
+    rentaflop_id, wallet_address, daemon_port = "", "", ""
 
     if is_registered:
         if not is_checkin:
@@ -56,8 +58,10 @@ def _get_registration(is_checkin=True):
     try:
         ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
         if not is_registered:
+            wallet_address = sys.argv[1]
             daemon_port = select_port(IGD, "daemon")
-        data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id}
+        data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id \
+                "wallet_address": wallet_address}
         DAEMON_LOGGER.debug(f"Sent to /api/daemon: {data}")
         response = requests.post(daemon_url, json=data)
         response_json = response.json()
@@ -75,10 +79,10 @@ def _get_registration(is_checkin=True):
     # if we just registered, save registration info
     if not is_registered:
         with open(REGISTRATION_FILE, "w") as f:
-            f.write(f"{rentaflop_id}\n{daemon_port}")
+            f.write(f"{rentaflop_id}\n{wallet_address}\n{daemon_port}")
         DAEMON_LOGGER.debug("Registration successful.")
 
-    return rentaflop_id, daemon_port
+    return rentaflop_id, wallet_address, daemon_port
 
 
 def _enable_restart_on_boot():
