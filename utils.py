@@ -144,11 +144,12 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
                                quiet=quiet, format_output=False).split()
     for container in containers:
-        # container looks like f"rentaflop-sandbox-{mine_type}-{gpu}-{jupyter_port}-{ssh_port}"
-        _, _, mine_type, gpu, _, _ = container.split("-")
+        # container looks like f"rentaflop-sandbox-{gpu}"
+        _, _, gpu = container.split("-")
         for i, gpu_dict in enumerate(state["gpus"]):
             if gpu_dict["index"] == gpu:
-                state["gpus"][i]["state"] = mine_type
+                # TODO give each docker container a queue of render jobs and list them here instead of "crypto"
+                state["gpus"][i]["state"] = "crypto"
 
     if not gpu_only:
         igd_flag = "" if not igd else f" -u {igd}"
@@ -164,8 +165,6 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
 # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
 _PORT_TYPE_TO_START = {
     "daemon": 46443,
-    "jupyter": 46888,
-    "ssh": 46422
 }
 
 

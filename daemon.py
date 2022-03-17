@@ -222,13 +222,14 @@ def _handle_startup():
 def mine(params, restart=True):
     """
     handle commands related to mining, whether crypto mining or guest "mining"
-    params looks like {"type": "crypto" | "gpc", "action": "start" | "stop", "gpu": "0"}
+    params looks like {"type": "crypto" | "gpc", "action": "start" | "stop", "gpu": "0", "body": contents}
+    iff starting gpc, we receive body parameter that contains data to be rendered
     restart indicates whether or not to start crypto job immediately after stopping gpc job
     """
     mine_type = params["type"]
     action = params["action"]
     gpu = int(params["gpu"])
-    to_return = {}
+    container_name = f"rentaflop-sandbox-{gpu}"
     
     if action == "start":
         # TODO add pending status to ensure scheduled job doesn't happen to restart crypto mining
@@ -236,38 +237,21 @@ def mine(params, restart=True):
         mine({"type": "gpc", "action": "stop", "gpu": gpu}, restart=False)
         mine({"type": "crypto", "action": "stop", "gpu": gpu})
         gpc_flags = ""
-        jupyter_port, ssh_port = [None]*2
         if mine_type == "gpc":
-            jupyter_port = select_port(IGD, "jupyter")
-            ssh_port = select_port(IGD, "ssh")
             username = params["username"]
             password = params["password"]
-            gpc_flags = f"-p {ssh_port}:22 -p {jupyter_port}:8888 --env RENTAFLOP_USERNAME='{username}' --env RENTAFLOP_PASSWORD={password}"
-            run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {ssh_port} tcp {jupyter_port} tcp")
-            to_return = {"ports": {"jupyter": jupyter_port, "ssh": ssh_port}}
+            gpc_flags = f"--env RENTAFLOP_USERNAME='{username}' --env RENTAFLOP_PASSWORD={password}"
 
-        container_name = f"rentaflop-sandbox-{mine_type}-{gpu}-{jupyter_port}-{ssh_port}"
-        rentaflop_id_vm = RENTAFLOP_ID if mine_type != "gpc" else ""
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={rentaflop_id_vm} --shm-size=512m \
+        --rm --name {container_name} --env RENTAFLOP_SANDBOX_TYPE={mine_type} --env RENTAFLOP_ID={RENTAFLOP_ID} --shm-size=256m \
         {gpc_flags} -h rentaflop -dt rentaflop/sandbox")
     elif action == "stop":
-        container_names = run_shell_cmd(f'docker ps --filter "name=rentaflop-sandbox-{mine_type}-{gpu}-*"' + \
-                                       ' --format {{.Names}}',
-                                       format_output=False).split()
-        for container_name in container_names:
-            jupyter_port, ssh_port = container_name.split("-")[-2:]
-            run_shell_cmd(f"docker kill {container_name}")
-            if mine_type == "gpc":
-                # does nothing if port is not open
-                run_shell_cmd(f"upnpc -u {IGD} -d {jupyter_port} tcp")
-                run_shell_cmd(f"upnpc -u {IGD} -d {ssh_port} tcp")
-                # restart crypto mining if we just stopped a gpc job
-                if restart:
-                    mine({"type": "crypto", "action": "start", "gpu": gpu})
-
-    return to_return
+        run_shell_cmd(f"docker kill {container_name}")
+        if mine_type == "gpc":
+            # restart crypto mining if we just stopped a gpc job
+            if restart:
+                mine({"type": "crypto", "action": "start", "gpu": gpu})
 
 
 def _stop_all():
@@ -317,8 +301,6 @@ def uninstall(params):
     # stop and remove all rentaflop docker containers and images
     _stop_all()
     run_shell_cmd('docker rmi $(docker images -a -q "rentaflop/sandbox") $(docker images | grep none | awk "{ print $3; }") $(docker images "nvidia/cuda" -a -q)')
-    # send logs first; do we need this?
-    # send_logs(params)
     # clean up rentaflop host software
     run_shell_cmd(f"upnpc -u {IGD} -d {DAEMON_PORT} tcp")
     daemon_py = os.path.realpath(__file__)
