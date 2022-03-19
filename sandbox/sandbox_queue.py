@@ -31,7 +31,7 @@ def start_mining():
     output = run_shell_cmd("pgrep nbminer")
     # if already running nbminer we do nothing, otherwise start miner
     if not output:
-        run_shell_cmd("cd NBMiner_Linux && ./nbminer -c config.json")
+        run_shell_cmd("cd NBMiner_Linux && ./nbminer -c config.json &")
 
 
 def stop_mining():
@@ -39,7 +39,27 @@ def stop_mining():
     stop crypto job
     """
     run_shell_cmd("pkill -f 'nbminer'")
-    
+
+
+def push_job(params):
+    """
+    add a job to the queue
+    """
+    # TODO figure out args to run.py based on params
+    tsp_id = run_shell_cmd(f"tsp python3 run.py").strip()
+    # TODO track tsp_id so we can find it later
+
+
+def pop_job(params):
+    """
+    remove job from queue
+    """
+    # TODO figure out id based on params
+    tsp_id = ""
+    pid = run_shell_cmd(f"tsp -p {tsp_id}").strip()
+    run_shell_cmd(f"kill -9 {pid}")
+    # TODO stop tracking tsp_id
+
 
 def run_flask_server(q):
     @app.route("/", methods=["POST"])
@@ -48,6 +68,7 @@ def run_flask_server(q):
         cmd = request_json.get("cmd")
         params = request_json.get("params")
         func = CMD_TO_FUNC.get(cmd)
+        func(params)
 
         return jsonify("200")
     
