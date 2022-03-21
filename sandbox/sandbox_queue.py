@@ -66,17 +66,25 @@ def push_job(params):
     job["tsp_id"] = tsp_id
 
 
+def _return_job_with_id(job_id):
+    """
+    find and return job index from queue with job id matching job_id
+    return None if not found
+    """
+    for i, job in enumerate(QUEUE):
+        if job["job_id"] == job_id:
+            return i
+
+    return None
+
+
 def pop_job(params):
     """
     remove job from queue
     does nothing if already removed from queue
     """
     job_id = params["job_id"]
-    queued_job = None
-    for i, job in enumerate(QUEUE):
-        if job["job_id"] == job_id:
-            queued_job = i
-            break
+    queued_job = _return_job_with_id(job_id)
     # job already removed
     if queued_job is None:
         return
@@ -88,13 +96,39 @@ def pop_job(params):
     run_shell_cmd(f"kill -9 {pid}")
 
 
+def _send_results(job_id):
+    """
+    send render results back to daemon, removing files and queue entry
+    """
+    job_dir = os.path.join(FILE_DIR, job_id)
+    output = os.path.join(job_dir, "output")
+    # TODO actually zip and send output dir
+    run_shell_cmd(f"rm -rf {job_dir}")
+    queue_idx = _return_job_with_id(job_id)
+    if queue_idx is not None:
+        global QUEUE
+        QUEUE.pop(queue_idx)
+
+
 def handle_finished_jobs():
     """
     checks for any finished jobs and sends results back to host daemon
     cleans up and removes files afterwards
     starts crypto miner if all jobs are finished
     """
-    
+    # job ids in existence on the file system
+    job_ids = os.listdir(FILE_DIR)
+    for job_id in job_ids:
+        # find finished jobs
+        if os.path.exists(os.path.join(FILE_DIR, job_id, "finished.txt")):
+            # send results, clean files, and remove job from queue
+            _send_results(job_id)
+    # TODO set timeout on queued job and kill if exceeded time
+    # nothing left running or in queue, so we mine crypto again
+    if not QUEUE:
+        start_mining()
+
+
 def run_flask_server(q):
     @app.route("/", methods=["POST"])
     def index():
@@ -126,7 +160,7 @@ def main():
     app.secret_key = uuid.uuid4().hex
     # create a scheduler that periodically checks/handles finished jobs starts mining when there are no jobs in queue
     scheduler = APScheduler()
-    scheduler.add_job(id='Start Mining', func=handle_finished_jobs, trigger="interval", seconds=5)
+    scheduler.add_job(id='Start Mining', func=handle_finished_jobs, trigger="interval", seconds=15)
     scheduler.start()
     q = multiprocessing.Queue()
     server = multiprocessing.Process(target=run_flask_server, args=(q,))
