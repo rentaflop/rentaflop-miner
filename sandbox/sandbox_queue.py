@@ -5,6 +5,7 @@ mines crypto whenever queue is empty
 import subprocess
 import multiprocessing
 from flask import Flask, jsonify, request
+import os
 
 
 app = Flask(__name__)
@@ -45,10 +46,19 @@ def push_job(params):
     """
     add a job to the queue
     """
-    # TODO figure out args to run.py based on params
+    render_file = params["render_file"]
+    job_id = params["job_id"]
+    # create directory for job and write render file there
+    job_dir = os.path.join(FILE_DIR, job_id)
+    os.makedirs(job_dir)
+    with open(f"{job_dir}/render_file.blend", "w") as f:
+        f.write(render_file)
+    
+    stop_mining()
     tsp_id = run_shell_cmd(f"tsp python3 run.py").strip()
-    # TODO track tsp_id so we can find it later
-
+    global QUEUE
+    QUEUE.append({"job_dir": job_dir, "tsp_id": tsp_id})
+    
 
 def pop_job(params):
     """
@@ -67,6 +77,10 @@ def run_flask_server(q):
         request_json = request.get_json()
         cmd = request_json.get("cmd")
         params = request_json.get("params")
+        render_file = request.files.get("render_file", "")
+        if render_file:
+            params["render_file"] = render_file.read()
+        
         func = CMD_TO_FUNC.get(cmd)
         func(params)
 
@@ -79,6 +93,8 @@ CMD_TO_FUNC = {
     "push": push_job,
     "pop": pop_job,
 }
+QUEUE = []
+FILE_DIR = "~/jobs"
 
 
 def main():
