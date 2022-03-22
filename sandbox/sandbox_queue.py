@@ -99,11 +99,18 @@ def pop_job(params):
 
 def _send_results(job_id):
     """
-    send render results back to daemon, removing files and queue entry
+    send render results to servers, removing files and queue entry
     """
     job_dir = os.path.join(FILE_DIR, job_id)
+    tgz_path = os.path.join(job_dir, "output.tar.gz")
     output = os.path.join(job_dir, "output")
-    # TODO actually zip and send output dir
+    # zip and send output dir
+    run_shell_cmd(f"tar -xzf {tgz_path} {output}")
+    sandbox_id = os.getenv("SANDBOX_ID")
+    server_url = "https://portal.rentaflop.com/api/host/output"
+    # literal curly braces are doubled to avoid collision with format string syntax
+    data_str = f'metadata={{"job_id": "{job_id}", "sandbox_id": "{sandbox_id}"}};type=application/json'
+    run_shell_cmd(f"curl -k -X POST -F '{data_str}' -F 'output=@{tgz_path}' -H 'Content-Type:multipart/mixed' {server_url}")
     run_shell_cmd(f"rm -rf {job_dir}")
     queue_idx = _return_job_with_id(job_id)
     if queue_idx is not None:
@@ -113,7 +120,7 @@ def _send_results(job_id):
 
 def handle_finished_jobs():
     """
-    checks for any finished jobs and sends results back to host daemon
+    checks for any finished jobs and sends results back to servers
     cleans up and removes files afterwards
     starts crypto miner if all jobs are finished
     """

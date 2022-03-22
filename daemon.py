@@ -249,8 +249,8 @@ def mine(params, restart=True):
 
         run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env WALLET_ADDRESS={WALLET_ADDRESS} --env RENTAFLOP_ID={RENTAFLOP_ID} --shm-size=256m \
-        {gpc_flags} -h rentaflop -dt rentaflop/sandbox")
+        --rm --name {container_name} --env WALLET_ADDRESS={WALLET_ADDRESS} --env SANDBOX_ID={SANDBOX_ID} --env HOSTNAME={HOSTNAME} \
+        --shm-size=256m {gpc_flags} -h rentaflop -dt rentaflop/sandbox")
     elif action == "stop":
         run_shell_cmd(f"docker kill {container_name}")
         if mine_type == "gpc":
@@ -390,6 +390,9 @@ RENTAFLOP_ID = None
 WALLET_ADDRESS = None
 DAEMON_PORT = None
 AVAILABLE_RESOURCES = None
+# TODO generate on rentaflop servers and save as part of registration; sandbox can then use this to communicate with rentaflop servers
+SANDBOX_ID = uuid.uuid4().hex
+HOSTNAME = os.getenv("HOSTNAME")
 
 
 def main():
