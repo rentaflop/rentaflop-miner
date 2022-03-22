@@ -7,6 +7,7 @@ import multiprocessing
 from flask import Flask, jsonify, request
 from flask_apscheduler import APScheduler
 import os
+import datetime as dt
 
 
 app = Flask(__name__)
@@ -118,12 +119,32 @@ def handle_finished_jobs():
     """
     # job ids in existence on the file system
     job_ids = os.listdir(FILE_DIR)
+    global QUEUE
     for job_id in job_ids:
         # find finished jobs
         if os.path.exists(os.path.join(FILE_DIR, job_id, "finished.txt")):
             # send results, clean files, and remove job from queue
             _send_results(job_id)
-    # TODO set timeout on queued job and kill if exceeded time
+            continue
+        # set timeout on queued job and kill if exceeded time limit
+        start_time = os.path.getmtime(os.path.join(FILE_DIR, job_id, "started.txt"))
+        start_time = dt.datetime.fromtimestamp(start_time)
+        current_time = dt.datetime.utcnow()
+        timeout = dt.timedelta(hours=1)
+        if timeout < (current_time-start_time):
+            # remove job from queue
+            queued_job = _return_job_with_id(job_id)
+            if queued_job is not None:
+                # stop and remove relevant job from queue
+                queued_job = QUEUE.pop(queued_job)
+                tsp_id = queued_job["tsp_id"]
+                pid = run_shell_cmd(f"tsp -p {tsp_id}").strip()
+                run_shell_cmd(f"kill -9 {pid}")
+            # clean up files
+            run_shell_cmd(f"rm -rf {job_dir}")
+
+    # remove finished jobs from tsp queue
+    run_shell_cmd("tsp -C")
     # nothing left running or in queue, so we mine crypto again
     if not QUEUE:
         start_mining()
