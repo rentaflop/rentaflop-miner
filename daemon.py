@@ -36,7 +36,7 @@ def _start_mining():
     gpus = state["gpus"]
     for gpu in gpus:
         if gpu["state"] == "stopped":
-            mine({"type": "crypto", "action": "start", "gpu": gpu["index"]})
+            mine({"action": "start", "gpu": gpu["index"]})
 
 
 def _get_registration(is_checkin=True):
@@ -224,39 +224,44 @@ def _handle_startup():
     run_shell_cmd("sudo iptables-save > /etc/iptables/rules.v4")
 
 
-def mine(params, restart=True):
+def mine(params):
     """
     handle commands related to mining, whether crypto mining or guest "mining"
-    params looks like {"type": "crypto" | "gpc", "action": "start" | "stop", "gpu": "0", "body": contents}
-    iff starting gpc, we receive body parameter that contains data to be rendered
-    restart indicates whether or not to start crypto job immediately after stopping gpc job
+    params looks like {"action": "start" | "stop", "gpu": "0", "job_id": "13245", "render_file": contents}
+    iff render job, we receive job_id and render_file parameter (if action is start) that contains data to be rendered
     """
     mine_type = params["type"]
     action = params["action"]
     gpu = int(params["gpu"])
+    job_id = params.get("job_id")
+    render_file = params.get("render_file")
+    is_render = False
+    if job_id:
+        is_render = True
     container_name = f"rentaflop-sandbox-{gpu}"
     
     if action == "start":
         # TODO add pending status to ensure scheduled job doesn't happen to restart crypto mining
-        # stop any crypto or gpc job already running
-        mine({"type": "gpc", "action": "stop", "gpu": gpu}, restart=False)
-        mine({"type": "crypto", "action": "stop", "gpu": gpu})
-        gpc_flags = ""
-        if mine_type == "gpc":
-            username = params["username"]
-            password = params["password"]
-            gpc_flags = f"--env RENTAFLOP_USERNAME='{username}' --env RENTAFLOP_PASSWORD={password}"
-
-        run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
-        --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env WALLET_ADDRESS={WALLET_ADDRESS} --env SANDBOX_ID={SANDBOX_ID} --env HOSTNAME={HOSTNAME} \
-        --shm-size=256m {gpc_flags} -h rentaflop -dt rentaflop/sandbox")
+        if is_render:
+            container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
+            url = f"https://{container_ip}"
+            headers = {'Content-type': 'multipart/form-data'}
+            data = {"cmd": "push", "params": {"job_id": job_id}}
+            files = {'render_file': render_file}
+            requests.post(url, files=files, data=data, headers=headers, verify=False)
+        else:
+            run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
+            --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
+            --rm --name {container_name} --env WALLET_ADDRESS={WALLET_ADDRESS} --env SANDBOX_ID={SANDBOX_ID} --env HOSTNAME={HOSTNAME} \
+            --shm-size=256m {gpc_flags} -h rentaflop -dt rentaflop/sandbox")
     elif action == "stop":
-        run_shell_cmd(f"docker kill {container_name}")
-        if mine_type == "gpc":
-            # restart crypto mining if we just stopped a gpc job
-            if restart:
-                mine({"type": "crypto", "action": "start", "gpu": gpu})
+        if is_render:
+            container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
+            url = f"https://{container_ip}"
+            data = {"cmd": "pop", "params": {"job_id": job_id}}
+            requests.post(url, json=data, verify=False)
+        else:
+            run_shell_cmd(f"docker kill {container_name}")
 
 
 def _stop_all():
@@ -360,6 +365,9 @@ def run_flask_server(q):
         request_json = request.get_json()
         cmd = request_json.get("cmd")
         params = request_json.get("params")
+        render_file = request.files.get("render_file", "")
+        if render_file:
+            params["render_file"] = render_file.read()
         func = CMD_TO_FUNC.get(cmd)
         finished = False
         if func:

@@ -8,6 +8,7 @@ from flask import Flask, jsonify, request
 from flask_apscheduler import APScheduler
 import os
 import datetime as dt
+import requests
 
 
 app = Flask(__name__)
@@ -62,7 +63,7 @@ def push_job(params):
     QUEUE.append(job)
     # make sure mining is stopped before running render job
     stop_mining()
-    tsp_id = run_shell_cmd(f"tsp python3 run.py").strip()
+    tsp_id = run_shell_cmd(f"tsp python3 run.py {job_dir}").strip()
     # since this is a reference to the job in QUEUE, this sets tsp_id in QUEUE
     job["tsp_id"] = tsp_id
 
@@ -95,6 +96,8 @@ def pop_job(params):
     tsp_id = queued_job["tsp_id"]
     pid = run_shell_cmd(f"tsp -p {tsp_id}").strip()
     run_shell_cmd(f"kill -9 {pid}")
+    job_dir = os.path.join(FILE_DIR, job_id)
+    run_shell_cmd(f"rm -rf {job_dir}")
 
 
 def _send_results(job_id):
@@ -108,9 +111,10 @@ def _send_results(job_id):
     run_shell_cmd(f"tar -xzf {tgz_path} {output}")
     sandbox_id = os.getenv("SANDBOX_ID")
     server_url = "https://portal.rentaflop.com/api/host/output"
-    # literal curly braces are doubled to avoid collision with format string syntax
-    data_str = f'metadata={{"job_id": "{job_id}", "sandbox_id": "{sandbox_id}"}};type=application/json'
-    run_shell_cmd(f"curl -k -X POST -F '{data_str}' -F 'output=@{tgz_path}' -H 'Content-Type:multipart/mixed' {server_url}")
+    headers = {'Content-type': 'multipart/form-data'}
+    data = {"job_id": str(job_id), "sandbox_id": str(sandbox_id)}
+    files = {'output': open(tgz_path, 'rb')}
+    requests.post(server_url, files=files, data=data, headers=headers)
     run_shell_cmd(f"rm -rf {job_dir}")
     queue_idx = _return_job_with_id(job_id)
     if queue_idx is not None:
@@ -188,7 +192,7 @@ def main():
     app.secret_key = uuid.uuid4().hex
     # create a scheduler that periodically checks/handles finished jobs starts mining when there are no jobs in queue
     scheduler = APScheduler()
-    scheduler.add_job(id='Start Mining', func=handle_finished_jobs, trigger="interval", seconds=15)
+    scheduler.add_job(id='Handle Finished Jobs', func=handle_finished_jobs, trigger="interval", seconds=15)
     scheduler.start()
     q = multiprocessing.Queue()
     server = multiprocessing.Process(target=run_flask_server, args=(q,))
