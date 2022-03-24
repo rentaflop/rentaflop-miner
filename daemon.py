@@ -230,7 +230,6 @@ def mine(params):
     params looks like {"action": "start" | "stop", "gpu": "0", "job_id": "13245", "render_file": contents}
     iff render job, we receive job_id and render_file parameter (if action is start) that contains data to be rendered
     """
-    mine_type = params["type"]
     action = params["action"]
     gpu = int(params["gpu"])
     job_id = params.get("job_id")
