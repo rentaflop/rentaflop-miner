@@ -60,7 +60,7 @@ def _get_registration(is_checkin=True):
         if not is_registered:
             wallet_address = sys.argv[1]
             daemon_port = select_port(IGD, "daemon")
-        data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id \
+        data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id, \
                 "wallet_address": wallet_address}
         DAEMON_LOGGER.debug(f"Sent to /api/daemon: {data}")
         response = requests.post(daemon_url, json=data)
