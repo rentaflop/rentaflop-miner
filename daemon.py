@@ -21,6 +21,8 @@ from utils import *
 import sys
 import requests
 from requirement_checks import perform_host_requirement_checks
+import json
+import io
 
 
 app = Flask(__name__)
@@ -244,10 +246,9 @@ def mine(params):
         if is_render:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
             url = f"https://{container_ip}"
-            headers = {'Content-type': 'multipart/form-data'}
             data = {"cmd": "push", "params": {"job_id": job_id}}
-            files = {'render_file': render_file}
-            requests.post(url, files=files, data=data, headers=headers, verify=False)
+            files = {'render_file': (None, render_file, 'application/octet-stream'), 'json': (None, json.dumps(data), 'application/json')}
+            requests.post(url, files=files, verify=False)
         else:
             run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
             --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
@@ -258,7 +259,8 @@ def mine(params):
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
             url = f"https://{container_ip}"
             data = {"cmd": "pop", "params": {"job_id": job_id}}
-            requests.post(url, json=data, verify=False)
+            files = {'json': (None, json.dumps(data), 'application/json')}
+            requests.post(url, files=files, verify=False)
         else:
             run_shell_cmd(f"docker kill {container_name}")
 
@@ -345,7 +347,7 @@ def before_request():
     # don't allow anyone who isn't rentaflop to communicate with host daemon
     # only people who know a host's rentaflop id are the host and rentaflop
     # TODO check size first to prevent DOS attack
-    request_json = request.get_json()
+    request_json = json.loads(request.form.get("json"))
     request_rentaflop_id = request_json.get("rentaflop_id", "")
     if request_rentaflop_id != RENTAFLOP_ID:
         return abort(403)
@@ -361,12 +363,13 @@ def before_request():
 def run_flask_server(q):
     @app.route("/", methods=["POST"])
     def index():
-        request_json = request.get_json()
+        request_json = json.loads(request.form.get("json"))
         cmd = request_json.get("cmd")
         params = request_json.get("params")
-        render_file = request.files.get("render_file", "")
+        render_file = request.form.get("render_file")
         if render_file:
-            params["render_file"] = render_file.read()
+            params["render_file"] = io.StringIO(render_file)
+        
         func = CMD_TO_FUNC.get(cmd)
         finished = False
         if func:

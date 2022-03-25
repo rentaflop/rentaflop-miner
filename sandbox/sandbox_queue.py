@@ -9,6 +9,8 @@ from flask_apscheduler import APScheduler
 import os
 import datetime as dt
 import requests
+import json
+import io
 
 
 app = Flask(__name__)
@@ -111,10 +113,9 @@ def _send_results(job_id):
     run_shell_cmd(f"tar -xzf {tgz_path} {output}")
     sandbox_id = os.getenv("SANDBOX_ID")
     server_url = "https://portal.rentaflop.com/api/host/output"
-    headers = {'Content-type': 'multipart/form-data'}
     data = {"job_id": str(job_id), "sandbox_id": str(sandbox_id)}
-    files = {'output': open(tgz_path, 'rb')}
-    requests.post(server_url, files=files, data=data, headers=headers)
+    files = {'render_file': (None, open(tgz_path, 'rb'), 'application/octet-stream'), 'json': (None, json.dumps(data), 'application/json')}
+    requests.post(server_url, files=files)
     run_shell_cmd(f"rm -rf {job_dir}")
     queue_idx = _return_job_with_id(job_id)
     if queue_idx is not None:
@@ -164,12 +165,12 @@ def handle_finished_jobs():
 def run_flask_server(q):
     @app.route("/", methods=["POST"])
     def index():
-        request_json = request.get_json()
+        request_json = json.loads(request.form.get("json"))
         cmd = request_json.get("cmd")
         params = request_json.get("params")
         render_file = request.files.get("render_file", "")
         if render_file:
-            params["render_file"] = render_file.read()
+            params["render_file"] = io.StringIO(render_file)
         
         func = CMD_TO_FUNC.get(cmd)
         func(params)
