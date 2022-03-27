@@ -23,6 +23,7 @@ import requests
 from requirement_checks import perform_host_requirement_checks
 import json
 import io
+import socket
 
 
 app = Flask(__name__)
@@ -252,7 +253,7 @@ def mine(params):
         else:
             run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
             --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-            --rm --name {container_name} --env WALLET_ADDRESS={WALLET_ADDRESS} --env SANDBOX_ID={SANDBOX_ID} --env HOSTNAME={HOSTNAME} \
+            --rm --name {container_name} --env WALLET_ADDRESS={WALLET_ADDRESS} --env SANDBOX_ID={SANDBOX_ID} --env HOSTNAME={socket.gethostname()} \
             --shm-size=256m -h rentaflop -dt rentaflop/sandbox")
     elif action == "stop":
         if is_render:
@@ -402,7 +403,6 @@ DAEMON_PORT = None
 AVAILABLE_RESOURCES = None
 # TODO generate on rentaflop servers and save as part of registration; sandbox can then use this to communicate with rentaflop servers
 SANDBOX_ID = uuid.uuid4().hex
-HOSTNAME = os.getenv("HOSTNAME")
 
 
 def main():

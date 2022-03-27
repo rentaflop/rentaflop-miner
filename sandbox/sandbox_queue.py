@@ -11,6 +11,7 @@ import datetime as dt
 import requests
 import json
 import io
+import uuid
 
 
 app = Flask(__name__)
@@ -37,7 +38,8 @@ def start_mining():
     output = run_shell_cmd("pgrep nbminer")
     # if already running nbminer we do nothing, otherwise start miner
     if not output:
-        run_shell_cmd("cd NBMiner_Linux && ./nbminer -c config.json &")
+        # start with os.system since this needs to be run in background
+        os.system("cd NBMiner_Linux && ./nbminer -c config.json &")
 
 
 def stop_mining():

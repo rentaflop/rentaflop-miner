@@ -131,7 +131,7 @@ def check_gpu_resources(include_stdout=False):
     passed_gpus = [key for key in gpu_to_result if gpu_to_result[key]]
     """
     passed_gpus = [str(gpu) for gpu in gpus]
-    _log_and_print(include_stdout, "DEBUG", "Passed GPU resources check with at least one GPU. Identified: {passed_gpus}.")
+    _log_and_print(include_stdout, "DEBUG", f"Passed GPU resources check with at least one GPU. Identified: {passed_gpus}.")
 
     return sorted(passed_gpus)
 
