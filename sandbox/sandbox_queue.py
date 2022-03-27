@@ -188,6 +188,7 @@ CMD_TO_FUNC = {
 }
 QUEUE = []
 FILE_DIR = "~/jobs"
+os.makedirs(FILE_DIR)
 
 
 def main():
