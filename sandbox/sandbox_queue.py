@@ -12,6 +12,7 @@ import requests
 import json
 import io
 import uuid
+import shutil
 
 
 app = Flask(__name__)
@@ -59,7 +60,8 @@ def push_job(params):
     job_dir = os.path.join(FILE_DIR, job_id)
     os.makedirs(job_dir)
     with open(f"{job_dir}/render_file.blend", "w") as f:
-        f.write(render_file)
+        render_file.seek(0)
+        shutil.copyfileobj(render_file, f)
     
     # append job to queue first to prevent mining from starting after the stop call
     job = {"job_dir": job_dir, "job_id": job_id, "tsp_id": None}
@@ -170,7 +172,7 @@ def run_flask_server(q):
         request_json = json.loads(request.form.get("json"))
         cmd = request_json.get("cmd")
         params = request_json.get("params")
-        render_file = request.files.get("render_file", "")
+        render_file = request.form.get("render_file")
         if render_file:
             params["render_file"] = io.StringIO(render_file)
         
@@ -187,7 +189,7 @@ CMD_TO_FUNC = {
     "pop": pop_job,
 }
 QUEUE = []
-FILE_DIR = "~/jobs"
+FILE_DIR = "/root/jobs"
 os.makedirs(FILE_DIR)
 
 
