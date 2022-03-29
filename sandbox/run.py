@@ -10,10 +10,10 @@ import os
 
 def main():
     job_dir = sys.argv[1]
-    output_path = os.path.join(job_dir, "output")
+    output_path = os.path.join(job_dir, "output/")
     os.mkdir(output_path)
     os.system(f"touch {job_dir}/started.txt")
-    os.system(f"blender/blender -b {job_dir}/render_file.blend -o {output_path} -a")
+    os.system(f"blender/blender -b {job_dir}/render_file.blend -o {output_path} -a -- --cycles-device OPTIX")
     # lets the sandbox queue know when the run is finished
     os.system(f"touch {job_dir}/finished.txt")
 
