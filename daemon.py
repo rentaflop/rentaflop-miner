@@ -22,7 +22,6 @@ import sys
 import requests
 from requirement_checks import perform_host_requirement_checks
 import json
-import io
 import socket
 
 
@@ -248,7 +247,7 @@ def mine(params):
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
             url = f"https://{container_ip}"
             data = {"cmd": "push", "params": {"job_id": job_id}}
-            files = {'render_file': (None, render_file, 'application/octet-stream'), 'json': (None, json.dumps(data), 'application/json')}
+            files = {'render_file': render_file, 'json': json.dumps(data)}
             requests.post(url, files=files, verify=False)
         else:
             run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
@@ -350,7 +349,9 @@ def before_request():
     # don't allow anyone who isn't rentaflop to communicate with host daemon
     # only people who know a host's rentaflop id are the host and rentaflop
     # TODO check size first to prevent DOS attack
-    request_json = json.loads(request.form.get("json"))
+    json_file = request.files.get("json")
+    request_json = json.loads(json_file.read())
+    json_file.seek(0)
     request_rentaflop_id = request_json.get("rentaflop_id", "")
     if request_rentaflop_id != RENTAFLOP_ID:
         return abort(403)
@@ -366,12 +367,12 @@ def before_request():
 def run_flask_server(q):
     @app.route("/", methods=["POST"])
     def index():
-        request_json = json.loads(request.form.get("json"))
+        request_json = json.loads(request.files.get("json").read())
         cmd = request_json.get("cmd")
         params = request_json.get("params")
-        render_file = request.form.get("render_file")
+        render_file = request.files.get("render_file")
         if render_file:
-            params["render_file"] = io.StringIO(render_file)
+            params["render_file"] = render_file
         
         func = CMD_TO_FUNC.get(cmd)
         finished = False
