@@ -4,6 +4,8 @@ utility functions to be used in various parts of host software
 import subprocess
 from config import DAEMON_LOGGER
 import time
+import json
+import requests
 
 
 SUPPORTED_GPUS = [
@@ -112,12 +114,14 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
           {
             "index": "0",
             "name": "NVIDIA GeForce RTX 3080",
-            "state": "crypto"
+            "state": "crypto",
+            "queue": [54, 118, 1937],
           },
           {
             "index": "1",
             "name": "NVIDIA GeForce RTX 3060 Ti",
             "state": "crypto"
+            "queue": [59, 63, 197],
           }
         ],
         "n_gpus": "2",
@@ -137,7 +141,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
     """
     state = {}
     gpu_names, gpu_indexes = get_gpus(available_resources, quiet)
-    state["gpus"] = [{"index":gpu_index, "name": gpu_names[i], "state": "stopped"} for i, gpu_index in enumerate(gpu_indexes)]
+    state["gpus"] = [{"index":gpu_index, "name": gpu_names[i], "state": "stopped", "queue": []} for i, gpu_index in enumerate(gpu_indexes)]
     n_gpus = len(gpu_names)
     state["n_gpus"] = str(n_gpus)
     # get all container names
@@ -148,12 +152,19 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
         _, _, gpu = container.split("-")
         for i, gpu_dict in enumerate(state["gpus"]):
             if gpu_dict["index"] == gpu:
-                # TODO give each docker container a queue of render jobs and list them here instead of "crypto"
-                state["gpus"][i]["state"] = "crypto"
+                # request queued jobs from docker
+                container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container, format_output=False).strip()
+                url = f"https://{container_ip}"
+                data = {"cmd": "status", "params": {}}
+                files = {'json': json.dumps(data)}
+                result = requests.post(url, files=files, verify=False)
+                container_queue = result.json().get("queue")
+                container_state = "gpc" if container_queue else "crypto"
+                state["gpus"][i]["state"] = container_state
+                state["gpus"][i]["queue"] = container_queue
 
     if not gpu_only:
         igd_flag = "" if not igd else f" -u {igd}"
-        # TODO keep track of ports for this host specifically and only return those
         ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d "-" -f 1 | rev | cut -d " " -f 1 | rev', quiet=quiet, format_output=False).split()
         state["ports"] = ports
         state["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")

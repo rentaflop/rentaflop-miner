@@ -102,6 +102,16 @@ def pop_job(params):
     run_shell_cmd(f"rm -rf {job_dir}")
 
 
+def status(params):
+    """
+    return contents of queue
+    params is empty dict
+    """
+    jobs = [job["job_id"] for job in QUEUE]
+    
+    return {"queue": jobs}
+
+
 def _send_results(job_id):
     """
     send render results to servers, removing files and queue entry
@@ -114,7 +124,7 @@ def _send_results(job_id):
     sandbox_id = os.getenv("SANDBOX_ID")
     server_url = "https://portal.rentaflop.com/api/host/output"
     data = {"job_id": str(job_id), "sandbox_id": str(sandbox_id)}
-    files = {'render_file': (None, open(tgz_path, 'rb'), 'application/octet-stream'), 'json': (None, json.dumps(data), 'application/json')}
+    files = {'render_file': open(tgz_path, 'rb'), 'json': json.dumps(data)}
     requests.post(server_url, files=files)
     run_shell_cmd(f"rm -rf {job_dir}")
     queue_idx = _return_job_with_id(job_id)
@@ -173,7 +183,9 @@ def run_flask_server(q):
             params["render_file"] = render_file
         
         func = CMD_TO_FUNC.get(cmd)
-        func(params)
+        to_return = func(params)
+        if to_return is not None:
+            return to_return
 
         return jsonify("200")
     
@@ -183,6 +195,7 @@ def run_flask_server(q):
 CMD_TO_FUNC = {
     "push": push_job,
     "pop": pop_job,
+    "status": status,
 }
 QUEUE = []
 FILE_DIR = "/root/jobs"
