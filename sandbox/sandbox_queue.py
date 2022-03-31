@@ -12,9 +12,20 @@ import requests
 import json
 import uuid
 import logging
+from flask_sqlalchemy import SQLAlchemy
+from database import Job
+
+
+class Config(object):
+    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root@localhost/sandbox"
+    SECRET_KEY = uuid.uuid4().hex
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
 app = Flask(__name__)
+app.config.from_object(Config)
+db = SQLAlchemy(app)
+db.create_all(app=app)
 
 
 def _get_logger(log_file):
@@ -83,26 +94,22 @@ def push_job(params):
     render_file.save(f"{job_dir}/render_file.blend")
     
     # append job to queue first to prevent mining from starting after the stop call
-    job = {"job_dir": job_dir, "job_id": job_id, "tsp_id": None}
-    global QUEUE
-    QUEUE.append(job)
+    job = Job(job_dir=job_dir, job_id=job_id, tsp_id=-1}
+    db.session.add(job)
+    db.session.commit()
     # make sure mining is stopped before running render job
     stop_mining()
     tsp_id = run_shell_cmd(f"tsp python3 run.py {job_dir}").strip()
-    # since this is a reference to the job in QUEUE, this sets tsp_id in QUEUE
-    job["tsp_id"] = tsp_id
+    job.tsp_id = tsp_id
+    db.session.commit()
 
 
 def _return_job_with_id(job_id):
     """
-    find and return job index from queue with job id matching job_id
+    find and return job from queue with job id matching job_id
     return None if not found
     """
-    for i, job in enumerate(QUEUE):
-        if job["job_id"] == job_id:
-            return i
-
-    return None
+    return Job.query.filter_by(job_id=job_id).first()
 
 
 def pop_job(params):
@@ -113,12 +120,12 @@ def pop_job(params):
     job_id = params["job_id"]
     queued_job = _return_job_with_id(job_id)
     # job already removed
-    if queued_job is None:
+    if not queued_job:
         return
+    tsp_id = queued_job.tsp_id
     # remove relevant job from queue
-    global QUEUE
-    queued_job = QUEUE.pop(queued_job)
-    tsp_id = queued_job["tsp_id"]
+    db.session.delete(queued_job)
+    db.session.commit()
     pid = run_shell_cmd(f"tsp -p {tsp_id}").strip()
     run_shell_cmd(f"kill -9 {pid}")
     job_dir = os.path.join(FILE_DIR, job_id)
@@ -130,7 +137,8 @@ def status(params):
     return contents of queue
     params is empty dict
     """
-    jobs = [job["job_id"] for job in QUEUE]
+    jobs = Job.query.all()
+    jobs = [job.job_id for job in jobs]
     
     return {"queue": jobs}
 
@@ -150,10 +158,10 @@ def _send_results(job_id):
     files = {'render_file': open(tgz_path, 'rb'), 'json': json.dumps(data)}
     requests.post(server_url, files=files)
     run_shell_cmd(f"rm -rf {job_dir}")
-    queue_idx = _return_job_with_id(job_id)
-    if queue_idx is not None:
-        global QUEUE
-        QUEUE.pop(queue_idx)
+    queued_job = _return_job_with_id(job_id)
+    if queued_job:
+        db.session.delete(queued_job)
+        db.session.commit()
 
 
 def handle_finished_jobs():
@@ -164,7 +172,6 @@ def handle_finished_jobs():
     """
     # job ids in existence on the file system
     job_ids = os.listdir(FILE_DIR)
-    global QUEUE
     for job_id in job_ids:
         # find finished jobs
         if os.path.exists(os.path.join(FILE_DIR, job_id, "finished.txt")):
@@ -179,10 +186,11 @@ def handle_finished_jobs():
         if timeout < (current_time-start_time):
             # remove job from queue
             queued_job = _return_job_with_id(job_id)
-            if queued_job is not None:
+            if queued_job:
+                tsp_id = queued_job.tsp_id
                 # stop and remove relevant job from queue
-                queued_job = QUEUE.pop(queued_job)
-                tsp_id = queued_job["tsp_id"]
+                db.session.delete(queued_job)
+                db.session.commit()
                 pid = run_shell_cmd(f"tsp -p {tsp_id}").strip()
                 run_shell_cmd(f"kill -9 {pid}")
             # clean up files
@@ -190,8 +198,9 @@ def handle_finished_jobs():
 
     # remove finished jobs from tsp queue
     run_shell_cmd("tsp -C", quiet=True)
-    # nothing left running or in queue, so we mine crypto again
-    if not QUEUE:
+    # nothing left running in queue, so we mine crypto again
+    jobs = Job.query.all()
+    if not jobs:
         start_mining()
 
 
@@ -220,7 +229,6 @@ CMD_TO_FUNC = {
     "pop": pop_job,
     "status": status,
 }
-QUEUE = []
 FILE_DIR = "/root/jobs"
 os.makedirs(FILE_DIR)
 LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sandbox.log")
@@ -229,7 +237,6 @@ SANDBOX_LOGGER = _get_logger(LOG_FILE)
 
 def main():
     start_mining()
-    app.secret_key = uuid.uuid4().hex
     # create a scheduler that periodically checks/handles finished jobs starts mining when there are no jobs in queue
     scheduler = APScheduler()
     scheduler.add_job(id='Handle Finished Jobs', func=handle_finished_jobs, trigger="interval", seconds=15)
