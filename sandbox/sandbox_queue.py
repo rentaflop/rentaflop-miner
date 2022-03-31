@@ -23,7 +23,6 @@ class Config(object):
 
 
 os.system("/etc/init.d/mysql start")
-os.system('mysql -u root -e "create database sandbox;"')
 app = Flask(__name__)
 app.config.from_object(Config)
 db = SQLAlchemy(app)
