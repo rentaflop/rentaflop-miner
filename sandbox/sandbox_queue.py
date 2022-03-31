@@ -61,7 +61,7 @@ def start_mining():
     # if already running nbminer we do nothing, otherwise start miner
     if not output:
         # start with os.system since this needs to be run in background
-        os.system("cd NBMiner_Linux && ./nbminer -c config.json &")
+        os.system("cd NBMiner_Linux && ./nbminer -c config.json --no-watchdog &")
 
 
 def stop_mining():
