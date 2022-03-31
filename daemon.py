@@ -259,7 +259,7 @@ def mine(params):
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
             url = f"https://{container_ip}"
             data = {"cmd": "pop", "params": {"job_id": job_id}}
-            files = {'json': (None, json.dumps(data), 'application/json')}
+            files = {'json': json.dumps(data)}
             requests.post(url, files=files, verify=False)
         else:
             run_shell_cmd(f"docker kill {container_name}")

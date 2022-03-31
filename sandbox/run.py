@@ -13,9 +13,10 @@ def main():
     output_path = os.path.join(job_dir, "output/")
     os.mkdir(output_path)
     os.system(f"touch {job_dir}/started.txt")
-    os.system(f"blender/blender -b {job_dir}/render_file.blend -o {output_path} -a -- --cycles-device OPTIX")
-    # lets the sandbox queue know when the run is finished
-    os.system(f"touch {job_dir}/finished.txt")
+    return_code = os.system(f"blender/blender -b {job_dir}/render_file.blend -o {output_path} -a -- --cycles-device OPTIX")
+    if return_code == 0:
+        # lets the sandbox queue know when the run is finished
+        os.system(f"touch {job_dir}/finished.txt")
 
     
 if __name__=="__main__":

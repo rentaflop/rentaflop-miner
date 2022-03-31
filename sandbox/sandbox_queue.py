@@ -11,22 +11,45 @@ import datetime as dt
 import requests
 import json
 import uuid
+import logging
 
 
 app = Flask(__name__)
 
 
-def run_shell_cmd(cmd):
+def _get_logger(log_file):
     """
-    run cmd and return output
+    modules use this to create/retrieve and configure how logging works for their specific module
     """
-    output = ""
+    module_logger = logging.getLogger("sandbox.log")
+    handler = logging.FileHandler(log_file)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter("%(filename)s:%(lineno)d %(levelname)s %(asctime)s - %(message)s"))
+    module_logger.addHandler(handler)
+    module_logger.setLevel(logging.DEBUG)
+
+    return module_logger
+
+
+def run_shell_cmd(cmd, quiet=False, very_quiet=False):
+    """
+    if quiet will only print errors, if very_quiet will silence everything including errors
+    run cmd and log output
+    """
+    if very_quiet:
+        quiet = True
+    output = None
+    if not quiet:
+        SANDBOX_LOGGER.debug(f'''Running command {cmd}...''')
     try:
         output = subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
-        # ignore errors for now until we have a need for logging
-        pass
-    
+        # print errors unless very quiet
+        if not very_quiet:
+            SANDBOX_LOGGER.error(f"Exception: {e}\n{e.output}")
+    if output and not quiet:
+        SANDBOX_LOGGER.debug(f'''Output for {cmd}: {output}''')
+
     return output
 
 
@@ -166,7 +189,7 @@ def handle_finished_jobs():
             run_shell_cmd(f"rm -rf {job_dir}")
 
     # remove finished jobs from tsp queue
-    run_shell_cmd("tsp -C")
+    run_shell_cmd("tsp -C", quiet=True)
     # nothing left running or in queue, so we mine crypto again
     if not QUEUE:
         start_mining()
@@ -200,6 +223,8 @@ CMD_TO_FUNC = {
 QUEUE = []
 FILE_DIR = "/root/jobs"
 os.makedirs(FILE_DIR)
+LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sandbox.log")
+SANDBOX_LOGGER = _get_logger(LOG_FILE)
 
 
 def main():
