@@ -52,6 +52,20 @@ def run_shell_cmd(cmd, quiet=False, very_quiet=False):
     return output
 
 
+def log_before_after(func, params):
+    """
+    wrapper to log debug info before and after each daemon command
+    """
+    def wrapper():
+        SANDBOX_LOGGER.debug(f"Entering {func.__name__} with params {params}...")
+        ret_val = func(params)
+        SANDBOX_LOGGER.debug(f"Exiting {func.__name__}.")
+
+        return ret_val
+
+    return wrapper
+
+
 def start_mining():
     """
     begin mining crypto, but only if not already mining
@@ -115,7 +129,9 @@ def pop_job(params):
     db.session.delete(queued_job)
     db.session.commit()
     pid = run_shell_cmd(f"tsp -p {tsp_id}").strip()
-    run_shell_cmd(f"kill -9 {pid}")
+    if pid is not None:
+        run_shell_cmd(f"kill -9 {pid}")
+    pid = run_shell_cmd(f"tsp -r {tsp_id}").strip()
     job_dir = os.path.join(FILE_DIR, job_id)
     run_shell_cmd(f"rm -rf {job_dir}")
 
@@ -139,7 +155,7 @@ def _send_results(job_id):
     tgz_path = os.path.join(job_dir, "output.tar.gz")
     output = os.path.join(job_dir, "output")
     # zip and send output dir
-    run_shell_cmd(f"tar -xzf {tgz_path} {output}")
+    run_shell_cmd(f"tar -czf {tgz_path} {output}")
     sandbox_id = os.getenv("SANDBOX_ID")
     server_url = "https://portal.rentaflop.com/api/host/output"
     data = {"job_id": str(job_id), "sandbox_id": str(sandbox_id)}
@@ -205,9 +221,14 @@ def run_flask_server(q):
         render_file = request.files.get("render_file")
         if render_file:
             params["render_file"] = render_file
-        
+
+        to_return = None
         func = CMD_TO_FUNC.get(cmd)
-        to_return = func(params)
+        if func:
+            try:
+                to_return = log_before_after(func, params)()
+            except Exception as e:
+                SANDBOX_LOGGER.exception(f"Caught exception: {e}")
         if to_return is not None:
             return to_return
 
