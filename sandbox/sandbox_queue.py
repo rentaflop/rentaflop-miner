@@ -13,20 +13,6 @@ import json
 import uuid
 import logging
 from flask_sqlalchemy import SQLAlchemy
-from database import Job
-
-
-class Config(object):
-    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root@localhost/sandbox"
-    SECRET_KEY = uuid.uuid4().hex
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-
-os.system("/etc/init.d/mysql start")
-app = Flask(__name__)
-app.config.from_object(Config)
-db = SQLAlchemy(app)
-db.create_all(app=app)
 
 
 def _get_logger(log_file):
@@ -95,7 +81,7 @@ def push_job(params):
     render_file.save(f"{job_dir}/render_file.blend")
     
     # append job to queue first to prevent mining from starting after the stop call
-    job = Job(job_dir=job_dir, job_id=job_id, tsp_id=-1}
+    job = Job(job_dir=job_dir, job_id=job_id, tsp_id=-1)
     db.session.add(job)
     db.session.commit()
     # make sure mining is stopped before running render job
@@ -234,6 +220,27 @@ FILE_DIR = "/root/jobs"
 os.makedirs(FILE_DIR)
 LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sandbox.log")
 SANDBOX_LOGGER = _get_logger(LOG_FILE)
+
+class Config(object):
+    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root@localhost/sandbox"
+    SECRET_KEY = uuid.uuid4().hex
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+os.system("/etc/init.d/mysql start")
+app = Flask(__name__)
+app.config.from_object(Config)
+db = SQLAlchemy(app)
+
+class Job(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    job_id = db.Column(db.Integer)
+    tsp_id = db.Column(db.Integer)
+    job_dir = db.Column(db.String)
+
+    def __repr__(self):
+        return f"<Job {self.job_id} {self.tsp_id} {self.job_dir}>"
+
+db.create_all(app=app)
 
 
 def main():
