@@ -227,6 +227,9 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 os.system("/etc/init.d/mysql start")
+os.system('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'sandbox';"''')
+os.system('mysql -u root -psandbox -e "create database sandbox;"')
+
 app = Flask(__name__)
 app.config.from_object(Config)
 db = SQLAlchemy(app)
