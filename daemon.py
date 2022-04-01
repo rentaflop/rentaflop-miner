@@ -289,7 +289,7 @@ def update(params, reboot=True, second_update=False):
         # must run all commands even if second update
         run_shell_cmd("git pull")
         run_shell_cmd("sudo docker pull rentaflop/host:latest")
-        run_shell_cmd("sudo docker build --no-cache -f Dockerfile -t rentaflop/sandbox .")
+        run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
         # ensure all old containers are stopped so we can run new ones with latest code
         _stop_all()
         update_param = "" if second_update else " update"
