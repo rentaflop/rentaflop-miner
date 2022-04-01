@@ -227,7 +227,7 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 os.system("/etc/init.d/mysql start")
-os.system('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'sandbox';"''')
+os.system('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'sandbox';"''')
 os.system('mysql -u root -psandbox -e "create database sandbox;"')
 
 app = Flask(__name__)
