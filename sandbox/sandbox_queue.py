@@ -191,7 +191,7 @@ def handle_finished_jobs():
     cur = conn.cursor()
     n_jobs = cur.execute("SELECT * from job;")
     conn.close()
-    if n_jobs > 0:
+    if n_jobs == 0:
         # nothing left running in queue, so we mine crypto again
         start_mining()
 
