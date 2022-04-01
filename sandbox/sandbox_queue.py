@@ -222,7 +222,7 @@ LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sandbox.lo
 SANDBOX_LOGGER = _get_logger(LOG_FILE)
 
 class Config(object):
-    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root@localhost/sandbox"
+    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:sandbox@localhost/sandbox"
     SECRET_KEY = uuid.uuid4().hex
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
