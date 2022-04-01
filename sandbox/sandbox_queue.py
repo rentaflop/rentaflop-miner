@@ -13,6 +13,7 @@ import json
 import uuid
 import logging
 from flask_sqlalchemy import SQLAlchemy
+import pymysql
 
 
 def _get_logger(log_file):
@@ -185,9 +186,13 @@ def handle_finished_jobs():
 
     # remove finished jobs from tsp queue
     run_shell_cmd("tsp -C", quiet=True)
-    # nothing left running in queue, so we mine crypto again
-    jobs = Job.query.all()
-    if not jobs:
+    # not using ORM because this is run in separate thread where app/db are not defined
+    conn = pymysql.connect(host='localhost', user='root', password = "sandbox", db='sandbox')
+    cur = conn.cursor()
+    n_jobs = cur.execute("SELECT * from job;")
+    conn.close()
+    if n_jobs > 0:
+        # nothing left running in queue, so we mine crypto again
         start_mining()
 
 
@@ -250,7 +255,7 @@ def main():
     start_mining()
     # create a scheduler that periodically checks/handles finished jobs starts mining when there are no jobs in queue
     scheduler = APScheduler()
-    scheduler.add_job(id='Handle Finished Jobs', func=handle_finished_jobs, trigger="interval", seconds=15)
+    scheduler.add_job(id='Handle Finished Jobs', func=handle_finished_jobs, trigger="interval", seconds=10)
     scheduler.start()
     q = multiprocessing.Queue()
     server = multiprocessing.Process(target=run_flask_server, args=(q,))
