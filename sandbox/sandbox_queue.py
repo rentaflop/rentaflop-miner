@@ -128,10 +128,11 @@ def pop_job(params):
     # remove relevant job from queue
     db.session.delete(queued_job)
     db.session.commit()
-    pid = run_shell_cmd(f"tsp -p {tsp_id}").strip()
+    pid = run_shell_cmd(f"tsp -p {tsp_id}")
     if pid is not None:
+        pid = pid.strip()
         run_shell_cmd(f"kill -9 {pid}")
-    pid = run_shell_cmd(f"tsp -r {tsp_id}").strip()
+    run_shell_cmd(f"tsp -r {tsp_id}")
     job_dir = os.path.join(FILE_DIR, job_id)
     run_shell_cmd(f"rm -rf {job_dir}")
 
@@ -195,8 +196,10 @@ def handle_finished_jobs():
                 # stop and remove relevant job from queue
                 db.session.delete(queued_job)
                 db.session.commit()
-                pid = run_shell_cmd(f"tsp -p {tsp_id}").strip()
-                run_shell_cmd(f"kill -9 {pid}")
+                pid = run_shell_cmd(f"tsp -p {tsp_id}")
+                if pid is not None:
+                    pid = pid.strip()
+                    run_shell_cmd(f"kill -9 {pid}")
             # clean up files
             run_shell_cmd(f"rm -rf {job_dir}")
 
