@@ -131,7 +131,8 @@ def pop_job(params):
     pid = run_shell_cmd(f"tsp -p {tsp_id}")
     if pid is not None:
         pid = pid.strip()
-        run_shell_cmd(f"kill -9 {pid}")
+        # kills python process that's running blender plus all its children 
+        run_shell_cmd(f"kill $(ps -s {pid} -o pid=)")
     run_shell_cmd(f"tsp -r {tsp_id}")
     job_dir = os.path.join(FILE_DIR, job_id)
     run_shell_cmd(f"rm -rf {job_dir}")
