@@ -106,23 +106,32 @@ def push_job(params):
     db.session.commit()
 
 
-def _return_job_with_id(job_id, separate_thread):
+def _return_job_with_id(job_id):
     """
     find and return job from queue with job id matching job_id
-    if not separate thread, use orm otherwise use pymysql to return row dict
     return None if not found
+    """    
+    return Job.query.filter_by(job_id=job_id).first()
+
+
+def _delete_job_with_id(job_id):
+    """
+    delete job from db if it exists
+    return tsp_id iff deleted, None otherwise
     """
     # not using ORM because this is run in separate thread where app/db are not defined
-    """
-    if separate_thread:
     conn = pymysql.connect(host='localhost', user='root', password = "sandbox", db='sandbox')
     cur = conn.cursor()
-    cur.execute(f"SELECT * FROM job WHERE job_id='{job_id}';")
+    cur.execute(f"SELECT tsp_id FROM job WHERE job_id='{job_id}';")
     job = cur.fetchone()
-    conn.close()
-    """
+    if job:
+        job = str(job[0])
+        cur.execute(f"DELETE FROM job WHERE job_id='{job_id}';")
+        conn.commit()
     
-    return Job.query.filter_by(job_id=job_id).first()
+    conn.close()
+
+    return job
 
 
 def pop_job(params):
@@ -175,10 +184,7 @@ def _send_results(job_id):
     files = {'render_file': open(tgz_path, 'rb'), 'json': json.dumps(data)}
     requests.post(server_url, files=files)
     run_shell_cmd(f"rm -rf {job_dir}")
-    queued_job = _return_job_with_id(job_id)
-    if queued_job:
-        db.session.delete(queued_job)
-        db.session.commit()
+    _delete_job_with_id(job_id)
 
 
 def handle_finished_jobs():
@@ -202,13 +208,9 @@ def handle_finished_jobs():
         timeout = dt.timedelta(hours=1)
         if timeout < (current_time-start_time):
             # remove job from queue
-            queued_job = _return_job_with_id(job_id)
-            if queued_job:
-                tsp_id = queued_job.tsp_id
-                # stop and remove relevant job from queue
-                db.session.delete(queued_job)
-                db.session.commit()
-                pid = run_shell_cmd(f"tsp -p {tsp_id}")
+            deleted_tsp = _delete_job_with_id(job_id)
+            if deleted_tsp is not None:
+                pid = run_shell_cmd(f"tsp -p {deleted_tsp}")
                 if pid is not None:
                     pid = pid.strip()
                     run_shell_cmd(f"kill -9 {pid}")
