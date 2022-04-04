@@ -106,16 +106,19 @@ def push_job(params):
     db.session.commit()
 
 
-def _return_job_with_id(job_id):
+def _return_job_with_id(job_id, separate_thread):
     """
     find and return job from queue with job id matching job_id
+    if not separate thread, use orm otherwise use pymysql to return row dict
     return None if not found
     """
     # not using ORM because this is run in separate thread where app/db are not defined
     """
+    if separate_thread:
     conn = pymysql.connect(host='localhost', user='root', password = "sandbox", db='sandbox')
     cur = conn.cursor()
-    job = cur.fetchone(f"SELECT * FROM job WHERE job_id='{job_id}';")
+    cur.execute(f"SELECT * FROM job WHERE job_id='{job_id}';")
+    job = cur.fetchone()
     conn.close()
     """
     
