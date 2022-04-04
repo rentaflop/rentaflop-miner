@@ -111,6 +111,14 @@ def _return_job_with_id(job_id):
     find and return job from queue with job id matching job_id
     return None if not found
     """
+    # not using ORM because this is run in separate thread where app/db are not defined
+    """
+    conn = pymysql.connect(host='localhost', user='root', password = "sandbox", db='sandbox')
+    cur = conn.cursor()
+    job = cur.fetchone(f"SELECT * FROM job WHERE job_id='{job_id}';")
+    conn.close()
+    """
+    
     return Job.query.filter_by(job_id=job_id).first()
 
 
@@ -209,7 +217,7 @@ def handle_finished_jobs():
     # not using ORM because this is run in separate thread where app/db are not defined
     conn = pymysql.connect(host='localhost', user='root', password = "sandbox", db='sandbox')
     cur = conn.cursor()
-    n_jobs = cur.execute("SELECT * from job;")
+    n_jobs = cur.execute("SELECT * FROM job;")
     conn.close()
     if n_jobs == 0:
         # nothing left running in queue, so we mine crypto again
