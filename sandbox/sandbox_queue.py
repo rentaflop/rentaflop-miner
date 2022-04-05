@@ -70,7 +70,7 @@ def start_mining():
     """
     begin mining crypto, but only if not already mining
     """
-    output = run_shell_cmd("pgrep nbminer")
+    output = run_shell_cmd("pgrep nbminer", quiet=True)
     # if already running nbminer we do nothing, otherwise start miner
     if not output:
         # start with os.system since this needs to be run in background
