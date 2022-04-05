@@ -25,7 +25,7 @@ function miner_config_gen() {
     fi
 
     mkfile_from_symlink $MINER_CONFIG
-    conf=`echo {\"wallet_id\": \"$RENTAFLOP_MINER_TEMPLATE\"}`
+    conf=`echo {\"wallet_address\": \"$RENTAFLOP_MINER_TEMPLATE\"}`
 
     echo -e "$conf" | jq > $MINER_CONFIG
 }

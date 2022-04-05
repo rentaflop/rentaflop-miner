@@ -45,22 +45,23 @@ def _get_registration(is_checkin=True):
     """
     return registration details from registration file or register if it doesn't exist
     """
-    is_registered = os.path.exists(REGISTRATION_FILE)
-    daemon_url = "https://portal.rentaflop.com/api/host/daemon"
-    rentaflop_id, wallet_address, daemon_port = "", "", ""
+    if not is_checkin:
+        with open(REGISTRATION_FILE, "r") as f:
+            rentaflop_config = json.load(f)
+            rentaflop_id = rentaflop_config.get("rentaflop_id", "")
+            wallet_address = rentaflop_config.get("wallet_address", "")
+            daemon_port = rentaflop_config.get("daemon_port", "")
+    else:
+        rentaflop_id, wallet_address, daemon_port = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT
 
-    if is_registered:
-        if not is_checkin:
-            with open(REGISTRATION_FILE, "r") as f:
-                rentaflop_id, wallet_address, daemon_port = f.read().strip().splitlines()
-        else:
-            rentaflop_id, wallet_address, daemon_port = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT
+    # rentaflop id is either read from the file, already set if it's a checkin, or is initial registration where it's empty str
+    is_registered = rentaflop_id is not ""
+    daemon_url = "https://portal.rentaflop.com/api/host/daemon"
 
     # register host with rentaflop or perform checkin if already registered
     try:
         ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
         if not is_registered:
-            wallet_address = sys.argv[1]
             daemon_port = select_port(IGD, "daemon")
         data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id, \
                 "wallet_address": wallet_address}
@@ -80,8 +81,9 @@ def _get_registration(is_checkin=True):
 
     # if we just registered, save registration info
     if not is_registered:
+        rentaflop_config = {"rentaflop_id": rentaflop_id, "wallet_address": wallet_address, "daemon_port": daemon_port}
         with open(REGISTRATION_FILE, "w") as f:
-            f.write(f"{rentaflop_id}\n{wallet_address}\n{daemon_port}")
+            f.write(json.dumps(rentaflop_config, indent=4, sort_keys=True))
         DAEMON_LOGGER.debug("Registration successful.")
 
     return rentaflop_id, wallet_address, daemon_port
