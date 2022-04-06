@@ -32,8 +32,6 @@ def _start_mining():
     """
     starts mining on any stopped GPUs
     """
-    # TODO remove after rentaflop miner is on hive; temporarily here to stop nbminer
-    run_shell_cmd("miner stop", very_quiet=True)
     state = get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD, gpu_only=True, quiet=True)
     gpus = state["gpus"]
     for gpu in gpus:
@@ -89,23 +87,6 @@ def _get_registration(is_checkin=True):
     return rentaflop_id, wallet_address, daemon_port
 
 
-def _enable_restart_on_boot():
-    """
-    places restart in crontab without duplication
-    ensures daemon is run on system startup
-    """
-    # TODO delete function once on hive
-    daemon_py = os.path.realpath(__file__)
-    # TODO hive specific, use below crontab editing if normal system that doesn't overwrite crontab constantly
-    already_restart = run_shell_cmd("grep rentaflop /hive/etc/crontab.root")
-    if not already_restart:
-        run_shell_cmd(f'printf "\n@reboot python3 {daemon_py}\n" >> /hive/etc/crontab.root')
-    run_shell_cmd("crontab /hive/etc/crontab.root")
-    # first remove crontab entry if it exists
-    # run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
-    # run_shell_cmd(f'(crontab -u root -l; echo "@reboot python3 {daemon_py}") | crontab -u root -')
-
-
 def _first_startup():
     """
     run rentaflop installation steps
@@ -133,8 +114,6 @@ def _first_startup():
     run_shell_cmd("sudo apt-get install iptables-persistent -y")
     run_shell_cmd("sudo apt-get install python3-pip -y && pip3 install speedtest-cli")
     run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
-    # TODO delete once on hive
-    _enable_restart_on_boot()
     run_shell_cmd("sudo reboot")
 
 
