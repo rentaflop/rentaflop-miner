@@ -13,19 +13,22 @@ function miner_fork() {
 function miner_config_echo() {
     export MINER_FORK=`miner_fork`
     local MINER_VER=`miner_ver`
-    miner_echo_config_file "$MINER_DIR/$CUSTOM_MINER/rentaflop_config.json"
+    miner_echo_config_file "/hive/custom/${CUSTOM_NAME}/rentaflop_config.json"
 }
 
 # Generates config file
 function miner_config_gen() {
-    local MINER_CONFIG="$MINER_DIR/$CUSTOM_MINER/rentaflop_config.json"
+    local MINER_CONFIG="/hive/custom/${CUSTOM_NAME}/rentaflop_config.json"
+    mkdir -p /hive/custom/
+    ln -s "/hive/miners/custom/${CUSTOM_NAME}" "/hive/custom/${CUSTOM_NAME}"
     # exit if config already exists
     if [[ -f "$MINER_CONFIG" ]]; then
 	exit 0
     fi
 
-    mkfile_from_symlink $MINER_CONFIG
-    conf=`echo {\"wallet_address\": \"$RENTAFLOP_MINER_TEMPLATE\"}`
+    conf=`echo {\"wallet_address\": \"$CUSTOM_TEMPLATE\"}`
 
     echo -e "$conf" | jq > $MINER_CONFIG
 }
+
+miner_config_gen
