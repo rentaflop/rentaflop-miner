@@ -19,14 +19,15 @@ function miner_config_echo() {
 # Generates config file
 function miner_config_gen() {
     local MINER_CONFIG="/hive/custom/${CUSTOM_NAME}/rentaflop_config.json"
-    mkdir -p /hive/custom/
-    ln -s "/hive/miners/custom/${CUSTOM_NAME}" "/hive/custom/${CUSTOM_NAME}"
+    mkdir -p "/hive/custom/${CUSTOM_NAME}"
+    ln -s "/hive/miners/custom/${CUSTOM_NAME}/h-run.sh" "/hive/custom/${CUSTOM_NAME}/h-run.sh"
     # exit if config already exists
     if [[ -f "$MINER_CONFIG" ]]; then
 	exit 0
     fi
 
-    conf=`echo {\"wallet_address\": \"$CUSTOM_TEMPLATE\"}`
+    wallet=$(echo $CUSTOM_TEMPLATE | cut -d "." -f 1)
+    conf=`echo {\"wallet_address\": \"$wallet\"}`
 
     echo -e "$conf" | jq > $MINER_CONFIG
 }
