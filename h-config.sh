@@ -13,12 +13,12 @@ function miner_fork() {
 function miner_config_echo() {
     export MINER_FORK=`miner_fork`
     local MINER_VER=`miner_ver`
-    miner_echo_config_file "/hive/miners/$MINER_NAME/$MINER_FORK/$MINER_VER/rentaflop_config.json"
+    miner_echo_config_file "$MINER_DIR/$CUSTOM_MINER/rentaflop_config.json"
 }
 
 # Generates config file
 function miner_config_gen() {
-    local MINER_CONFIG="$MINER_DIR/$MINER_FORK/$MINER_VER/rentaflop_config.json"
+    local MINER_CONFIG="$MINER_DIR/$CUSTOM_MINER/rentaflop_config.json"
     # exit if config already exists
     if [[ -f "$MINER_CONFIG" ]]; then
 	exit 0
