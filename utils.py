@@ -114,14 +114,14 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
           {
             "index": "0",
             "name": "NVIDIA GeForce RTX 3080",
-            "state": "crypto",
+            "state": "gpc",
             "queue": [54, 118, 1937],
           },
           {
             "index": "1",
             "name": "NVIDIA GeForce RTX 3060 Ti",
             "state": "crypto"
-            "queue": [59, 63, 197],
+            "queue": [],
           }
         ],
         "n_gpus": "2",
@@ -135,7 +135,19 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
             "1"
           ],
         },
-        "version": "01e243e"
+        "version": "01e243e",
+        "khs": 346.3, // total hash rate
+        "stats": { 
+          "hs": [123, 223.3], //array of hashes
+          "hs_units": "khs", //Optional: units that are uses for hashes array, "hs", "khs", "mhs", ... Default "khs".   
+          "temp": [60, 63], //array of miner temps
+          "fan": [80, 100], //array of miner fans
+          "uptime": 12313232, //seconds elapsed from miner stats
+          "ver": "1.2.3.4-beta", //miner version currently run, parsed from it's api or manifest 
+          "ar": [123, 3], //Optional: acceped, rejected shares 
+          "algo": "customalgo", //Optional: algo used by miner, should one of the exiting in Hive
+          "bus_numbers": [0, 1, 12, 13] //Pci buses array in decimal format. E.g. 0a:00.0 is 10
+        }
       }
     }
     """

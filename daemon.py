@@ -185,6 +185,8 @@ def _handle_startup():
     DAEMON_LOGGER.debug("Starting daemon...")
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
+    # ensure we can "catch up" on updates even if an update command didn't reach this host
+    run_shell_cmd("git pull")
     # set IGD to speed up upnpc commands
     global IGD
     global AVAILABLE_RESOURCES
