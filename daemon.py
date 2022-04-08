@@ -51,6 +51,8 @@ def _get_registration(is_checkin=True):
             daemon_port = rentaflop_config.get("daemon_port", "")
     else:
         rentaflop_id, wallet_address, daemon_port = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT
+        # if checkin, we also renew daemon port lease since that seems to disappear occasionally
+        run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
 
     # rentaflop id is either read from the file, already set if it's a checkin, or is initial registration where it's empty str
     is_registered = rentaflop_id is not ""

@@ -101,6 +101,32 @@ def get_gpus(available_resources, quiet=False):
     return gpu_names, gpu_indexes
 
 
+def get_khs_stats(khs_vals, stats_vals):
+    """
+    combine khs and stats values from each GPU into one for host
+    return khs, stats
+    """
+    khs = sum(khs_vals)
+    stats = {"hs": [], "hs_units": "hs", "temp": [], "fan", [], "uptime": 0, "ver": "", "ar": [], "algo": "rentaflop", "bus_numbers": []}
+    total_accepted = 0
+    total_rejected = 0
+    for stats_val in stats_vals:
+        stats["hs"].extend(stats_val.get("hs", []))
+        stats["temp"].extend(stats_val.get("temp", []))
+        stats["fan"].extend(stats_val.get("fan", []))
+        stats["bus_numbers"].extend(stats_val.get("bus_numbers", []))
+        ar = stats_val.get("ar", [])
+        if not ar:
+            ar = [0, 0]
+        total_accepted += ar[0]
+        total_rejected += ar[1]
+    
+    stats["uptime"] = round(time.time() - _START_TIME)
+    stats["ar"] = [total_accepted, total_rejected]
+
+    return khs, stats    
+
+
 def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
     """
     returns a dictionary with all relevant daemon state information
@@ -159,6 +185,8 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
     # get all container names
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
                                quiet=quiet, format_output=False).split()
+    khs_vals = []
+    stats_vals = []
     for container in containers:
         # container looks like f"rentaflop-sandbox-{gpu}"
         _, _, gpu = container.split("-")
@@ -170,7 +198,10 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                 data = {"cmd": "status", "params": {}}
                 files = {'json': json.dumps(data)}
                 result = requests.post(url, files=files, verify=False)
-                container_queue = result.json().get("queue")
+                result = result.json()
+                container_queue = result.get("queue")
+                khs_vals.append(result.get("khs"))
+                stats_vals.append(result.get("stats"))
                 container_state = "gpc" if container_queue else "crypto"
                 state["gpus"][i]["state"] = container_state
                 state["gpus"][i]["queue"] = container_queue
@@ -181,6 +212,9 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
         state["ports"] = ports
         state["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")
         state["resources"] = available_resources
+        khs, stats = get_khs_stats(khs_vals, stats_vals)
+        state["khs"] = khs
+        state["stats"] = stats
 
     return state            
 
@@ -189,6 +223,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
 _PORT_TYPE_TO_START = {
     "daemon": 46443,
 }
+_START_TIME = time.time()
 
 
 def select_port(igd, port_type):

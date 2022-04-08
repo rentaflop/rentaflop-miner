@@ -165,8 +165,19 @@ def status(params):
     """
     jobs = Job.query.all()
     jobs = [job.job_id for job in jobs]
+    # h-stats.sh queries nbminer for mining stats, so we only run it when nbminer is running
+    if not jobs:
+        khs_stats = run_shell_cmd("./h-stats.sh")
+        if khs_stats:
+            khs_stats = khs_stats.split()
+        if len(khs_stats) == 2:
+            global KHS
+            global STATS
+            KHS = float(khs_stats[0])
+            STATS = json.loads(khs_stats[1])
+    # TODO if running gpc, apply rentaflop multiplier to estimate additional crypto earnings
     
-    return {"queue": jobs}
+    return {"queue": jobs, "khs": KHS, "stats": STATS}
 
 
 def _send_results(job_id):
@@ -263,6 +274,9 @@ FILE_DIR = "/root/jobs"
 os.makedirs(FILE_DIR)
 LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sandbox.log")
 SANDBOX_LOGGER = _get_logger(LOG_FILE)
+KHS=0
+STATS="null"
+
 
 class Config(object):
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:sandbox@localhost/sandbox"
