@@ -109,7 +109,7 @@ def get_khs_stats(khs_vals, stats_vals):
     return khs, stats
     """
     khs = sum(khs_vals)
-    stats = {"hs": [], "hs_units": "hs", "temp": [], "fan", [], "uptime": 0, "ver": "", "ar": [], "algo": "rentaflop", "bus_numbers": []}
+    stats = {"hs": [], "hs_units": "hs", "temp": [], "fan": [], "uptime": 0, "ver": "", "ar": [], "algo": "rentaflop", "bus_numbers": []}
     total_accepted = 0
     total_rejected = 0
     for stats_val in stats_vals:
