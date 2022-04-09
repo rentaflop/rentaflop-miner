@@ -23,6 +23,8 @@ import requests
 from requirement_checks import perform_host_requirement_checks
 import json
 import socket
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 app = Flask(__name__)

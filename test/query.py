@@ -4,6 +4,8 @@ program for sending test queries to hosts
 import argparse
 import json
 import requests
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def parse_clargs():

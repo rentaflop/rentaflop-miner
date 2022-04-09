@@ -6,6 +6,8 @@ from config import DAEMON_LOGGER
 import time
 import json
 import requests
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 SUPPORTED_GPUS = [
