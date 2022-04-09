@@ -331,6 +331,17 @@ def status(params):
     return {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD)}
 
 
+def prep_daemon_shutdown(server):
+    """
+    prepare daemon for shutdown without assuming system is restarting
+    stops all mining jobs and terminates server
+    """
+    _stop_all()
+    server.terminate()
+    DAEMON_LOGGER.debug("Stopping daemon.")
+    logging.shutdown()
+
+    
 @app.before_request
 def before_request():
     # don't allow anyone who isn't rentaflop to communicate with host daemon
@@ -406,13 +417,14 @@ def main():
     # run server, allowing it to shut itself down
     q = multiprocessing.Queue()
     server = multiprocessing.Process(target=run_flask_server, args=(q,))
-    server.start()
-    finished = q.get(block=True)
-    if finished:
-        server.terminate()
-        DAEMON_LOGGER.debug("Stopping daemon.")
-        logging.shutdown()
-
+    try:
+        server.start()
+        finished = q.get(block=True)
+        if finished:
+            prep_daemon_shutdown(server)
+    except KeyboardInterrupt:
+        prep_daemon_shutdown(server)
+    
 
 if __name__=="__main__":
     main()
