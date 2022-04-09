@@ -328,7 +328,7 @@ def status(params):
     """
     return the state of this host
     """
-    return {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD)}
+    return {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD, quiet=True)}
 
 
 def prep_daemon_shutdown(server):

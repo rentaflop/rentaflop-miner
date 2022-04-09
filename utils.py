@@ -195,7 +195,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
         for i, gpu_dict in enumerate(state["gpus"]):
             if gpu_dict["index"] == gpu:
                 # request queued jobs from docker
-                container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container, format_output=False).strip()
+                container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container, format_output=False, quiet=quiet).strip()
                 url = f"https://{container_ip}"
                 data = {"cmd": "status", "params": {}}
                 files = {'json': json.dumps(data)}
