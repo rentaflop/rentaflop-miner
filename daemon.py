@@ -380,7 +380,7 @@ def run_flask_server(q):
                     finished = log_before_after(func, params)()
                 else:
                     # avoid logging on status since this is called every 10 seconds by hive stats checker
-                    func(params)
+                    finished = func(params)
             except Exception as e:
                 DAEMON_LOGGER.exception(f"Caught exception: {e}")
         if finished is True:
