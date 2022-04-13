@@ -4,11 +4,9 @@ functions include, but are not limited to, software updates, system updates,
 guest and crypto mining session initiation/termination, uninstallation
 usage:
     python daemon.py
-    # if not yet registered
-    python daemon.py wallet_address
-    # used to indicate rentaflop code update still in progress so we must call
+    # used to indicate rentaflop code update to version abc123 still in progress so we must call
     # update function again; not used during system updates or on second update
-    python daemon.py update
+    python daemon.py update abc123
 """
 import os
 import logging
@@ -129,7 +127,7 @@ def _subsequent_startup():
     # update function itself has been updated in the rentaflop code update
     if len(sys.argv) > 1 and sys.argv[1] == "update":
         DAEMON_LOGGER.debug("Entering second update...")
-        update({"type": "rentaflop"}, second_update=True)
+        update({"type": "rentaflop", "target_version": sys.argv[2]}, second_update=True)
         DAEMON_LOGGER.debug("Exiting second update.")
         # flushing logs and exiting daemon now since it's set to restart in 3 seconds
         logging.shutdown()
@@ -264,7 +262,8 @@ def _stop_all():
 def update(params, reboot=True, second_update=False):
     """
     handle commands related to rentaflop software and system updates
-    params looks like {"type": "rentaflop" | "system"}
+    params looks like {"type": "rentaflop" | "system", "target_version": "abc123"}
+    target_version is git version to update to when type is rentaflop; if not set, we update to latest master
     reboot controls whether system update will reboot
     second_update is set to True to indicate current update code running is already up to date,
     False if it hasn't been updated yet
@@ -274,12 +273,16 @@ def update(params, reboot=True, second_update=False):
     update_type = params["type"]
     if update_type == "rentaflop":
         # must run all commands even if second update
+        target_version = params.get("target_version", "")
+        run_shell_cmd("git checkout master")
         run_shell_cmd("git pull")
+        if target_version:
+            run_shell_cmd(f"git checkout {target_version}")
         run_shell_cmd("sudo docker pull rentaflop/host:latest")
         run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
         # ensure all old containers are stopped so we can run new ones with latest code
         _stop_all()
-        update_param = "" if second_update else " update"
+        update_param = "" if second_update else f" update {target_version}"
         # daemon will shut down (but not full system) so this ensures it starts back up again
         run_shell_cmd(f'echo "sleep 3; python3 daemon.py{update_param}" | at now')
 
