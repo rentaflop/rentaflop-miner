@@ -187,8 +187,6 @@ def _handle_startup():
     DAEMON_LOGGER.debug("Starting daemon...")
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
-    # ensure we can "catch up" on updates even if an update command didn't reach this host
-    run_shell_cmd("git pull")
     # set IGD to speed up upnpc commands
     global IGD
     global AVAILABLE_RESOURCES
@@ -274,7 +272,9 @@ def update(params, reboot=True, second_update=False):
     if update_type == "rentaflop":
         # must run all commands even if second update
         target_version = params.get("target_version", "")
-        run_shell_cmd("git checkout master")
+        # use test branch develop if testing on rentaflop_one otherwise use prod branch master
+        branch = "develop" if socket.gethostname() == "rentaflop_one" else "master"
+        run_shell_cmd(f"git checkout {branch}")
         run_shell_cmd("git pull")
         if target_version:
             run_shell_cmd(f"git checkout {target_version}")
