@@ -133,4 +133,4 @@ dmypy.json
 *.qcow2
 nohup.out
 daemon.log
-registration.txt
+rentaflop_config.json
