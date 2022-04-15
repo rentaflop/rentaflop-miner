@@ -137,7 +137,7 @@ def _subsequent_startup():
         # if not in the middle of update then we need to exit if another daemon is running
         # during updates, hive will try to keep restarting the daemon but we don't want this as it'll start itself
         # run very quietly so as not to pollute last line if we just completed an update
-        running_daemons = run_shell_cmd('ps aux | grep "daemon.py" | grep -v grep', very_quiet=True, format_output=False).split()
+        running_daemons = run_shell_cmd('ps aux | grep "daemon.py" | grep -v grep', very_quiet=True, format_output=False).splitlines()
         if len(running_daemons) > 1:
             sys.exit(0)
 
