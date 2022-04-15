@@ -23,6 +23,7 @@ import json
 import socket
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+import time
 
 
 app = Flask(__name__)
@@ -132,6 +133,13 @@ def _subsequent_startup():
         # flushing logs and exiting daemon now since it's set to restart in 3 seconds
         logging.shutdown()
         sys.exit(0)
+    else:
+        # if not in the middle of update then we need to exit if another daemon is running
+        # during updates, hive will try to keep restarting the daemon but we don't want this as it'll start itself
+        # run very quietly so as not to pollute last line if we just completed an update
+        running_daemons = run_shell_cmd('ps aux | grep "daemon.py" | grep -v grep', very_quiet=True, format_output=False).split()
+        if len(running_daemons) > 1:
+            sys.exit(0)
 
     # get last line of log file
     with open(LOG_FILE, 'rb') as f:
@@ -434,6 +442,8 @@ def main():
             prep_daemon_shutdown(server)
     except Exception as e:
         DAEMON_LOGGER.error(f"Entering update loop because of uncaught exception: {e}\n{e.output}")
+        # don't loop too fast
+        time.sleep(300)
         # handle runtime errors and other issues by performing an update, preventing most bugs from breaking a rentaflop installation
         update({"type": "rentaflop"})
 
