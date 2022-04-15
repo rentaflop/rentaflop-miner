@@ -65,10 +65,10 @@ def _get_registration(is_checkin=True):
             daemon_port = select_port(IGD, "daemon")
         data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id, \
                 "wallet_address": wallet_address}
-        DAEMON_LOGGER.debug(f"Sent to /api/daemon: {data}")
+        DAEMON_LOGGER.debug(f"Sent to /api/host/daemon: {data}")
         response = requests.post(daemon_url, json=data)
         response_json = response.json()
-        DAEMON_LOGGER.debug(f"Received from /api/daemon: {response.status_code} {response_json}")
+        DAEMON_LOGGER.debug(f"Received from /api/host/daemon: {response.status_code} {response_json}")
         if not is_registered:
             rentaflop_id = response_json["rentaflop_id"]
     except Exception as e:
@@ -414,24 +414,28 @@ SANDBOX_ID = uuid.uuid4().hex
 
 
 def main():
-    _handle_startup()
-    app.secret_key = uuid.uuid4().hex
-    # create a scheduler that periodically checks for stopped GPUs and starts mining on them; periodic checkin to rentaflop servers
-    scheduler = APScheduler()
-    scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=300)
-    scheduler.add_job(id='Rentaflop Checkin', func=_get_registration, trigger="interval", seconds=3600)
-    scheduler.start()
-    # run server, allowing it to shut itself down
-    q = multiprocessing.Queue()
-    server = multiprocessing.Process(target=run_flask_server, args=(q,))
     try:
-        server.start()
-        finished = q.get(block=True)
-        if finished:
+        _handle_startup()
+        app.secret_key = uuid.uuid4().hex
+        # create a scheduler that periodically checks for stopped GPUs and starts mining on them; periodic checkin to rentaflop servers
+        scheduler = APScheduler()
+        scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=300)
+        scheduler.add_job(id='Rentaflop Checkin', func=_get_registration, trigger="interval", seconds=3600)
+        scheduler.start()
+        # run server, allowing it to shut itself down
+        q = multiprocessing.Queue()
+        server = multiprocessing.Process(target=run_flask_server, args=(q,))
+        try:
+            server.start()
+            finished = q.get(block=True)
+            if finished:
+                prep_daemon_shutdown(server)
+        except KeyboardInterrupt:
             prep_daemon_shutdown(server)
-    except KeyboardInterrupt:
-        prep_daemon_shutdown(server)
-    
+    except:
+        # handle runtime errors and other issues by performing an update, preventing most bugs from breaking a rentaflop installation
+        update({"type": "rentaflop"})
+
 
 if __name__=="__main__":
     main()
