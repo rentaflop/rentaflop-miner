@@ -255,9 +255,11 @@ def _stop_all():
     """
     stop all rentaflop docker containers
     """
+    DAEMON_LOGGER.debug("Stopping containers...")
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" -q', format_output=False).replace("\n", " ")
     if containers:
         run_shell_cmd(f'docker stop {containers}')
+    DAEMON_LOGGER.debug("Containers stopped.")
             
             
 def update(params, reboot=True, second_update=False):
@@ -341,6 +343,7 @@ def prep_daemon_shutdown(server):
     stops all mining jobs and terminates server
     """
     _stop_all()
+    DAEMON_LOGGER.debug("Stopping server...")
     server.terminate()
     DAEMON_LOGGER.debug("Stopping daemon.")
     logging.shutdown()
@@ -427,6 +430,7 @@ def main():
         q = multiprocessing.Queue()
         server = multiprocessing.Process(target=run_flask_server, args=(q,))
         try:
+            DAEMON_LOGGER.debug("Starting server...")
             server.start()
             finished = q.get(block=True)
             if finished:
