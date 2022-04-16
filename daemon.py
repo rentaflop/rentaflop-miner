@@ -56,7 +56,7 @@ def _get_registration(is_checkin=True):
         run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
 
     # rentaflop id is either read from the file, already set if it's a checkin, or is initial registration where it's empty str
-    is_registered = rentaflop_id is not ""
+    is_registered = rentaflop_id != ""
     daemon_url = "https://portal.rentaflop.com/api/host/daemon"
 
     # register host with rentaflop or perform checkin if already registered
@@ -149,6 +149,8 @@ def _subsequent_startup():
         ("Exiting second update." in last_line)
     if is_update:
         DAEMON_LOGGER.debug("Exiting update.")
+        # ensure anything that started up during update gets killed
+        kill_other_daemons()
     else:
         # error state
         DAEMON_LOGGER.debug("Daemon crashed.")
@@ -308,8 +310,6 @@ def uninstall(params):
     # clean up rentaflop host software
     run_shell_cmd(f"upnpc -u {IGD} -d {DAEMON_PORT} tcp")
     daemon_py = os.path.realpath(__file__)
-    run_shell_cmd("sed -i '/rentaflop/d' /hive/etc/crontab.root")
-    run_shell_cmd(f"crontab -u root -l | grep -v 'python3 {daemon_py}' | crontab -u root -")
     rentaflop_miner_dir = os.path.dirname(daemon_py)
     run_shell_cmd(f"rm -rf {rentaflop_miner_dir}", quiet=True)
 

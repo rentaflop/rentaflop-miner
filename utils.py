@@ -8,6 +8,7 @@ import json
 import requests
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+import os
 
 
 SUPPORTED_GPUS = [
@@ -239,3 +240,13 @@ def select_port(igd, port_type):
         selected_port += 1
 
     return selected_port
+
+
+def kill_other_daemons():
+    """
+    kill all other processes running daemon.py
+    """
+    daemons = run_shell_cmd('ps aux | grep "daemon.py" | grep -v grep', very_quiet=True, format_output=False).splitlines()
+    current_pid = os.getpid()
+    pids_to_kill = [daemon.split()[1] for daemon in daemons if daemon.split()[1] != current_pid]
+    run_shell_cmd(f'kill -9 {" ".join(pids_to_kill)}')
