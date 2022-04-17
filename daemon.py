@@ -50,9 +50,10 @@ def _get_registration(is_checkin=True):
             rentaflop_id = rentaflop_config.get("rentaflop_id", "")
             wallet_address = rentaflop_config.get("wallet_address", "")
             daemon_port = rentaflop_config.get("daemon_port", "")
-            email = get_custom_config()
+            email = rentaflop_config.get("email", "")
+            rentaflop_id = rentaflop_config.get("sandbox_id", "")
     else:
-        rentaflop_id, wallet_address, daemon_port, email = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL
+        rentaflop_id, wallet_address, daemon_port, email, sandbox_id = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID
         # if checkin, we also renew daemon port lease since that seems to disappear occasionally
         run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
 
@@ -65,6 +66,7 @@ def _get_registration(is_checkin=True):
         ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
         if not is_registered:
             daemon_port = select_port(IGD, "daemon")
+            email = get_custom_config()
         data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id, \
                 "email": email, "wallet_address": wallet_address}
         DAEMON_LOGGER.debug(f"Sent to /api/host/daemon: {data}")
@@ -73,6 +75,7 @@ def _get_registration(is_checkin=True):
         DAEMON_LOGGER.debug(f"Received from /api/host/daemon: {response.status_code} {response_json}")
         if not is_registered:
             rentaflop_id = response_json["rentaflop_id"]
+            sandbox_id = response_json["sandbox_id"]
     except Exception as e:
         type_str = "checkin" if is_checkin else "registration"
         DAEMON_LOGGER.error(f"Exception: {e}")
@@ -82,13 +85,14 @@ def _get_registration(is_checkin=True):
         raise
 
     # if we just registered, save registration info
+    # TODO check if any config values have been changed and rewrite config file if so
     if not is_registered:
-        rentaflop_config = {"rentaflop_id": rentaflop_id, "wallet_address": wallet_address, "daemon_port": daemon_port}
+        rentaflop_config = {"rentaflop_id": rentaflop_id, "wallet_address": wallet_address, "daemon_port": daemon_port, "email", email, "sandbox_id": sandbox_id}
         with open(REGISTRATION_FILE, "w") as f:
             f.write(json.dumps(rentaflop_config, indent=4, sort_keys=True))
         DAEMON_LOGGER.debug("Registration successful.")
 
-    return rentaflop_id, wallet_address, daemon_port, email
+    return rentaflop_id, wallet_address, daemon_port, email, sandbox_id
 
 
 def _first_startup():
@@ -197,9 +201,11 @@ def _handle_startup():
     global RENTAFLOP_ID
     global WALLET_ADDRESS
     global DAEMON_PORT
+    global EMAIL
+    global SANDBOX_ID
     IGD = get_igd()
     AVAILABLE_RESOURCES = _get_available_resources()
-    RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL = _get_registration(is_checkin=False)
+    RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID = _get_registration(is_checkin=False)
     # ensure daemon flask server is accessible
     # HTTPS port
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
@@ -415,8 +421,7 @@ WALLET_ADDRESS = None
 DAEMON_PORT = None
 EMAIL = None
 AVAILABLE_RESOURCES = None
-# TODO generate on rentaflop servers and save as part of registration; sandbox can then use this to communicate with rentaflop servers
-SANDBOX_ID = uuid.uuid4().hex
+SANDBOX_ID = None
 
 
 def main():
