@@ -50,8 +50,9 @@ def _get_registration(is_checkin=True):
             rentaflop_id = rentaflop_config.get("rentaflop_id", "")
             wallet_address = rentaflop_config.get("wallet_address", "")
             daemon_port = rentaflop_config.get("daemon_port", "")
+            email = get_custom_config()
     else:
-        rentaflop_id, wallet_address, daemon_port = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT
+        rentaflop_id, wallet_address, daemon_port, email = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL
         # if checkin, we also renew daemon port lease since that seems to disappear occasionally
         run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
 
@@ -65,7 +66,7 @@ def _get_registration(is_checkin=True):
         if not is_registered:
             daemon_port = select_port(IGD, "daemon")
         data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id, \
-                "wallet_address": wallet_address}
+                "email": email, "wallet_address": wallet_address}
         DAEMON_LOGGER.debug(f"Sent to /api/host/daemon: {data}")
         response = requests.post(daemon_url, json=data)
         response_json = response.json()
@@ -87,7 +88,7 @@ def _get_registration(is_checkin=True):
             f.write(json.dumps(rentaflop_config, indent=4, sort_keys=True))
         DAEMON_LOGGER.debug("Registration successful.")
 
-    return rentaflop_id, wallet_address, daemon_port
+    return rentaflop_id, wallet_address, daemon_port, email
 
 
 def _first_startup():
@@ -198,7 +199,7 @@ def _handle_startup():
     global DAEMON_PORT
     IGD = get_igd()
     AVAILABLE_RESOURCES = _get_available_resources()
-    RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT = _get_registration(is_checkin=False)
+    RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL = _get_registration(is_checkin=False)
     # ensure daemon flask server is accessible
     # HTTPS port
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
@@ -412,6 +413,7 @@ IGD = None
 RENTAFLOP_ID = None
 WALLET_ADDRESS = None
 DAEMON_PORT = None
+EMAIL = None
 AVAILABLE_RESOURCES = None
 # TODO generate on rentaflop servers and save as part of registration; sandbox can then use this to communicate with rentaflop servers
 SANDBOX_ID = uuid.uuid4().hex

@@ -250,3 +250,24 @@ def kill_other_daemons():
     current_pid = os.getpid()
     pids_to_kill = [daemon.split()[1] for daemon in daemons if daemon.split()[1] != current_pid]
     run_shell_cmd(f'kill -9 {" ".join(pids_to_kill)}')
+
+
+def get_custom_config():
+    """
+    parse and return values from CUSTOM_USER_CONFIG in wallet.conf
+    """
+    with open("/hive-config/wallet.conf", "r") as f:
+        config_vals = f.readlines()
+
+    custom_user_config = ""
+    for config_val in config_vals:
+        if config_val.startswith("CUSTOM_USER_CONFIG="):
+            custom_user_config = config_val.replace("CUSTOM_USER_CONFIG=", "")
+
+    email = ""
+    custom_values = custom_user_config.split(";")
+    for custom_value in custom_values:
+        if custom_value.startswith("EMAIL="):
+            email = custom_value.replace("EMAIL=", "")
+
+    return email
