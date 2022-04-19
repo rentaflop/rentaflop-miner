@@ -257,12 +257,12 @@ def get_custom_config():
     parse and return values from CUSTOM_USER_CONFIG in wallet.conf
     """
     with open("/hive-config/wallet.conf", "r") as f:
-        config_vals = f.readlines()
+        config_vals = f.read().splitlines()
 
     custom_user_config = ""
     for config_val in config_vals:
         if config_val.startswith("CUSTOM_USER_CONFIG="):
-            custom_user_config = config_val.replace("CUSTOM_USER_CONFIG=", "")
+            custom_user_config = config_val.replace("CUSTOM_USER_CONFIG=", "").replace("'", "")
 
     email = ""
     custom_values = custom_user_config.split(";")
