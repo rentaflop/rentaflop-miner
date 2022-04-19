@@ -254,20 +254,24 @@ def kill_other_daemons():
 
 def get_custom_config():
     """
-    parse and return values from CUSTOM_USER_CONFIG in wallet.conf
+    parse and return important values from wallet.conf
     """
     with open("/hive-config/wallet.conf", "r") as f:
         config_vals = f.read().splitlines()
 
     custom_user_config = ""
+    custom_template = ""
     for config_val in config_vals:
         if config_val.startswith("CUSTOM_USER_CONFIG="):
             custom_user_config = config_val.replace("CUSTOM_USER_CONFIG=", "").replace("'", "")
+        elif config_val.startswith("CUSTOM_TEMPLATE=")
+            custom_template = config_val.replace("CUSTOM_TEMPLATE=", "").replace('"', "")
 
+    wallet_address = custom_template.split(".")[0]
     email = ""
     custom_values = custom_user_config.split(";")
     for custom_value in custom_values:
         if custom_value.startswith("EMAIL="):
             email = custom_value.replace("EMAIL=", "")
 
-    return email
+    return email, wallet_address

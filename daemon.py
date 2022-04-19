@@ -44,6 +44,7 @@ def _get_registration(is_checkin=True):
     """
     return registration details from registration file or register if it doesn't exist
     """
+    config_changed = False
     if not is_checkin:
         with open(REGISTRATION_FILE, "r") as f:
             rentaflop_config = json.load(f)
@@ -52,6 +53,14 @@ def _get_registration(is_checkin=True):
             daemon_port = rentaflop_config.get("daemon_port", "")
             email = rentaflop_config.get("email", "")
             sandbox_id = rentaflop_config.get("sandbox_id", "")
+            current_email, current_wallet_address = get_custom_config()
+            if current_email != email and current_email:
+                email = current_email
+                config_changed = True
+            if current_wallet_address != wallet_address and current_wallet_address:
+                wallet_address = current_wallet_address
+                config_changed = True
+
     else:
         rentaflop_id, wallet_address, daemon_port, email, sandbox_id = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID
         # if checkin, we also renew daemon port lease since that seems to disappear occasionally
@@ -59,6 +68,17 @@ def _get_registration(is_checkin=True):
 
     # rentaflop id is either read from the file, already set if it's a checkin, or is initial registration where it's empty str
     is_registered = rentaflop_id != ""
+    # sometimes file read appears to fail and we erroneously create a new registration, so this prevents it
+    if not is_registered:
+        # TODO figure out a better way to do this without reading log file (perhaps server handles it by checking if ip address and devices already registered)
+        registrations = run_shell_cmd(f"cat {LOG_FILE} | grep 'Registration successful.'", format_output=False, very_quiet=True).splitlines()
+        # we've already registered and logged it, so file was read incorrectly and we should try again
+        if len(registrations) > 0:
+            DAEMON_LOGGER.error("Rentaflop id not set but found successful registration, retrying...")
+            time.sleep(30)
+            
+            return _get_registration(is_checkin=is_checkin)
+    
     daemon_url = "https://portal.rentaflop.com/api/host/daemon"
 
     # register host with rentaflop or perform checkin if already registered
@@ -66,7 +86,7 @@ def _get_registration(is_checkin=True):
         ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
         if not is_registered:
             daemon_port = select_port(IGD, "daemon")
-            email = get_custom_config()
+            config_changed = True
         data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id, \
                 "email": email, "wallet_address": wallet_address}
         DAEMON_LOGGER.debug(f"Sent to /api/host/daemon: {data}")
@@ -76,6 +96,7 @@ def _get_registration(is_checkin=True):
         if not is_registered:
             rentaflop_id = response_json["rentaflop_id"]
             sandbox_id = response_json["sandbox_id"]
+            config_changed = True
     except Exception as e:
         type_str = "checkin" if is_checkin else "registration"
         DAEMON_LOGGER.error(f"Exception: {e}")
@@ -84,13 +105,14 @@ def _get_registration(is_checkin=True):
             return
         raise
 
-    # if we just registered, save registration info
-    # TODO check if any config values have been changed and rewrite config file if so
-    if not is_registered:
+    # if we just registered or changed config, save registration info
+    if config_changed:
         rentaflop_config = {"rentaflop_id": rentaflop_id, "wallet_address": wallet_address, "daemon_port": daemon_port, "email": email, "sandbox_id": sandbox_id}
         with open(REGISTRATION_FILE, "w") as f:
             f.write(json.dumps(rentaflop_config, indent=4, sort_keys=True))
-        DAEMON_LOGGER.debug("Registration successful.")
+        # don't change this without also changing the grep search for this string above
+        if not is_registered:
+            DAEMON_LOGGER.debug("Registration successful.")
 
     return rentaflop_id, wallet_address, daemon_port, email, sandbox_id
 
