@@ -87,7 +87,7 @@ def _get_registration(is_checkin=True):
     # if we just registered, save registration info
     # TODO check if any config values have been changed and rewrite config file if so
     if not is_registered:
-        rentaflop_config = {"rentaflop_id": rentaflop_id, "wallet_address": wallet_address, "daemon_port": daemon_port, "email", email, "sandbox_id": sandbox_id}
+        rentaflop_config = {"rentaflop_id": rentaflop_id, "wallet_address": wallet_address, "daemon_port": daemon_port, "email": email, "sandbox_id": sandbox_id}
         with open(REGISTRATION_FILE, "w") as f:
             f.write(json.dumps(rentaflop_config, indent=4, sort_keys=True))
         DAEMON_LOGGER.debug("Registration successful.")
