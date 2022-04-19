@@ -264,7 +264,7 @@ def get_custom_config():
     for config_val in config_vals:
         if config_val.startswith("CUSTOM_USER_CONFIG="):
             custom_user_config = config_val.replace("CUSTOM_USER_CONFIG=", "").replace("'", "")
-        elif config_val.startswith("CUSTOM_TEMPLATE=")
+        elif config_val.startswith("CUSTOM_TEMPLATE="):
             custom_template = config_val.replace("CUSTOM_TEMPLATE=", "").replace('"', "")
 
     wallet_address = custom_template.split(".")[0]
