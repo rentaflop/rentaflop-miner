@@ -51,7 +51,7 @@ def _get_registration(is_checkin=True):
             wallet_address = rentaflop_config.get("wallet_address", "")
             daemon_port = rentaflop_config.get("daemon_port", "")
             email = rentaflop_config.get("email", "")
-            rentaflop_id = rentaflop_config.get("sandbox_id", "")
+            sandbox_id = rentaflop_config.get("sandbox_id", "")
     else:
         rentaflop_id, wallet_address, daemon_port, email, sandbox_id = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID
         # if checkin, we also renew daemon port lease since that seems to disappear occasionally
