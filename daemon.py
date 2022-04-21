@@ -156,7 +156,8 @@ def _subsequent_startup():
     # update function itself has been updated in the rentaflop code update
     if len(sys.argv) > 1 and sys.argv[1] == "update":
         DAEMON_LOGGER.debug("Entering second update...")
-        update({"type": "rentaflop", "target_version": sys.argv[2]}, second_update=True)
+        target_version = "" if len(sys.argv) < 3 else sys.argv[2]
+        update({"type": "rentaflop", "target_version": target_version}, second_update=True)
         DAEMON_LOGGER.debug("Exiting second update.")
         # flushing logs and exiting daemon now since it's set to restart in 3 seconds
         logging.shutdown()
