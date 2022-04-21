@@ -265,10 +265,13 @@ def mine(params):
             files = {'render_file': render_file, 'json': json.dumps(data)}
             requests.post(url, files=files, verify=False)
         else:
+            # TODO turn into wallet config parameters and combine all these into a global dict instead of 10 different global vars
+            mining_algorithm = "ethash"
+            pool_url = "daggerhashimoto.usa-east.nicehash.com:3353"
             run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
             --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
             --rm --name {container_name} --env WALLET_ADDRESS={WALLET_ADDRESS} --env SANDBOX_ID={SANDBOX_ID} --env HOSTNAME={socket.gethostname()} \
-            --shm-size=256m -h rentaflop -dt rentaflop/sandbox")
+            --env MINING_ALGORITHM={mining_algorithm} --env POOL_URL={pool_url} --shm-size=256m -h rentaflop -dt rentaflop/sandbox")
     elif action == "stop":
         if is_render:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()

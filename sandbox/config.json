@@ -1,11 +1,11 @@
 {
-  "algo": "beamv3",
+  "algo": "mining_algorithm",
   "api": "127.0.0.1:22333",
   "devices": "",
   "log": "true",
   "long-format": "false",
   "ssl-strict": "false",
-  "url": "stratum+tcp://beamv3.usa.nicehash.com:3387",
+  "url": "pool_url",
   "user": "wallet_address.rentaflop_hostname",
   "password": "",
   "url1": "",
