@@ -471,8 +471,8 @@ def main():
                 prep_daemon_shutdown(server)
         except KeyboardInterrupt:
             prep_daemon_shutdown(server)
-    except Exception as e:
-        DAEMON_LOGGER.error(f"Entering update loop because of uncaught exception: {e}\n{traceback.print_exc()}")
+    except Exception:
+        DAEMON_LOGGER.error(f"Entering update loop because of uncaught exception: {traceback.format_exc()}")
         # don't loop too fast
         time.sleep(300)
         # handle runtime errors and other issues by performing an update, preventing most bugs from breaking a rentaflop installation
