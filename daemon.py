@@ -457,15 +457,16 @@ def main():
         # run server, allowing it to shut itself down
         q = multiprocessing.Queue()
         server = multiprocessing.Process(target=run_flask_server, args=(q,))
-        try:
-            DAEMON_LOGGER.debug("Starting server...")
-            server.start()
-            finished = q.get(block=True)
-            if finished:
-                prep_daemon_shutdown(server)
-        except KeyboardInterrupt:
+        DAEMON_LOGGER.debug("Starting server...")
+        server.start()
+        finished = q.get(block=True)
+        if finished:
+            DAEMON_LOGGER.info("Daemon shutting down for update...")
             prep_daemon_shutdown(server)
-    except Exception:
+    except KeyboardInterrupt:
+        DAEMON_LOGGER.info("Daemon stopped by Hive...")
+        prep_daemon_shutdown(server)
+    except:
         error = traceback.format_exc()
         DAEMON_LOGGER.error(f"Entering update loop because of uncaught exception: {error}")
         data = {"rentaflop_id": RENTAFLOP_ID, "exception": error}
