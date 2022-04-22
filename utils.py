@@ -277,7 +277,7 @@ def get_custom_config():
     return email, wallet_address
 
 
-def post_to_daemon(data)
+def post_to_daemon(data):
     daemon_url = "https://portal.rentaflop.com/api/host/daemon"
     DAEMON_LOGGER.debug(f"Sent to /api/host/daemon: {data}")
     try:
