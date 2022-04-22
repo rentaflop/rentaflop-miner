@@ -80,31 +80,24 @@ def _get_registration(is_checkin=True):
             
             return _get_registration(is_checkin=is_checkin)
     
-    daemon_url = "https://portal.rentaflop.com/api/host/daemon"
-
     # register host with rentaflop or perform checkin if already registered
-    try:
-        ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
-        if not is_registered:
-            daemon_port = select_port(IGD, "daemon")
-            config_changed = True
-        data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id, \
-                "email": email, "wallet_address": wallet_address}
-        DAEMON_LOGGER.debug(f"Sent to /api/host/daemon: {data}")
-        response = requests.post(daemon_url, json=data)
-        response_json = response.json()
-        DAEMON_LOGGER.debug(f"Received from /api/host/daemon: {response.status_code} {response_json}")
-        if not is_registered:
-            rentaflop_id = response_json["rentaflop_id"]
-            sandbox_id = response_json["sandbox_id"]
-            config_changed = True
-    except Exception as e:
+    ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
+    if not is_registered:
+        daemon_port = select_port(IGD, "daemon")
+        config_changed = True
+    data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id, \
+            "email": email, "wallet_address": wallet_address}
+    response_json = post_to_daemon(data)
+    if not response_json:
         type_str = "checkin" if is_checkin else "registration"
-        DAEMON_LOGGER.error(f"Exception: {e}")
         DAEMON_LOGGER.error(f"Failed {type_str}!")
         if is_checkin:
             return
         raise
+    if not is_registered:
+        rentaflop_id = response_json["rentaflop_id"]
+        sandbox_id = response_json["sandbox_id"]
+        config_changed = True
 
     # if we just registered or changed config, save registration info
     if config_changed:
@@ -473,7 +466,10 @@ def main():
         except KeyboardInterrupt:
             prep_daemon_shutdown(server)
     except Exception:
-        DAEMON_LOGGER.error(f"Entering update loop because of uncaught exception: {traceback.format_exc()}")
+        error = traceback.format_exc()
+        DAEMON_LOGGER.error(f"Entering update loop because of uncaught exception: {error}")
+        data = {"rentaflop_id": RENTAFLOP_ID, "exception": error}
+        post_to_daemon(data)
         # don't loop too fast
         time.sleep(300)
         # handle runtime errors and other issues by performing an update, preventing most bugs from breaking a rentaflop installation

@@ -275,3 +275,19 @@ def get_custom_config():
             email = custom_value.replace("EMAIL=", "")
 
     return email, wallet_address
+
+
+def post_to_daemon(data)
+    daemon_url = "https://portal.rentaflop.com/api/host/daemon"
+    DAEMON_LOGGER.debug(f"Sent to /api/host/daemon: {data}")
+    try:
+        response = requests.post(daemon_url, json=data)
+        response_json = response.json()
+    except Exception as e:
+        DAEMON_LOGGER.error(f"Exception during post request: {e}")
+
+        return {}
+    
+    DAEMON_LOGGER.debug(f"Received from /api/host/daemon: {response.status_code} {response_json}")
+
+    return response_json
