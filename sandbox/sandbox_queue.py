@@ -70,18 +70,18 @@ def start_mining():
     """
     begin mining crypto, but only if not already mining
     """
-    output = run_shell_cmd("pgrep nbminer", quiet=True)
-    # if already running nbminer we do nothing, otherwise start miner
+    output = run_shell_cmd("pgrep t-rex", quiet=True)
+    # if already running trex we do nothing, otherwise start miner
     if not output:
         # start with os.system since this needs to be run in background
-        os.system("cd NBMiner_Linux && ./nbminer -c config.json --no-watchdog &")
+        os.system("cd trex && ./t-rex -c config.json --no-watchdog &")
 
 
 def stop_mining():
     """
     stop crypto job
     """
-    run_shell_cmd("pkill -f 'nbminer'")
+    run_shell_cmd("pkill -f 't-rex'")
 
 
 def push_job(params):
@@ -165,7 +165,7 @@ def status(params):
     """
     jobs = Job.query.all()
     jobs = [job.job_id for job in jobs]
-    # h-stats.sh queries nbminer for mining stats, so we only run it when nbminer is running
+    # h-stats.sh queries trex for mining stats, so we only run it when trex is running
     if not jobs:
         khs_stats = run_shell_cmd("./h-stats.sh")
         if khs_stats:
