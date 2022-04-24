@@ -466,6 +466,9 @@ def main():
     except KeyboardInterrupt:
         DAEMON_LOGGER.info("Daemon stopped by Hive...")
         prep_daemon_shutdown(server)
+    except SystemExit:
+        # ignoring intentional system exits and allowing daemon to shut itself down
+        pass
     except:
         error = traceback.format_exc()
         DAEMON_LOGGER.error(f"Entering update loop because of uncaught exception: {error}")
