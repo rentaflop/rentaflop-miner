@@ -169,7 +169,7 @@ def status(params):
     if not jobs:
         khs_stats = run_shell_cmd("./h-stats.sh")
         if khs_stats:
-            khs_stats = khs_stats.split()
+            khs_stats = khs_stats.splitlines()
         if len(khs_stats) == 2:
             global KHS
             global STATS
@@ -271,7 +271,7 @@ CMD_TO_FUNC = {
     "status": status,
 }
 FILE_DIR = "/root/jobs"
-os.makedirs(FILE_DIR)
+os.makedirs(FILE_DIR, exist_ok=True)
 LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sandbox.log")
 SANDBOX_LOGGER = _get_logger(LOG_FILE)
 KHS=0

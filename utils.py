@@ -204,7 +204,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                 result = result.json()
                 container_queue = result.get("queue")
                 khs_vals.append(result.get("khs"))
-                stats_vals.append(json.loads(result.get("stats")))
+                stats_vals.append(result.get("stats"))
                 container_state = "gpc" if container_queue else "crypto"
                 state["gpus"][i]["state"] = container_state
                 state["gpus"][i]["queue"] = container_queue
