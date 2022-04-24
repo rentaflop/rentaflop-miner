@@ -168,7 +168,7 @@ def _subsequent_startup():
         last_line = f.readline().decode()
 
     is_update = ("sudo reboot" in last_line) or ("python3 daemon.py" in last_line) or \
-        ("Exiting second update." in last_line)
+        ("update." in last_line)
     if is_update:
         DAEMON_LOGGER.debug("Exiting update.")
         # ensure anything that started up during update gets killed
