@@ -110,7 +110,7 @@ def get_khs_stats(khs_vals, stats_vals):
     return khs, stats
     """
     khs = sum(khs_vals)
-    stats = {"hs": [], "hs_units": "hs", "temp": [], "fan": [], "uptime": 0, "ver": "", "ar": [], "algo": "rentaflop", "bus_numbers": []}
+    stats = {"hs": [], "hs_units": "khs", "temp": [], "fan": [], "uptime": 0, "ver": "", "ar": [], "algo": "rentaflop", "bus_numbers": []}
     total_accepted = 0
     total_rejected = 0
     for stats_val in stats_vals:
@@ -204,7 +204,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                 result = result.json()
                 container_queue = result.get("queue")
                 khs_vals.append(result.get("khs"))
-                stats_vals.append(result.get("stats"))
+                stats_vals.append(json.loads(result.get("stats")))
                 container_state = "gpc" if container_queue else "crypto"
                 state["gpus"][i]["state"] = container_state
                 state["gpus"][i]["queue"] = container_queue
