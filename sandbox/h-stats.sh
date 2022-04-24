@@ -8,7 +8,7 @@ calc_stats() {
     else
 	#echo "$stats_raw" | jq -c .`echo ${gpuerr[*]} | tr ' ' ';'`
 	local gpu_worked=$(echo "$stats_raw" | jq '.gpus[].gpu_user_id')
-	local gpu_busid=(`cat /var/run/hive/gpu-detect.json | jq -r '.[] | select(.brand=="nvidia") | .busid' | cut -d ':' -f 1`)
+	local gpu_busid=(`nvidia-smi --query-gpu=gpu_bus_id --format=csv | grep -v bus_id | cut -d ':' -f 2-`)
 	local busids=()
 	local gpuerr= # rejected and invalid shares per GPU
 	dpkg --compare-versions `echo "$stats_raw" | jq -r '.version'` "lt" "0.20.0"
