@@ -181,9 +181,6 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
     }
     """
     state = {}
-    if not available_resources:
-        return state
-
     gpu_names, gpu_indexes = get_gpus(available_resources, quiet)
     state["gpus"] = [{"index":gpu_index, "name": gpu_names[i], "state": "stopped", "queue": []} for i, gpu_index in enumerate(gpu_indexes)]
     n_gpus = len(gpu_names)
