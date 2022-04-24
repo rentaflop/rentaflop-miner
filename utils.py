@@ -249,7 +249,7 @@ def kill_other_daemons():
     daemons = run_shell_cmd('ps aux | grep "daemon.py" | grep -v grep', very_quiet=True, format_output=False).splitlines()
     current_pid = os.getpid()
     pids_to_kill = [daemon.split()[1] for daemon in daemons if daemon.split()[1] != current_pid]
-    run_shell_cmd(f'kill -9 {" ".join(pids_to_kill)}')
+    run_shell_cmd(f'kill -9 {" ".join(pids_to_kill)}', very_quiet=True)
 
 
 def get_custom_config():

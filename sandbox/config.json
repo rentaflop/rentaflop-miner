@@ -17,5 +17,5 @@
   "validate-shares": true,
   "log-path": "/var/log/miner/t-rex/t-rex.log",
   "exit-on-cuda-error": true,
-  "exit-on-connection-lost": false,
+  "exit-on-connection-lost": false
 }
