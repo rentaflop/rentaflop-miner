@@ -70,7 +70,7 @@ def start_mining():
     """
     begin mining crypto, but only if not already mining
     """
-    output = run_shell_cmd("pgrep t-rex", quiet=True)
+    output = run_shell_cmd("pgrep t-rex", very_quiet=True)
     # if already running trex we do nothing, otherwise start miner
     if not output:
         # start with os.system since this needs to be run in background
@@ -244,8 +244,7 @@ def monitor_mining():
     """
     monitor crypto mining process and optimize it to improve hash rate
     """
-    SANDBOX_LOGGER.info("Entered monitor mining")
-    is_miner_running = run_shell_cmd("pgrep t-rex", quiet=True)
+    is_miner_running = run_shell_cmd("pgrep t-rex", very_quiet=True)
     if not is_miner_running:
         return
     
@@ -258,7 +257,6 @@ def monitor_mining():
     timeframe = dt.timedelta(minutes=1)
     # lhr lock happened in the last minute, so we restart miner at low lhr tune value
     if (current_time-time_of_last_lhr_lock) < timeframe:
-        SANDBOX_LOGGER.info("Detected lhr lock, restarting miner at low lhr tune value...")
         stop_mining()
         os.system("cd trex && ./t-rex -c config.json --lhr-tune 60 &")
 
