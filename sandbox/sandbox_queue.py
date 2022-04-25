@@ -204,6 +204,8 @@ def handle_finished_jobs():
     cleans up and removes files afterwards
     starts crypto miner if all jobs are finished
     """
+    with open("test.txt", "a") as f:
+        f.write("handle_finished_jobs")
     # job ids in existence on the file system
     job_ids = os.listdir(FILE_DIR)
     for job_id in job_ids:
@@ -244,6 +246,8 @@ def monitor_mining():
     """
     monitor crypto mining process and optimize it to improve hash rate
     """
+    with open("test.txt", "a") as f:
+        f.write("monitor_mining")
     is_miner_running = run_shell_cmd("pgrep t-rex", very_quiet=True)
     if not is_miner_running:
         return
