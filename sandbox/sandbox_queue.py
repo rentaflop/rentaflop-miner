@@ -74,7 +74,7 @@ def start_mining():
     # if already running trex we do nothing, otherwise start miner
     if not output:
         # start with os.system since this needs to be run in background
-        os.system("cd trex && ./t-rex -c config.json --no-watchdog &")
+        os.system("cd trex && ./t-rex -c config.json &")
 
 
 def stop_mining():
@@ -240,6 +240,28 @@ def handle_finished_jobs():
         start_mining()
 
 
+def monitor_mining():
+    """
+    monitor crypto mining process and optimize it to improve hash rate
+    """
+    is_miner_running = run_shell_cmd("pgrep t-rex", quiet=True)
+    if not is_miner_running:
+        return
+    
+    time_of_last_lhr_lock = run_shell_cmd('grep -e "min since last lock. Unlocking ..." /var/log/miner/t-rex/t-rex.log | grep -Po "[0-9]* [0-9]{2}:[0-9]{2}:[0-9]{2}"', quiet=True)
+    if not time_of_last_lhr_lock:
+        return
+    time_of_last_lhr_lock = dt.datetime.strptime(time_of_last_lhr_lock.splitlines()[-1], "%Y%m%d %H:%M:%S")
+    # we use system time instead of utc time since log file uses system time
+    current_time = dt.datetime.now()
+    timeframe = dt.timedelta(minutes=1)
+    # lhr lock happened in the last minute, so we restart miner at low lhr tune value
+    if (current_time-time_of_last_lhr_lock) < timeframe:
+        SANDBOX_LOGGER.info("Detected lhr lock, restarting miner at low lhr tune value...")
+        stop_mining()
+        os.system("cd trex && ./t-rex -c config.json --lhr-tune 60 &")
+
+
 def run_flask_server(q):
     @app.route("/", methods=["POST"])
     def index():
@@ -308,6 +330,7 @@ def main():
     # create a scheduler that periodically checks/handles finished jobs starts mining when there are no jobs in queue
     scheduler = APScheduler()
     scheduler.add_job(id='Handle Finished Jobs', func=handle_finished_jobs, trigger="interval", seconds=10)
+    scheduler.add_job(id='Monitor Mining', func=monitor_mining, trigger="interval", seconds=300)
     scheduler.start()
     q = multiprocessing.Queue()
     server = multiprocessing.Process(target=run_flask_server, args=(q,))
