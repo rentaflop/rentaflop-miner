@@ -167,7 +167,7 @@ def status(params):
     jobs = [job.job_id for job in jobs]
     # h-stats.sh queries trex for mining stats, so we only run it when trex is running
     if not jobs:
-        khs_stats = run_shell_cmd("./h-stats.sh")
+        khs_stats = run_shell_cmd("./h-stats.sh", quiet=True)
         if khs_stats:
             khs_stats = khs_stats.splitlines()
         if len(khs_stats) == 2:
@@ -244,6 +244,7 @@ def monitor_mining():
     """
     monitor crypto mining process and optimize it to improve hash rate
     """
+    SANDBOX_LOGGER.info("Entered monitor mining")
     is_miner_running = run_shell_cmd("pgrep t-rex", quiet=True)
     if not is_miner_running:
         return
@@ -276,7 +277,11 @@ def run_flask_server(q):
         func = CMD_TO_FUNC.get(cmd)
         if func:
             try:
-                to_return = log_before_after(func, params)()
+                if cmd != "status":
+                    to_return = log_before_after(func, params)()
+                else:
+                    # avoid logging on status since this is called every 10 seconds by hive stats checker
+                    to_return = func(params)
             except Exception as e:
                 SANDBOX_LOGGER.exception(f"Caught exception: {e}")
         if to_return is not None:
