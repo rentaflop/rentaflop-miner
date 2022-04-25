@@ -14,6 +14,8 @@ import uuid
 import logging
 from flask_sqlalchemy import SQLAlchemy
 import pymysql
+import sys
+import time
 
 
 def _get_logger(log_file):
@@ -334,11 +336,17 @@ db.create_all(app=app)
 
 def main():
     start_mining()
-    # create a scheduler that periodically checks/handles finished jobs starts mining when there are no jobs in queue
-    scheduler = APScheduler()
-    scheduler.add_job(id='Handle Finished Jobs', func=handle_finished_jobs, trigger="interval", seconds=10)
-    scheduler.add_job(id='Monitor Mining', func=monitor_mining, trigger="interval", seconds=175)
-    scheduler.start()
+    # if we're running scheduler, don't run server
+    if len(sys.argv) == 2 and sys.argv[1] == "scheduler":
+        # create a scheduler that periodically checks/handles finished jobs starts mining when there are no jobs in queue
+        scheduler = APScheduler()
+        scheduler.add_job(id='Handle Finished Jobs', func=handle_finished_jobs, trigger="interval", seconds=10)
+        scheduler.add_job(id='Monitor Mining', func=monitor_mining, trigger="interval", seconds=180)
+        scheduler.start()
+        while True:
+            time.sleep(30)
+
+    os.system("python3 sandbox_queue.py scheduler &")
     q = multiprocessing.Queue()
     server = multiprocessing.Process(target=run_flask_server, args=(q,))
     server.start()

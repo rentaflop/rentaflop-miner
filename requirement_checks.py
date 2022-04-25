@@ -62,6 +62,8 @@ def check_bandwidth(include_stdout=False):
     tries = 3
     for _ in range(tries):
         command_output = run_shell_cmd("speedtest-cli --simple", format_output=False, quiet=True)
+        if not command_output:
+            continue
         _, download_line, upload_line = command_output.splitlines()
         download_match = re.search("Download: [+-]?([0-9]*[.])?[0-9]+", download_line).group(0)
         current_download = float(download_match.split()[-1])
