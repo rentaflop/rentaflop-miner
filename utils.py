@@ -200,8 +200,13 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                 url = f"https://{container_ip}"
                 data = {"cmd": "status", "params": {}}
                 files = {'json': json.dumps(data)}
-                result = requests.post(url, files=files, verify=False)
-                result = result.json()
+                try:
+                    result = requests.post(url, files=files, verify=False)
+                    result = result.json()
+                except requests.exceptions.ConnectionError:
+                    khs_vals.append(0)
+                    stats_vals.append({})
+                    continue
                 container_queue = result.get("queue")
                 khs_vals.append(result.get("khs"))
                 stats_vals.append(result.get("stats"))
@@ -283,7 +288,7 @@ def post_to_daemon(data):
     try:
         response = requests.post(daemon_url, json=data)
         response_json = response.json()
-    except Exception as e:
+    except requests.exceptions.ConnectionError:
         DAEMON_LOGGER.error(f"Exception during post request: {e}")
 
         return {}
