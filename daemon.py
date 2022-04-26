@@ -25,6 +25,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import time
 import traceback
+import subprocess
 
 
 app = Flask(__name__)
@@ -173,7 +174,7 @@ def _subsequent_startup():
         DAEMON_LOGGER.debug("Exiting update.")
         # ensure anything that started up during update gets killed
         kill_other_daemons()
-    elif "Exiting update." not in last_line:
+    elif "Exiting update." not in last_line and "Stopping daemon." not in last_line:
         # error state
         DAEMON_LOGGER.debug("Daemon crashed.")
 
@@ -286,7 +287,10 @@ def _stop_all():
     DAEMON_LOGGER.debug("Stopping containers...")
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" -q', format_output=False).replace("\n", " ")
     if containers:
-        run_shell_cmd(f'docker stop {containers} &')
+        # have to use subprocess here to properly run in bg; run in bg because this command takes over 10 seconds
+        arg_list = ["docker", "stop"]
+        arg_list.extend(containers.split())
+        subprocess.Popen(arg_list)
     DAEMON_LOGGER.debug("Containers stopped.")
             
             
