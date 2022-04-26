@@ -286,7 +286,7 @@ def _stop_all():
     DAEMON_LOGGER.debug("Stopping containers...")
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" -q', format_output=False).replace("\n", " ")
     if containers:
-        run_shell_cmd(f'docker stop {containers}')
+        run_shell_cmd(f'docker stop {containers} &')
     DAEMON_LOGGER.debug("Containers stopped.")
             
             
