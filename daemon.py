@@ -7,6 +7,9 @@ usage:
     # used to indicate rentaflop code update to version abc123 still in progress so we must call
     # update function again; not used during system updates or on second update
     python daemon.py update abc123
+    # tell this process to do nothing but sleep for several seconds
+    # used so hive won't try to start another process while this one is down for a software update
+    python daemon.py sleep
 """
 import os
 import logging
@@ -148,14 +151,18 @@ def _subsequent_startup():
     """
     # if update passed as clarg, then we need to call update again to handle situation when
     # update function itself has been updated in the rentaflop code update
-    if len(sys.argv) > 1 and sys.argv[1] == "update":
-        DAEMON_LOGGER.debug("Entering second update...")
-        target_version = "" if len(sys.argv) < 3 else sys.argv[2]
-        update({"type": "rentaflop", "target_version": target_version}, second_update=True)
-        DAEMON_LOGGER.debug("Exiting second update.")
-        # flushing logs and exiting daemon now since it's set to restart in 3 seconds
-        logging.shutdown()
-        sys.exit(0)
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "update":
+            DAEMON_LOGGER.debug("Entering second update...")
+            target_version = "" if len(sys.argv) < 3 else sys.argv[2]
+            update({"type": "rentaflop", "target_version": target_version}, second_update=True)
+            DAEMON_LOGGER.debug("Exiting second update.")
+            # flushing logs and exiting daemon now since it's set to restart in 3 seconds
+            logging.shutdown()
+            sys.exit(0)
+        elif sys.argv[1] == "sleep":
+            time.sleep(5)
+            sys.exit(0)
 
     # get last line of log file
     with open(LOG_FILE, 'rb') as f:
@@ -320,6 +327,8 @@ def update(params, reboot=True, second_update=False):
         # ensure all old containers are stopped so we can run new ones with latest code
         _stop_all()
         update_param = "" if second_update else f" update {target_version}"
+        # ensure a daemon is still running during an update; prevents hive from trying to restart it itself
+        subprocess.Popen(["python3", "daemon.py", "sleep"])
         # daemon will shut down (but not full system) so this ensures it starts back up again
         run_shell_cmd(f'echo "sleep 3; python3 daemon.py{update_param}" | at now')
 

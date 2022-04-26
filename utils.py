@@ -203,7 +203,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                 try:
                     result = requests.post(url, files=files, verify=False)
                     result = result.json()
-                except requests.exceptions.ConnectionError:
+                except (requests.exceptions.ConnectionError, requests.exceptions.InvalidURL):
                     khs_vals.append(0)
                     stats_vals.append({})
                     continue
