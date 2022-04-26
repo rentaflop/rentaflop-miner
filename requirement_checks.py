@@ -167,11 +167,11 @@ def perform_host_requirement_checks():
     returns number of vms to create, resources per vm, and list of gpu indexes to use
     """
     passed_p2p = check_p2p(include_stdout=True)
-    check_drive_size(include_stdout=True)
-    check_bandwidth(include_stdout=True)
+    # check_drive_size(include_stdout=True)
+    # check_bandwidth(include_stdout=True)
     gpus = check_gpu_resources(include_stdout=True)
-    check_cpu_resources(include_stdout=True)
-    check_memory_resources(include_stdout=True)
+    # check_cpu_resources(include_stdout=True)
+    # check_memory_resources(include_stdout=True)
     passed_checks = passed_p2p and len(gpus) > 0
 
     return passed_checks, gpus
