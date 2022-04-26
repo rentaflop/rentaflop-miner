@@ -173,9 +173,8 @@ def _subsequent_startup():
         DAEMON_LOGGER.debug("Exiting update.")
         # ensure anything that started up during update gets killed
         kill_other_daemons()
-    else:
-        if "Exiting update." not in last_line:
-            # error state
+    elif "Exiting update." not in last_line:
+        # error state
         DAEMON_LOGGER.debug("Daemon crashed.")
 
 
