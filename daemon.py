@@ -34,10 +34,14 @@ import subprocess
 app = Flask(__name__)
 
 
-def _start_mining():
+def _start_mining(startup=False):
     """
     starts mining on any stopped GPUs
+    startup will sleep for several seconds before attempting to start mining, as if this is a miner restart the old containers
+    about to die may still be running
     """
+    if startup:
+        time.sleep(10)
     state = get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD, gpu_only=True, quiet=True)
     gpus = state["gpus"]
     for gpu in gpus:
@@ -234,7 +238,7 @@ def _handle_startup():
     # ensure daemon flask server is accessible
     # HTTPS port
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
-    _start_mining()
+    _start_mining(startup=True)
     # prevent guests from connecting to LAN, run every startup since rules don't seem to stay at top of /etc/iptables/rules.v4
     run_shell_cmd("iptables -I FORWARD -i docker0 -d 192.168.0.0/16 -j DROP")
     run_shell_cmd("iptables -I FORWARD -i docker0 -d 10.0.0.0/8 -j DROP")
@@ -271,7 +275,7 @@ def mine(params):
             # TODO turn into wallet config parameters and combine all these into a global dict instead of 10 different global vars
             currency = "eth" if WALLET_ADDRESS.startswith("0x") else "btc"
             mining_algorithm = "ethash"
-            pool_url = "eth.hiveon.com:4444" if currency == "eth" else "daggerhashimoto.usa-east.nicehash.com:3353"
+            pool_url = "eth.hiveon.com:4444" if currency == "eth" else "'stratum+tcp://daggerhashimoto.usa-east.nicehash.com:3353'"
             run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
             --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
             --rm --name {container_name} --env WALLET_ADDRESS={WALLET_ADDRESS} --env SANDBOX_ID={SANDBOX_ID} --env HOSTNAME={socket.gethostname()} \
