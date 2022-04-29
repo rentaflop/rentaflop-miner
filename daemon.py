@@ -196,10 +196,10 @@ def _get_available_resources():
     """
     passed_checks, gpus = perform_host_requirement_checks()
     if not passed_checks:
-        # TODO create min requirement page
-        print("Failed minimum requirement checks. Please see our minimum requirement page.")
-        DAEMON_LOGGER.error("Failed requirement checks. Exiting...")
-        sys.exit(1)
+        print("Failed minimum requirement checks. Please see our minimum system requirements at https://portal.rentaflop.com/blog/hosting")
+        DAEMON_LOGGER.error("Failed requirement checks!")
+        raise Exception(f"Failed requirement checks! Available GPUS: {gpus}")
+    
     resources = {"gpu_indexes": gpus}
     DAEMON_LOGGER.debug(f"Finished requirement checks, found available resources: {resources}")
 
