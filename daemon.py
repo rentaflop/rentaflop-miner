@@ -128,6 +128,8 @@ def _first_startup():
     # run_shell_cmd("sudo sh -c 'grep ^deb /etc/apt/sources.list | grep security > /etc/apt/sources.security.only.list'")
     # perform system update
     # update({"type": "system"}, reboot=False)
+    # make sure we have all available storage for installation
+    run_shell_cmd("disk-expand")
     # install dependencies
     run_shell_cmd("sudo apt-get install ca-certificates curl gnupg lsb-release -y")
     run_shell_cmd("curl -fsSL https://download.docker.com/linux/debian/gpg \
