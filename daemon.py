@@ -80,7 +80,8 @@ def _get_registration(is_checkin=True):
     # sometimes file read appears to fail and we erroneously create a new registration, so this prevents it
     if not is_registered:
         # TODO figure out a better way to do this without reading log file (perhaps server handles it by checking if ip address and devices already registered)
-        registrations = run_shell_cmd(f"cat {LOG_FILE} | grep 'Registration successful.'", format_output=False, very_quiet=True).splitlines()
+        registrations = run_shell_cmd(f"cat {LOG_FILE} | grep 'Registration successful.'", format_output=False, very_quiet=True)
+        registrations = [] if not registrations else registrations.splitlines()
         # we've already registered and logged it, so file was read incorrectly and we should try again
         if len(registrations) > 0:
             DAEMON_LOGGER.error("Rentaflop id not set but found successful registration, retrying...")
