@@ -146,6 +146,8 @@ def _first_startup():
     run_shell_cmd("sudo sed -i 's/#no-cgroups = false/no-cgroups = true/' /etc/nvidia-container-runtime/config.toml")
     run_shell_cmd(r'''sudo sed -i '$s/}/,\n"userns-remap":"default"}/' /etc/docker/daemon.json''')
     run_shell_cmd("sudo systemctl restart docker")
+    run_shell_cmd("echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections")
+    run_shell_cmd("echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections")
     run_shell_cmd("sudo apt-get install iptables-persistent -y")
     run_shell_cmd("sudo apt-get install python3-pip -y && pip3 install speedtest-cli")
     run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
