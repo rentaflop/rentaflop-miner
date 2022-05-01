@@ -51,7 +51,7 @@ def run_shell_cmd(cmd, quiet=False, very_quiet=False, format_output=True):
         if not very_quiet:
             DAEMON_LOGGER.error(f"Exception: {e}\n{e.output}")
     if output and not quiet:
-        DAEMON_LOGGER.debug(f'''Output for {cmd}: {formatted_output}''')
+        DAEMON_LOGGER.debug(f'''Output: {formatted_output}''')
 
     return output
 

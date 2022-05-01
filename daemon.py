@@ -229,6 +229,7 @@ def _handle_startup():
     DAEMON_LOGGER.debug("Starting daemon...")
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
+    run_shell_cmd("./nvidia_uvm_init.sh", quiet=True)
     # set IGD to speed up upnpc commands
     global IGD
     global AVAILABLE_RESOURCES
@@ -245,7 +246,8 @@ def _handle_startup():
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
     _start_mining(startup=True)
     # prevent guests from connecting to LAN, run every startup since rules don't seem to stay at top of /etc/iptables/rules.v4
-    run_shell_cmd("iptables -I FORWARD -i docker0 -d 192.168.0.0/16 -j DROP")
+    # TODO this is breaking internet connection for some reason, ensure docker img can't connect to host
+    # run_shell_cmd("iptables -I FORWARD -i docker0 -d 192.168.0.0/16 -j DROP")
     run_shell_cmd("iptables -I FORWARD -i docker0 -d 10.0.0.0/8 -j DROP")
     run_shell_cmd("iptables -I FORWARD -i docker0 -d 172.16.0.0/12 -j DROP")
     local_lan_ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep "Local LAN ip address" | cut -d ":" -f 2', format_output=False).strip()
