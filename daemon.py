@@ -244,7 +244,6 @@ def _handle_startup():
     # ensure daemon flask server is accessible
     # HTTPS port
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
-    _start_mining(startup=True)
     # prevent guests from connecting to LAN, run every startup since rules don't seem to stay at top of /etc/iptables/rules.v4
     # TODO this is breaking internet connection for some reason, ensure docker img can't connect to host
     # run_shell_cmd("iptables -I FORWARD -i docker0 -d 192.168.0.0/16 -j DROP")
@@ -253,6 +252,26 @@ def _handle_startup():
     local_lan_ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep "Local LAN ip address" | cut -d ":" -f 2', format_output=False).strip()
     run_shell_cmd(f"iptables -A INPUT -i docker0 -d {local_lan_ip} -j DROP")
     run_shell_cmd("sudo iptables-save > /etc/iptables/rules.v4")
+    _start_mining(startup=True)
+
+
+def _run_sandbox(gpu, container_name):
+    """
+    runs docker sandbox based on parameters
+    checks run command output; if None, it means docker threw an exception caught by run_shell_cmd and we should retry since it sometimes fails on first try
+    """
+    # TODO turn into wallet config parameters and combine all these into a global dict instead of 10 different global vars
+    currency = "eth" if WALLET_ADDRESS.startswith("0x") else "btc"
+    mining_algorithm = "ethash"
+    pool_url = "eth.hiveon.com:4444" if currency == "eth" else "stratum+tcp://daggerhashimoto.auto.nicehash.com:9200"
+    tries = 2
+    for _ in range(tries):
+        output = run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
+        --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
+        --rm --name {container_name} --env WALLET_ADDRESS={WALLET_ADDRESS} --env SANDBOX_ID={SANDBOX_ID} --env HOSTNAME={socket.gethostname()} \
+        --env MINING_ALGORITHM={mining_algorithm} --env POOL_URL={pool_url} --shm-size=256m -h rentaflop -dt rentaflop/sandbox")
+        if output:
+            break
 
 
 def mine(params):
@@ -279,14 +298,7 @@ def mine(params):
             files = {'render_file': render_file, 'json': json.dumps(data)}
             requests.post(url, files=files, verify=False)
         else:
-            # TODO turn into wallet config parameters and combine all these into a global dict instead of 10 different global vars
-            currency = "eth" if WALLET_ADDRESS.startswith("0x") else "btc"
-            mining_algorithm = "ethash"
-            pool_url = "eth.hiveon.com:4444" if currency == "eth" else "stratum+tcp://daggerhashimoto.auto.nicehash.com:9200"
-            run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
-            --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-            --rm --name {container_name} --env WALLET_ADDRESS={WALLET_ADDRESS} --env SANDBOX_ID={SANDBOX_ID} --env HOSTNAME={socket.gethostname()} \
-            --env MINING_ALGORITHM={mining_algorithm} --env POOL_URL={pool_url} --shm-size=256m -h rentaflop -dt rentaflop/sandbox")
+            _run_sandbox(gpu, container_name)
     elif action == "stop":
         if is_render:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
