@@ -3,7 +3,7 @@
 Rentaflop miner is the cryptocurrency mining software for [rentaflop](https://rentaflop.com), the crowdsourced cloud provider.
 Rentaflop is the best way to earn passive income from your Nvidia GPU while you’re not using it. We mine crypto and solve
 3D graphics or Artificial Intelligence tasks for others on your device, putting your hardware to work helping others while
-earning crypto.
+you earn crypto.
 
 ## installation
 

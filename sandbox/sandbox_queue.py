@@ -1,5 +1,5 @@
 """
-runs listener within docker sandbox and queues compute jobs
+runs listener within docker sandbox and queues compute tasks
 mines crypto whenever queue is empty
 """
 import subprocess
@@ -81,74 +81,76 @@ def start_mining():
 
 def stop_mining():
     """
-    stop crypto job
+    stop crypto task
     """
     run_shell_cmd("pkill -f 't-rex'")
 
 
-def push_job(params):
+def push_task(params):
     """
-    add a job to the queue
+    add a task to the queue
     """
     render_file = params["render_file"]
-    job_id = params["job_id"]
-    # create directory for job and write render file there
-    job_dir = os.path.join(FILE_DIR, job_id)
-    os.makedirs(job_dir)
-    render_file.save(f"{job_dir}/render_file.blend")
+    task_id = params["task_id"]
+    start_frame = params["start_frame"]
+    end_frame = params["end_frame"]
+    # create directory for task and write render file there
+    task_dir = os.path.join(FILE_DIR, task_id)
+    os.makedirs(task_dir)
+    render_file.save(f"{task_dir}/render_file.blend")
     
-    # append job to queue first to prevent mining from starting after the stop call
-    job = Job(job_dir=job_dir, job_id=job_id, tsp_id=-1)
-    db.session.add(job)
+    # append task to queue first to prevent mining from starting after the stop call
+    task = Task(task_dir=task_dir, task_id=task_id, tsp_id=-1)
+    db.session.add(task)
     db.session.commit()
-    # make sure mining is stopped before running render job
+    # make sure mining is stopped before running render task
     stop_mining()
-    tsp_id = run_shell_cmd(f"tsp python3 run.py {job_dir}").strip()
-    job.tsp_id = tsp_id
+    tsp_id = run_shell_cmd(f"tsp python3 run.py {task_dir} {start_frame} {end_frame}").strip()
+    task.tsp_id = tsp_id
     db.session.commit()
 
 
-def _return_job_with_id(job_id):
+def _return_task_with_id(task_id):
     """
-    find and return job from queue with job id matching job_id
+    find and return task from queue with task id matching task_id
     return None if not found
     """    
-    return Job.query.filter_by(job_id=job_id).first()
+    return Task.query.filter_by(task_id=task_id).first()
 
 
-def _delete_job_with_id(job_id):
+def _delete_task_with_id(task_id):
     """
-    delete job from db if it exists
+    delete task from db if it exists
     return tsp_id iff deleted, None otherwise
     """
     # not using ORM because this is run in separate thread where app/db are not defined
     conn = pymysql.connect(host='localhost', user='root', password = "sandbox", db='sandbox')
     cur = conn.cursor()
-    cur.execute(f"SELECT tsp_id FROM job WHERE job_id='{job_id}';")
-    job = cur.fetchone()
-    if job:
-        job = str(job[0])
-        cur.execute(f"DELETE FROM job WHERE job_id='{job_id}';")
+    cur.execute(f"SELECT tsp_id FROM task WHERE task_id='{task_id}';")
+    task = cur.fetchone()
+    if task:
+        task = str(task[0])
+        cur.execute(f"DELETE FROM task WHERE task_id='{task_id}';")
         conn.commit()
     
     conn.close()
 
-    return job
+    return task
 
 
-def pop_job(params):
+def pop_task(params):
     """
-    remove job from queue
+    remove task from queue
     does nothing if already removed from queue
     """
-    job_id = params["job_id"]
-    queued_job = _return_job_with_id(job_id)
-    # job already removed
-    if not queued_job:
+    task_id = params["task_id"]
+    queued_task = _return_task_with_id(task_id)
+    # task already removed
+    if not queued_task:
         return
-    tsp_id = queued_job.tsp_id
-    # remove relevant job from queue
-    db.session.delete(queued_job)
+    tsp_id = queued_task.tsp_id
+    # remove relevant task from queue
+    db.session.delete(queued_task)
     db.session.commit()
     pid = run_shell_cmd(f"tsp -p {tsp_id}")
     if pid is not None:
@@ -156,8 +158,8 @@ def pop_job(params):
         # kills python process that's running blender plus all its children 
         run_shell_cmd(f"kill $(ps -s {pid} -o pid=)")
     run_shell_cmd(f"tsp -r {tsp_id}")
-    job_dir = os.path.join(FILE_DIR, job_id)
-    run_shell_cmd(f"rm -rf {job_dir}")
+    task_dir = os.path.join(FILE_DIR, task_id)
+    run_shell_cmd(f"rm -rf {task_dir}")
 
 
 def status(params):
@@ -165,10 +167,10 @@ def status(params):
     return contents of queue
     params is empty dict
     """
-    jobs = Job.query.all()
-    jobs = [job.job_id for job in jobs]
+    tasks = Task.query.all()
+    tasks = [task.task_id for task in tasks]
     # h-stats.sh queries trex for mining stats, so we only run it when trex is running
-    if not jobs:
+    if not tasks:
         khs_stats = run_shell_cmd("./h-stats.sh", quiet=True)
         if khs_stats:
             khs_stats = khs_stats.splitlines()
@@ -179,65 +181,65 @@ def status(params):
             STATS = json.loads(khs_stats[1])
     # TODO if running gpc, apply rentaflop multiplier to estimate additional crypto earnings
     
-    return {"queue": jobs, "khs": KHS, "stats": STATS}
+    return {"queue": tasks, "khs": KHS, "stats": STATS}
 
 
-def _send_results(job_id):
+def _send_results(task_id):
     """
     send render results to servers, removing files and queue entry
     """
-    job_dir = os.path.join(FILE_DIR, job_id)
-    tgz_path = os.path.join(job_dir, "output.tar.gz")
-    output = os.path.join(job_dir, "output")
+    task_dir = os.path.join(FILE_DIR, task_id)
+    tgz_path = os.path.join(task_dir, "output.tar.gz")
+    output = os.path.join(task_dir, "output")
     # zip and send output dir
     run_shell_cmd(f"tar -czf {tgz_path} {output}")
     sandbox_id = os.getenv("SANDBOX_ID")
     server_url = "https://portal.rentaflop.com/api/host/output"
-    data = {"job_id": str(job_id), "sandbox_id": str(sandbox_id)}
+    data = {"task_id": str(task_id), "sandbox_id": str(sandbox_id)}
     files = {'render_file': open(tgz_path, 'rb'), 'json': json.dumps(data)}
     requests.post(server_url, files=files)
-    run_shell_cmd(f"rm -rf {job_dir}")
-    _delete_job_with_id(job_id)
+    run_shell_cmd(f"rm -rf {task_dir}")
+    _delete_task_with_id(task_id)
 
 
-def handle_finished_jobs():
+def handle_finished_tasks():
     """
-    checks for any finished jobs and sends results back to servers
+    checks for any finished tasks and sends results back to servers
     cleans up and removes files afterwards
-    starts crypto miner if all jobs are finished
+    starts crypto miner if all tasks are finished
     """
-    # job ids in existence on the file system
-    job_ids = os.listdir(FILE_DIR)
-    for job_id in job_ids:
-        # find finished jobs
-        if os.path.exists(os.path.join(FILE_DIR, job_id, "finished.txt")):
-            # send results, clean files, and remove job from queue
-            _send_results(job_id)
+    # task ids in existence on the file system
+    task_ids = os.listdir(FILE_DIR)
+    for task_id in task_ids:
+        # find finished tasks
+        if os.path.exists(os.path.join(FILE_DIR, task_id, "finished.txt")):
+            # send results, clean files, and remove task from queue
+            _send_results(task_id)
             continue
-        # set timeout on queued job and kill if exceeded time limit
-        start_time = os.path.getmtime(os.path.join(FILE_DIR, job_id, "started.txt"))
+        # set timeout on queued task and kill if exceeded time limit
+        start_time = os.path.getmtime(os.path.join(FILE_DIR, task_id, "started.txt"))
         start_time = dt.datetime.fromtimestamp(start_time)
         current_time = dt.datetime.utcnow()
         timeout = dt.timedelta(hours=1)
         if timeout < (current_time-start_time):
-            # remove job from queue
-            deleted_tsp = _delete_job_with_id(job_id)
+            # remove task from queue
+            deleted_tsp = _delete_task_with_id(task_id)
             if deleted_tsp is not None:
                 pid = run_shell_cmd(f"tsp -p {deleted_tsp}")
                 if pid is not None:
                     pid = pid.strip()
                     run_shell_cmd(f"kill -9 {pid}")
             # clean up files
-            run_shell_cmd(f"rm -rf {job_dir}")
+            run_shell_cmd(f"rm -rf {task_dir}")
 
-    # remove finished jobs from tsp queue
+    # remove finished tasks from tsp queue
     run_shell_cmd("tsp -C", quiet=True)
     # not using ORM because this is run in separate thread where app/db are not defined
     conn = pymysql.connect(host='localhost', user='root', password = "sandbox", db='sandbox')
     cur = conn.cursor()
-    n_jobs = cur.execute("SELECT * FROM job;")
+    n_tasks = cur.execute("SELECT * FROM task;")
     conn.close()
-    if n_jobs == 0:
+    if n_tasks == 0:
         # nothing left running in queue, so we mine crypto again
         start_mining()
 
@@ -293,11 +295,11 @@ def run_flask_server(q):
 
 
 CMD_TO_FUNC = {
-    "push": push_job,
-    "pop": pop_job,
+    "push": push_task,
+    "pop": pop_task,
     "status": status,
 }
-FILE_DIR = "/root/jobs"
+FILE_DIR = "/root/tasks"
 os.makedirs(FILE_DIR, exist_ok=True)
 LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sandbox.log")
 SANDBOX_LOGGER = _get_logger(LOG_FILE)
@@ -318,14 +320,14 @@ app = Flask(__name__)
 app.config.from_object(Config)
 db = SQLAlchemy(app)
 
-class Job(db.Model):
+class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    job_id = db.Column(db.Integer)
+    task_id = db.Column(db.Integer)
     tsp_id = db.Column(db.Integer)
-    job_dir = db.Column(db.String(64))
+    task_dir = db.Column(db.String(64))
 
     def __repr__(self):
-        return f"<Job {self.job_id} {self.tsp_id} {self.job_dir}>"
+        return f"<Task {self.task_id} {self.tsp_id} {self.task_dir}>"
 
 db.create_all(app=app)
 
@@ -334,9 +336,9 @@ def main():
     start_mining()
     # if we're running scheduler, don't run server; we do this in separate process because scheduler doesn't run properly when run with server
     if len(sys.argv) == 2 and sys.argv[1] == "scheduler":
-        # create a scheduler that periodically checks/handles finished jobs starts mining when there are no jobs in queue
+        # create a scheduler that periodically checks/handles finished tasks starts mining when there are no tasks in queue
         scheduler = APScheduler()
-        scheduler.add_job(id='Handle Finished Jobs', func=handle_finished_jobs, trigger="interval", seconds=10)
+        scheduler.add_job(id='Handle Finished Tasks', func=handle_finished_tasks, trigger="interval", seconds=10)
         scheduler.add_job(id='Monitor Mining', func=monitor_mining, trigger="interval", seconds=180)
         scheduler.start()
         while True:

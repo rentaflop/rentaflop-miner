@@ -277,15 +277,17 @@ def _run_sandbox(gpu, container_name):
 def mine(params):
     """
     handle commands related to mining, whether crypto mining or guest "mining"
-    params looks like {"action": "start" | "stop", "gpu": "0", "job_id": "13245", "render_file": contents}
-    iff render job, we receive job_id and render_file parameter (if action is start) that contains data to be rendered
+    params looks like {"action": "start" | "stop", "gpu": "0", "task_id": "13245", "render_file": contents}
+    iff render job, we receive task_id and render_file parameter (if action is start) that contains data to be rendered
     """
     action = params["action"]
     gpu = int(params["gpu"])
-    job_id = params.get("job_id")
+    task_id = params.get("task_id")
+    start_frame = params.get("start_frame")
+    n_frames = params.get("n_frames")
     render_file = params.get("render_file")
     is_render = False
-    if job_id:
+    if task_id:
         is_render = True
     container_name = f"rentaflop-sandbox-{gpu}"
     
@@ -294,7 +296,8 @@ def mine(params):
         if is_render:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
             url = f"https://{container_ip}"
-            data = {"cmd": "push", "params": {"job_id": job_id}}
+            end_frame = start_frame + n_frames - 1
+            data = {"cmd": "push", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame}}
             files = {'render_file': render_file, 'json': json.dumps(data)}
             requests.post(url, files=files, verify=False)
         else:
@@ -303,7 +306,7 @@ def mine(params):
         if is_render:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
             url = f"https://{container_ip}"
-            data = {"cmd": "pop", "params": {"job_id": job_id}}
+            data = {"cmd": "pop", "params": {"task_id": task_id}}
             files = {'json': json.dumps(data)}
             requests.post(url, files=files, verify=False)
         else:
