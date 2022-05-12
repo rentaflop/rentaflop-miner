@@ -196,7 +196,7 @@ def _send_results(task_id):
     sandbox_id = os.getenv("SANDBOX_ID")
     server_url = "https://portal.rentaflop.com/api/host/output"
     data = {"task_id": str(task_id), "sandbox_id": str(sandbox_id)}
-    files = {'render_file': open(tgz_path, 'rb'), 'json': json.dumps(data)}
+    files = {'output': open(tgz_path, 'rb'), 'json': json.dumps(data)}
     requests.post(server_url, files=files)
     run_shell_cmd(f"rm -rf {task_dir}")
     _delete_task_with_id(task_id)
