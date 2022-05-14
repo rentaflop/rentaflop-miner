@@ -102,6 +102,8 @@ def _get_registration(is_checkin=True):
         DAEMON_LOGGER.error(f"Failed {type_str}!")
         if is_checkin:
             return
+        if is_registered:
+            return rentaflop_id, wallet_address, daemon_port, email, sandbox_id
         raise
     if not is_registered:
         rentaflop_id = response_json["rentaflop_id"]
