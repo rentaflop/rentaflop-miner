@@ -288,7 +288,7 @@ def post_to_daemon(data):
     try:
         response = requests.post(daemon_url, json=data)
         response_json = response.json()
-    except requests.exceptions.ConnectionError:
+    except (requests.exceptions.ConnectionError, json.decoder.JSONDecodeError) as e:
         DAEMON_LOGGER.error(f"Exception during post request: {e}")
 
         return {}
