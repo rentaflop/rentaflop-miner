@@ -95,7 +95,7 @@ def push_task(params):
     start_frame = params["start_frame"]
     end_frame = params["end_frame"]
     # create directory for task and write render file there
-    task_dir = os.path.join(FILE_DIR, task_id)
+    task_dir = os.path.join(FILE_DIR, str(task_id))
     os.makedirs(task_dir)
     render_file.save(f"{task_dir}/render_file.blend")
     
@@ -158,7 +158,7 @@ def pop_task(params):
         # kills python process that's running blender plus all its children 
         run_shell_cmd(f"kill $(ps -s {pid} -o pid=)")
     run_shell_cmd(f"tsp -r {tsp_id}")
-    task_dir = os.path.join(FILE_DIR, task_id)
+    task_dir = os.path.join(FILE_DIR, str(task_id))
     run_shell_cmd(f"rm -rf {task_dir}")
 
 
@@ -188,7 +188,7 @@ def _send_results(task_id):
     """
     send render results to servers, removing files and queue entry
     """
-    task_dir = os.path.join(FILE_DIR, task_id)
+    task_dir = os.path.join(FILE_DIR, str(task_id))
     tgz_path = os.path.join(task_dir, "output.tar.gz")
     output = os.path.join(task_dir, "output")
     # zip and send output dir
@@ -212,12 +212,12 @@ def handle_finished_tasks():
     task_ids = os.listdir(FILE_DIR)
     for task_id in task_ids:
         # find finished tasks
-        if os.path.exists(os.path.join(FILE_DIR, task_id, "finished.txt")):
+        if os.path.exists(os.path.join(FILE_DIR, str(task_id), "finished.txt")):
             # send results, clean files, and remove task from queue
             _send_results(task_id)
             continue
         # set timeout on queued task and kill if exceeded time limit
-        start_time = os.path.getmtime(os.path.join(FILE_DIR, task_id, "started.txt"))
+        start_time = os.path.getmtime(os.path.join(FILE_DIR, str(task_id), "started.txt"))
         start_time = dt.datetime.fromtimestamp(start_time)
         current_time = dt.datetime.utcnow()
         timeout = dt.timedelta(hours=1)
