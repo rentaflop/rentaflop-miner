@@ -98,9 +98,9 @@ def _get_registration(is_checkin=True):
     # handle edge case where internal ip changed, which would cause upnp conflict mapping on next cmd
     local_lan_ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep "Local LAN ip address" | cut -d ":" -f 2', format_output=False).strip()
     # get lan ip currently using daemon port and see if it's the same as this device's lan ip
-    lan_ip_forwarded_to_daemon_port = run_shell_cmd(f'upnpc -u {IGD} -l | grep {DAEMON_PORT} | cut -d ":" -f 1 | cut -d ">" -f 2', format_output=False).strip()
+    lan_ip_forwarded_to_daemon_port = run_shell_cmd(f'upnpc -u {IGD} -l | grep {daemon_port} | cut -d ":" -f 1 | cut -d ">" -f 2', format_output=False).strip()
     if local_lan_ip != lan_ip_forwarded_to_daemon_port:
-        DAEMON_PORT = select_port(IGD, "daemon")
+        daemon_port = select_port(IGD, "daemon")
         config_changed = True
     
     data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id, \
