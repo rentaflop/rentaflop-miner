@@ -244,7 +244,8 @@ def _handle_startup():
     AVAILABLE_RESOURCES = _get_available_resources()
     RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID = _get_registration(is_checkin=False)
     # ensure daemon flask server is accessible
-    # HTTPS port
+    # deleting forwarding first to handle edge case where internal ip changed, which would cause upnp conflict mapping on next cmd
+    run_shell_cmd(f"upnpc -u {IGD} -d {DAEMON_PORT} tcp")
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
     # prevent guests from connecting to LAN, run every startup since rules don't seem to stay at top of /etc/iptables/rules.v4
     # TODO this is breaking internet connection for some reason, ensure docker img can't connect to host
