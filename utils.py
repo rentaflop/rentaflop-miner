@@ -2,7 +2,7 @@
 utility functions to be used in various parts of host software
 """
 import subprocess
-from config import DAEMON_LOGGER
+from config import DAEMON_LOGGER, REGISTRATION_FILE
 import time
 import json
 import requests
@@ -299,3 +299,32 @@ def post_to_daemon(data):
     DAEMON_LOGGER.debug(f"Received from /api/host/daemon: {response.status_code} {response_json}")
 
     return response_json
+
+
+def update_config(rentaflop_id=None, wallet_address=None, daemon_port=None, email=None, sandbox_id=None):
+    """
+    update rentaflop config file with new values
+    """
+    is_changed = False
+    rentaflop_config = {}
+    with open(REGISTRATION_FILE, "r") as f:
+        rentaflop_config = json.load(f)
+        if rentaflop_id and rentaflop_id != rentaflop_config.get("rentaflop_id", ""):
+            rentaflop_config["rentaflop_id"] = rentaflop_id
+            is_changed = True
+        if wallet_address and wallet_address != rentaflop_config.get("wallet_address", ""):
+            rentaflop_config["wallet_address"] = wallet_address
+            is_changed = True
+        if daemon_port and daemon_port != rentaflop_config.get("daemon_port", 0):
+            rentaflop_config["daemon_port"] = daemon_port
+            is_changed = True
+        if email and email != rentaflop_config.get("email", ""):
+            rentaflop_config["email"] = email
+            is_changed = True
+        if sandbox_id and sandbox_id != rentaflop_config.get("sandbox_id", ""):
+            rentaflop_config["sandbox_id"] = sandbox_id
+            is_changed = True
+
+    if is_changed:
+        with open(REGISTRATION_FILE, "w") as f:
+            f.write(json.dumps(rentaflop_config, indent=4, sort_keys=True))

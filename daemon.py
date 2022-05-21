@@ -94,6 +94,15 @@ def _get_registration(is_checkin=True):
     if not is_registered:
         daemon_port = select_port(IGD, "daemon")
         config_changed = True
+
+    # handle edge case where internal ip changed, which would cause upnp conflict mapping on next cmd
+    local_lan_ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep "Local LAN ip address" | cut -d ":" -f 2', format_output=False).strip()
+    # get lan ip currently using daemon port and see if it's the same as this device's lan ip
+    lan_ip_forwarded_to_daemon_port = run_shell_cmd(f'upnpc -u {IGD} -l | grep {DAEMON_PORT} | cut -d ":" -f 1 | cut -d ">" -f 2', format_output=False).strip()
+    if local_lan_ip != lan_ip_forwarded_to_daemon_port:
+        DAEMON_PORT = select_port(IGD, "daemon")
+        config_changed = True
+    
     data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id, \
             "email": email, "wallet_address": wallet_address}
     response_json = post_to_daemon(data)
@@ -112,9 +121,7 @@ def _get_registration(is_checkin=True):
 
     # if we just registered or changed config, save registration info
     if config_changed:
-        rentaflop_config = {"rentaflop_id": rentaflop_id, "wallet_address": wallet_address, "daemon_port": daemon_port, "email": email, "sandbox_id": sandbox_id}
-        with open(REGISTRATION_FILE, "w") as f:
-            f.write(json.dumps(rentaflop_config, indent=4, sort_keys=True))
+        update_config(rentaflop_id, wallet_address, daemon_port, email, sandbox_id)
         # don't change this without also changing the grep search for this string above
         if not is_registered:
             DAEMON_LOGGER.debug("Registration successful.")
@@ -244,8 +251,6 @@ def _handle_startup():
     AVAILABLE_RESOURCES = _get_available_resources()
     RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID = _get_registration(is_checkin=False)
     # ensure daemon flask server is accessible
-    # deleting forwarding first to handle edge case where internal ip changed, which would cause upnp conflict mapping on next cmd
-    run_shell_cmd(f"upnpc -u {IGD} -d {DAEMON_PORT} tcp")
     run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
     # prevent guests from connecting to LAN, run every startup since rules don't seem to stay at top of /etc/iptables/rules.v4
     # TODO this is breaking internet connection for some reason, ensure docker img can't connect to host
