@@ -225,7 +225,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                     result = requests.post(url, files=files, verify=False)
                     result = result.json()
                 except (requests.exceptions.ConnectionError, requests.exceptions.InvalidURL):
-                    pass
+                    container_queue = []
                 
                 container_queue = result.get("queue")
                 khs_val, stats_val = get_mining_stats(gpu)
@@ -363,7 +363,7 @@ def install_or_update_crypto_miner():
     """
     target_version = "0.26.4"
     if os.path.exists("trex"):
-        current_version = run_shell_cmd('trex/t-rex --version | cut -d " " -f 5', format_output=False)
+        current_version = run_shell_cmd('trex/t-rex --version | cut -d " " -f 5', format_output=False).strip()
         # already up to date so do nothing
         if current_version == "v" + target_version:
             return
@@ -406,4 +406,4 @@ def start_crypto_miner(gpu, crypto_port, wallet_address, hostname, mining_algori
     os.system(f"CUDA_VISIBLE_DEVICES={gpu} ./trex/t-rex -c config.json --api-bind-http 127.0.0.1:{crypto_port} &")
 
     # clean up tmp file after 60 seconds without hangup
-    run_shell_cmd(f'echo "sleep 60; rm {config_file}" | at now')
+    run_shell_cmd(f'echo "sleep 60; rm {config_file}" | at now', quiet=True)
