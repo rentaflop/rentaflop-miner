@@ -77,4 +77,4 @@ calc_stats() {
     echo $stats
 }
 
-calc_stats
+calc_stats $1

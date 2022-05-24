@@ -387,8 +387,13 @@ def stop_crypto_miner(gpu):
 
 def start_crypto_miner(gpu, crypto_port, wallet_address, hostname, mining_algorithm, pool_url):
     """
-    start crypto miner on gpu
+    start crypto miner on gpu; do nothing if already running
     """
+    # do nothing if running
+    output = run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex'", quiet=quiet)
+    if output:
+        return
+    
     # create temp config file, run miner, then delete file
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         config_file = tmp.name
