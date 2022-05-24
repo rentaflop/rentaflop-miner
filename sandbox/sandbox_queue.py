@@ -270,10 +270,9 @@ db.create_all(app=app)
 
 
 def main():
-    start_mining()
     # if we're running scheduler, don't run server; we do this in separate process because scheduler doesn't run properly when run with server
     if len(sys.argv) == 2 and sys.argv[1] == "scheduler":
-        # create a scheduler that periodically checks/handles finished tasks starts mining when there are no tasks in queue
+        # create a scheduler that periodically checks/handles finished tasks
         scheduler = APScheduler()
         scheduler.add_job(id='Handle Finished Tasks', func=handle_finished_tasks, trigger="interval", seconds=10)
         scheduler.start()
