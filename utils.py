@@ -390,7 +390,7 @@ def start_crypto_miner(gpu, crypto_port, wallet_address, hostname, mining_algori
     start crypto miner on gpu; do nothing if already running
     """
     # do nothing if running
-    output = run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex'", quiet=quiet)
+    output = run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex'", quiet=True)
     if output:
         return
     
