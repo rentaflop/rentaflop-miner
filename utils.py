@@ -9,6 +9,7 @@ import requests
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import os
+import tempfile
 
 
 SUPPORTED_GPUS = [
@@ -104,6 +105,26 @@ def get_gpus(available_resources, quiet=False):
     return gpu_names, gpu_indexes
 
 
+def get_mining_stats(gpu):
+    """
+    return hash rate and gpu mining stats for gpu
+    """
+    khs = 0
+    stats = "null"
+    # 4059 is default port from hive
+    crypto_port = 4059 + int(gpu)
+    khs_stats = run_shell_cmd(f"./h-stats.sh {crypto_port}", quiet=True)
+    if khs_stats:
+        khs_stats = khs_stats.splitlines()
+    if len(khs_stats) == 2:
+        khs = float(khs_stats[0])
+        stats = json.loads(khs_stats[1])
+    
+    # TODO if running gpc, apply rentaflop multiplier to estimate additional crypto earnings
+
+    return khs, stats
+
+    
 def get_khs_stats(khs_vals, stats_vals):
     """
     combine khs and stats values from each GPU into one for host
@@ -204,16 +225,21 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                     result = requests.post(url, files=files, verify=False)
                     result = result.json()
                 except (requests.exceptions.ConnectionError, requests.exceptions.InvalidURL):
-                    khs_vals.append(0)
-                    stats_vals.append({})
-                    continue
+                    pass
+                
                 container_queue = result.get("queue")
-                khs_vals.append(result.get("khs"))
-                stats_val = result.get("stats")
+                khs_val, stats_val = get_mining_stats(gpu)
                 if isinstance(stats_val, str) and stats_val == "null":
                     stats_val = {}
                 stats_vals.append(stats_val)
-                container_state = "gpc" if container_queue else "crypto"
+                container_state = "stopped"
+                if container_queue:
+                    container_state = "gpc"
+                else:
+                    output = run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex'", quiet=quiet)
+                    if output:
+                        container_state = "crypto"
+                    
                 state["gpus"][i]["state"] = container_state
                 state["gpus"][i]["queue"] = container_queue
 
@@ -328,3 +354,56 @@ def update_config(rentaflop_id=None, wallet_address=None, daemon_port=None, emai
     if is_changed:
         with open(REGISTRATION_FILE, "w") as f:
             f.write(json.dumps(rentaflop_config, indent=4, sort_keys=True))
+
+
+def install_or_update_crypto_miner():
+    """
+    check for crypto miner installation and install if not found
+    update version if installed and not up to date; does nothing if installed and up to date
+    """
+    target_version = "0.26.4"
+    if os.path.exists("trex"):
+        current_version = run_shell_cmd('trex/t-rex --version | cut -d " " -f 5', format_output=False)
+        # already up to date so do nothing
+        if current_version == "v" + target_version:
+            return
+
+        # need to reinstall with target version, so remove current installation
+        run_shell_cmd("rm -rf trex")
+
+    DAEMON_LOGGER.debug(f"Installing crypto miner version {target_version}...")
+    # go to https://trex-miner.com/ to check trex version updates
+    run_shell_cmd(f"curl -L https://trex-miner.com/download/t-rex-{target_version}-linux.tar.gz > trex.tgz && mkdir trex && tar -xzf trex.tgz -C trex")
+
+
+def stop_crypto_miner(gpu):
+    """
+    stop crypto miner on gpu
+    """
+    # find t-rex pid running on this specific gpu and kill it to stop crypto mining
+    run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex' | awk '{ print $5 }' | xargs -n1 kill -9")
+
+
+def start_crypto_miner(gpu, crypto_port, wallet_address, hostname, mining_algorithm, pool_url):
+    """
+    start crypto miner on gpu
+    """
+    # create temp config file, run miner, then delete file
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        config_file = tmp.name
+        with open("config.json", "r") as f:
+            config_json = json.load(f)
+        pools = config_json["pools"][0]
+        pools["user"] = wallet_address
+        pools["url"] = pool_url
+        pools["worker"] = hostname
+        config_json["algo"] = mining_algorithm
+
+    with open(config_file, "w") as f:
+        json.dump(config_json, f)
+
+    # run miner
+    os.system(f"CUDA_VISIBLE_DEVICES={gpu} ./trex/t-rex -c config.json --api-bind-http 127.0.0.1:{crypto_port} &")
+
+    # clean up tmp file after 60 seconds without hangup
+    run_shell_cmd(f'echo "sleep 60; rm {config_file}" | at now')

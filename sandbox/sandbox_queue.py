@@ -68,24 +68,6 @@ def log_before_after(func, params):
     return wrapper
 
 
-def start_mining():
-    """
-    begin mining crypto, but only if not already mining
-    """
-    output = run_shell_cmd("pgrep t-rex", very_quiet=True)
-    # if already running trex we do nothing, otherwise start miner
-    if not output:
-        # start with os.system since this needs to be run in background
-        os.system("cd trex && ./t-rex -c config.json &")
-
-
-def stop_mining():
-    """
-    stop crypto task
-    """
-    run_shell_cmd("pkill -f 't-rex'")
-
-
 def push_task(params):
     """
     add a task to the queue
@@ -99,12 +81,9 @@ def push_task(params):
     os.makedirs(task_dir)
     render_file.save(f"{task_dir}/render_file.blend")
     
-    # append task to queue first to prevent mining from starting after the stop call
     task = Task(task_dir=task_dir, task_id=task_id, tsp_id=-1)
     db.session.add(task)
     db.session.commit()
-    # make sure mining is stopped before running render task
-    stop_mining()
     tsp_id = run_shell_cmd(f"tsp python3 run.py {task_dir} {start_frame} {end_frame}").strip()
     task.tsp_id = tsp_id
     db.session.commit()
@@ -169,19 +148,8 @@ def status(params):
     """
     tasks = Task.query.all()
     tasks = [task.task_id for task in tasks]
-    # h-stats.sh queries trex for mining stats, so we only run it when trex is running
-    if not tasks:
-        khs_stats = run_shell_cmd("./h-stats.sh", quiet=True)
-        if khs_stats:
-            khs_stats = khs_stats.splitlines()
-        if len(khs_stats) == 2:
-            global KHS
-            global STATS
-            KHS = float(khs_stats[0])
-            STATS = json.loads(khs_stats[1])
-    # TODO if running gpc, apply rentaflop multiplier to estimate additional crypto earnings
     
-    return {"queue": tasks, "khs": KHS, "stats": STATS}
+    return {"queue": tasks}
 
 
 def _send_results(task_id):
@@ -234,35 +202,6 @@ def handle_finished_tasks():
 
     # remove finished tasks from tsp queue
     run_shell_cmd("tsp -C", quiet=True)
-    # not using ORM because this is run in separate thread where app/db are not defined
-    conn = pymysql.connect(host='localhost', user='root', password = "sandbox", db='sandbox')
-    cur = conn.cursor()
-    n_tasks = cur.execute("SELECT * FROM task;")
-    conn.close()
-    if n_tasks == 0:
-        # nothing left running in queue, so we mine crypto again
-        start_mining()
-
-
-def monitor_mining():
-    """
-    monitor crypto mining process and optimize it to improve hash rate
-    """
-    is_miner_running = run_shell_cmd("pgrep t-rex", very_quiet=True)
-    if not is_miner_running:
-        return
-    
-    time_of_last_lhr_lock = run_shell_cmd('grep -e "min since last lock. Unlocking ..." /var/log/miner/t-rex/t-rex.log | grep -Po "[0-9]* [0-9]{2}:[0-9]{2}:[0-9]{2}"', quiet=True)
-    if not time_of_last_lhr_lock:
-        return
-    time_of_last_lhr_lock = dt.datetime.strptime(time_of_last_lhr_lock.splitlines()[-1], "%Y%m%d %H:%M:%S")
-    # we use system time instead of utc time since log file uses system time
-    current_time = dt.datetime.now()
-    timeframe = dt.timedelta(minutes=1)
-    # lhr lock happened in the last minute, so we restart miner at low lhr tune value
-    if (current_time-time_of_last_lhr_lock) < timeframe:
-        stop_mining()
-        os.system("cd trex && ./t-rex -c config.json --lhr-tune 60 &")
 
 
 def run_flask_server(q):
@@ -303,8 +242,6 @@ FILE_DIR = "/root/tasks"
 os.makedirs(FILE_DIR, exist_ok=True)
 LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sandbox.log")
 SANDBOX_LOGGER = _get_logger(LOG_FILE)
-KHS=0
-STATS="null"
 
 
 class Config(object):
@@ -339,7 +276,6 @@ def main():
         # create a scheduler that periodically checks/handles finished tasks starts mining when there are no tasks in queue
         scheduler = APScheduler()
         scheduler.add_job(id='Handle Finished Tasks', func=handle_finished_tasks, trigger="interval", seconds=10)
-        scheduler.add_job(id='Monitor Mining', func=monitor_mining, trigger="interval", seconds=180)
         scheduler.start()
         while True:
             time.sleep(30)

@@ -134,3 +134,4 @@ dmypy.json
 nohup.out
 daemon.log
 rentaflop_config.json
+trex/

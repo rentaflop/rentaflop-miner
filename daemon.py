@@ -260,24 +260,25 @@ def _handle_startup():
     local_lan_ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep "Local LAN ip address" | cut -d ":" -f 2', format_output=False).strip()
     run_shell_cmd(f"iptables -A INPUT -i docker0 -d {local_lan_ip} -j DROP")
     run_shell_cmd("sudo iptables-save > /etc/iptables/rules.v4")
+    install_or_update_crypto_miner()
     _start_mining(startup=True)
 
 
 def _run_sandbox(gpu, container_name):
     """
-    runs docker sandbox based on parameters
+    runs docker sandbox based on parameters; does nothing if container_name already running
     checks run command output; if None, it means docker threw an exception caught by run_shell_cmd and we should retry since it sometimes fails on first try
     """
-    # TODO turn into wallet config parameters and combine all these into a global dict instead of 10 different global vars
-    currency = "eth" if WALLET_ADDRESS.startswith("0x") else "btc"
-    mining_algorithm = "ethash"
-    pool_url = "eth.hiveon.com:4444" if currency == "eth" else "stratum+tcp://daggerhashimoto.auto.nicehash.com:9200"
+    # check for existing container running, avoid grep because of substring issues; $ after container name prevents substring issues
+    output = run_shell_cmd(f'docker ps --filter "name={container_name}$" --format "{{.Names}}"', quiet=True)
+    if output:
+        return
+
     tries = 2
     for _ in range(tries):
         output = run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env WALLET_ADDRESS={WALLET_ADDRESS} --env SANDBOX_ID={SANDBOX_ID} --env HOSTNAME={socket.gethostname()} \
-        --env MINING_ALGORITHM={mining_algorithm} --env POOL_URL={pool_url} --shm-size=256m -h rentaflop -dt rentaflop/sandbox")
+        --rm --name {container_name} --env SANDBOX_ID={SANDBOX_ID} --shm-size=256m -h rentaflop -dt rentaflop/sandbox")
         if output:
             break
 
@@ -294,12 +295,14 @@ def mine(params):
     start_frame = params.get("start_frame")
     n_frames = params.get("n_frames")
     render_file = params.get("render_file")
+    container_name = f"rentaflop-sandbox-{gpu}"
     is_render = False
     if task_id:
         is_render = True
-    container_name = f"rentaflop-sandbox-{gpu}"
     
     if action == "start":
+        # ensure sandbox for gpu is running, does nothing if already running
+        _run_sandbox(gpu, container_name)
         # TODO add pending status to ensure scheduled job doesn't happen to restart crypto mining
         if is_render:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
@@ -307,9 +310,17 @@ def mine(params):
             end_frame = start_frame + n_frames - 1
             data = {"cmd": "push", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame}}
             files = {'render_file': render_file, 'json': json.dumps(data)}
+            stop_crypto_miner(gpu)
             requests.post(url, files=files, verify=False)
         else:
-            _run_sandbox(gpu, container_name)
+            # 4059 is default port from hive
+            crypto_port = 4059 + int(gpu)
+            # TODO turn into wallet config parameters and combine all these into a global dict instead of 10 different global vars
+            currency = "eth" if WALLET_ADDRESS.startswith("0x") else "btc"
+            mining_algorithm = "ethash"
+            pool_url = "eth.hiveon.com:4444" if currency == "eth" else "stratum+tcp://daggerhashimoto.auto.nicehash.com:9200"
+            hostname = socket.gethostname()
+            start_crypto_miner(gpu, crypto_port, wallet_address, hostname, mining_algorithm, pool_url)
     elif action == "stop":
         if is_render:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
@@ -318,12 +329,12 @@ def mine(params):
             files = {'json': json.dumps(data)}
             requests.post(url, files=files, verify=False)
         else:
-            run_shell_cmd(f"docker kill {container_name}")
+            stop_crypto_miner(gpu)
 
 
 def _stop_all():
     """
-    stop all rentaflop docker containers
+    stop all rentaflop docker containers and crypto mining processes
     """
     DAEMON_LOGGER.debug("Stopping containers...")
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" -q', format_output=False).replace("\n", " ")
@@ -331,7 +342,8 @@ def _stop_all():
         # have to use subprocess here to properly run in bg; run in bg because this command takes over 10 seconds
         arg_list = ["docker", "stop"]
         arg_list.extend(containers.split())
-        subprocess.Popen(arg_list)
+        subprocess.Popen(arg_list)    
+    run_shell_cmd('killall t-rex')
     DAEMON_LOGGER.debug("Containers stopped.")
             
             
@@ -498,7 +510,7 @@ def main():
         app.secret_key = uuid.uuid4().hex
         # create a scheduler that periodically checks for stopped GPUs and starts mining on them; periodic checkin to rentaflop servers
         scheduler = APScheduler()
-        scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=300)
+        scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=60)
         scheduler.add_job(id='Rentaflop Checkin', func=_get_registration, trigger="interval", seconds=3600)
         scheduler.start()
         # run server, allowing it to shut itself down

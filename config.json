@@ -7,7 +7,6 @@
       "worker": "rentaflop_hostname"
     }
   ],
-  "api-bind-http": "127.0.0.1:4059",
   "json-response": true,
   "retries": 3,
   "retry-pause": 10,

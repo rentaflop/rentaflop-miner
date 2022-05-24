@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 calc_stats() {
-    stats_raw=$(curl --silent --connect-timeout 2 --max-time 3 localhost:4059/summary)
+    stats_raw=$(curl --silent --connect-timeout 2 --max-time 3 localhost:$1/summary)
     #stats_raw=`cat /hive/miners/t-rex/stats.lhr`
 
     if [[ $? -ne 0 || -z $stats_raw ]]; then
