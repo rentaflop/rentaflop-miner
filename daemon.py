@@ -320,7 +320,7 @@ def mine(params):
             mining_algorithm = "ethash"
             pool_url = "eth.hiveon.com:4444" if currency == "eth" else "stratum+tcp://daggerhashimoto.auto.nicehash.com:9200"
             hostname = socket.gethostname()
-            start_crypto_miner(gpu, crypto_port, wallet_address, hostname, mining_algorithm, pool_url)
+            start_crypto_miner(gpu, crypto_port, WALLET_ADDRESS, hostname, mining_algorithm, pool_url)
     elif action == "stop":
         if is_render:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()

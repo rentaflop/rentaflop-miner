@@ -373,7 +373,7 @@ def install_or_update_crypto_miner():
 
     DAEMON_LOGGER.debug(f"Installing crypto miner version {target_version}...")
     # go to https://trex-miner.com/ to check trex version updates
-    run_shell_cmd(f"curl -L https://trex-miner.com/download/t-rex-{target_version}-linux.tar.gz > trex.tgz && mkdir trex && tar -xzf trex.tgz -C trex")
+    run_shell_cmd(f"curl -L https://trex-miner.com/download/t-rex-{target_version}-linux.tar.gz > trex.tgz && mkdir trex && tar -xzf trex.tgz -C trex && rm trex.tgz")
 
 
 def stop_crypto_miner(gpu):
