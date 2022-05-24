@@ -404,7 +404,7 @@ def start_crypto_miner(gpu, crypto_port, wallet_address, hostname, mining_algori
         json.dump(config_json, f)
 
     # run miner
-    os.system(f"CUDA_VISIBLE_DEVICES={gpu} ./trex/t-rex -c config.json --api-bind-http 127.0.0.1:{crypto_port} &")
+    os.system(f"CUDA_VISIBLE_DEVICES={gpu} ./trex/t-rex -c {config_file} --api-bind-http 127.0.0.1:{crypto_port} &")
 
     # clean up tmp file after 60 seconds without hangup
     run_shell_cmd(f'echo "sleep 60; rm {config_file}" | at now', quiet=True)
