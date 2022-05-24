@@ -225,7 +225,8 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                     result = requests.post(url, files=files, verify=False)
                     result = result.json()
                 except (requests.exceptions.ConnectionError, requests.exceptions.InvalidURL):
-                    container_queue = []
+                    # failed to reach container so assume empty queue
+                    result = {"queue": []}
                 
                 container_queue = result.get("queue")
                 khs_val, stats_val = get_mining_stats(gpu)
