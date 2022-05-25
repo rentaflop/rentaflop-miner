@@ -301,8 +301,6 @@ def mine(params):
         is_render = True
     
     if action == "start":
-        # ensure sandbox for gpu is running, does nothing if already running
-        _run_sandbox(gpu, container_name)
         # TODO add pending status to ensure scheduled job doesn't happen to restart crypto mining
         if is_render:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
@@ -311,8 +309,11 @@ def mine(params):
             data = {"cmd": "push", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame}}
             files = {'render_file': render_file, 'json': json.dumps(data)}
             stop_crypto_miner(gpu)
+            # ensure sandbox for gpu is running, does nothing if already running
+            _run_sandbox(gpu, container_name)
             requests.post(url, files=files, verify=False)
         else:
+            run_shell_cmd(f"docker stop {container_name}", quiet=True)
             # 4059 is default port from hive
             crypto_port = 4059 + int(gpu)
             # TODO turn into wallet config parameters and combine all these into a global dict instead of 10 different global vars
