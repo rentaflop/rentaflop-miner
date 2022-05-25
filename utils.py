@@ -230,6 +230,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                 
                 container_queue = result.get("queue")
                 khs_val, stats_val = get_mining_stats(gpu)
+                khs_vals.append(khs_val)
                 if isinstance(stats_val, str) and stats_val == "null":
                     stats_val = {}
                 stats_vals.append(stats_val)
