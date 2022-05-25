@@ -146,7 +146,8 @@ def get_khs_stats(khs_vals, stats_vals):
         total_rejected += ar[1]
     
     stats["uptime"] = round(time.time() - _START_TIME)
-    stats["ar"] = [total_accepted, total_rejected]
+    stats["ar"] = [total_accepted, total_rejected, 0, "0"]
+    stats["total_khs"] = str(khs)
 
     return khs, stats    
 
