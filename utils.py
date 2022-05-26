@@ -207,11 +207,26 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
     state["gpus"] = [{"index":gpu_index, "name": gpu_names[i], "state": "stopped", "queue": []} for i, gpu_index in enumerate(gpu_indexes)]
     n_gpus = len(gpu_names)
     state["n_gpus"] = str(n_gpus)
+    khs_vals = []
+    stats_vals = []
+    # get crypto mining state
+    for i, gpu in enumerate(gpu_indexes):
+        output = run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex'", quiet=quiet)
+        if output:
+            state["gpus"][i]["state"] = "crypto"
+            khs_val, stats_val = get_mining_stats(gpu)
+            khs_vals.append(khs_val)
+            if isinstance(stats_val, str) and stats_val == "null":
+                stats_val = {}
+            stats_vals.append(stats_val)
+        else:
+            # TODO still return values times multiplier when renders are running
+            khs_vals.append(0)
+            stats_vals.append({})
+            
     # get all container names
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
                                quiet=quiet, format_output=False).split()
-    khs_vals = []
-    stats_vals = []
     for container in containers:
         # container looks like f"rentaflop-sandbox-{gpu}"
         _, _, gpu = container.split("-")
@@ -230,18 +245,9 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                     result = {"queue": []}
                 
                 container_queue = result.get("queue")
-                khs_val, stats_val = get_mining_stats(gpu)
-                khs_vals.append(khs_val)
-                if isinstance(stats_val, str) and stats_val == "null":
-                    stats_val = {}
-                stats_vals.append(stats_val)
                 container_state = "stopped"
                 if container_queue:
                     container_state = "gpc"
-                else:
-                    output = run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex'", quiet=quiet)
-                    if output:
-                        container_state = "crypto"
                     
                 state["gpus"][i]["state"] = container_state
                 state["gpus"][i]["queue"] = container_queue
