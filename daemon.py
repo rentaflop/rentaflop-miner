@@ -313,7 +313,7 @@ def mine(params):
             _run_sandbox(gpu, container_name)
             requests.post(url, files=files, verify=False)
         else:
-            run_shell_cmd(f"docker stop {container_name}", quiet=True)
+            run_shell_cmd(f"docker stop {container_name}", very_quiet=True)
             # 4059 is default port from hive
             crypto_port = 4059 + int(gpu)
             # TODO turn into wallet config parameters and combine all these into a global dict instead of 10 different global vars
