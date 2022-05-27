@@ -260,6 +260,7 @@ def _handle_startup():
     local_lan_ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep "Local LAN ip address" | cut -d ":" -f 2', format_output=False).strip()
     run_shell_cmd(f"iptables -A INPUT -i docker0 -d {local_lan_ip} -j DROP")
     run_shell_cmd("sudo iptables-save > /etc/iptables/rules.v4")
+    check_correct_driver()
     install_or_update_crypto_miner()
     _start_mining(startup=True)
 

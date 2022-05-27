@@ -211,7 +211,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
     stats_vals = []
     # get crypto mining state
     for i, gpu in enumerate(gpu_indexes):
-        output = run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex'", quiet=quiet)
+        output = run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex'", very_quiet=True)
         if output:
             state["gpus"][i]["state"] = "crypto"
             khs_val, stats_val = get_mining_stats(gpu)
@@ -421,3 +421,20 @@ def start_crypto_miner(gpu, crypto_port, wallet_address, hostname, mining_algori
 
     # clean up tmp file after 60 seconds without hangup
     run_shell_cmd(f'echo "sleep 60; rm {config_file}" | at now', quiet=True)
+
+
+def check_correct_driver():
+    """
+    check for correct driver version
+    install if not found, otherwise do nothing
+    """
+    target_version = "510"
+    # check if installed
+    output = run_shell_cmd(f"dpkg -l | grep nvidia-driver-{target_version}")
+    if output:
+        return
+
+    # not installed so uninstall existing and install target
+    run_shell_cmd("nvidia-uninstall -s")
+    # no reboot needed
+    run_shell_cmd(f"apt install nvidia-driver-{target_version} -y")
