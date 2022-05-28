@@ -281,7 +281,7 @@ def _run_sandbox(gpu, container_name):
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
         --rm --name {container_name} --env SANDBOX_ID={SANDBOX_ID} --shm-size=256m -h rentaflop -dt rentaflop/sandbox")
         # ensure sandbox server is running before returning
-        time.sleep(2)
+        time.sleep(3)
         if output:
             break
 
