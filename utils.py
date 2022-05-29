@@ -237,11 +237,8 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                 url = f"https://{container_ip}"
                 data = {"cmd": "status", "params": {}}
                 files = {'json': json.dumps(data)}
-                try:
-                    result = requests.post(url, files=files, verify=False)
-                    result = result.json()
-                except (requests.exceptions.ConnectionError, requests.exceptions.InvalidURL):
-                    # failed to reach container so assume empty queue
+                result = post_to_sandbox(url, files)
+                if not result:
                     result = {"queue": []}
                 
                 container_queue = result.get("queue")
