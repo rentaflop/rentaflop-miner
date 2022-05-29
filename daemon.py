@@ -280,8 +280,6 @@ def _run_sandbox(gpu, container_name):
         output = run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
         --rm --name {container_name} --env SANDBOX_ID={SANDBOX_ID} --shm-size=256m -h rentaflop -dt rentaflop/sandbox")
-        # ensure sandbox server is running before returning
-        time.sleep(3)
         if output:
             break
 
@@ -314,7 +312,7 @@ def mine(params):
             end_frame = start_frame + n_frames - 1
             data = {"cmd": "push", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame}}
             files = {'render_file': render_file, 'json': json.dumps(data)}
-            requests.post(url, files=files, verify=False)
+            post_to_sandbox(url, files)
         else:
             run_shell_cmd(f"docker stop {container_name}", very_quiet=True)
             # 4059 is default port from hive
@@ -332,7 +330,7 @@ def mine(params):
             url = f"https://{container_ip}"
             data = {"cmd": "pop", "params": {"task_id": task_id}}
             files = {'json': json.dumps(data)}
-            requests.post(url, files=files, verify=False)
+            post_to_sandbox(url, files)
         else:
             stop_crypto_miner(gpu)
 

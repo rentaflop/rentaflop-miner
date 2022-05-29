@@ -321,6 +321,10 @@ def get_custom_config():
 
 
 def post_to_daemon(data):
+    """
+    make post request to rentaflop daemon servers
+    catch exceptions resulting from request
+    """
     daemon_url = "https://portal.rentaflop.com/api/host/daemon"
     DAEMON_LOGGER.debug(f"Sent to /api/host/daemon: {data}")
     try:
@@ -332,6 +336,29 @@ def post_to_daemon(data):
         return {}
     
     DAEMON_LOGGER.debug(f"Received from /api/host/daemon: {response.status_code} {response_json}")
+
+    return response_json
+
+
+def post_to_sandbox(sandbox_url, data):
+    """
+    make post request to docker sandbox servers; do retries since container may have just been started
+    catch exceptions resulting from request
+    """
+    DAEMON_LOGGER.debug(f"Sent to sandbox: {data}")
+    tries = 3
+    for _ in range(tries):
+        try:
+            response = requests.post(sandbox_url, files=data, verify=False)
+            response_json = response.json()
+            if response_json:
+                break
+        except (requests.exceptions.ConnectionError, json.decoder.JSONDecodeError) as e:
+            DAEMON_LOGGER.error(f"Exception during post request: {e}")
+            response_json = {}
+            time.sleep(1)
+    
+    DAEMON_LOGGER.debug(f"Received from sandbox: {response_json}")
 
     return response_json
 
