@@ -152,20 +152,11 @@ def status(params):
     return {"queue": tasks}
 
 
-def _send_results(task_id):
+def _remove_results(task_id):
     """
-    send render results to servers, removing files and queue entry
+    remove render result files and queue entry
     """
     task_dir = os.path.join(FILE_DIR, str(task_id))
-    tgz_path = os.path.join(task_dir, "output.tar.gz")
-    output = os.path.join(task_dir, "output")
-    # zip and send output dir
-    run_shell_cmd(f"tar -czf {tgz_path} {output}")
-    sandbox_id = os.getenv("SANDBOX_ID")
-    server_url = "https://portal.rentaflop.com/api/host/output"
-    data = {"task_id": str(task_id), "sandbox_id": str(sandbox_id)}
-    files = {'output': open(tgz_path, 'rb'), 'json': json.dumps(data)}
-    requests.post(server_url, files=files)
     run_shell_cmd(f"rm -rf {task_dir}")
     _delete_task_with_id(task_id)
 
@@ -182,7 +173,7 @@ def handle_finished_tasks():
         # find finished tasks
         if os.path.exists(os.path.join(FILE_DIR, str(task_id), "finished.txt")):
             # send results, clean files, and remove task from queue
-            _send_results(task_id)
+            _remove_results(task_id)
             continue
         # set timeout on queued task and kill if exceeded time limit
         start_time = os.path.getmtime(os.path.join(FILE_DIR, str(task_id), "started.txt"))
