@@ -237,7 +237,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                 url = f"https://{container_ip}"
                 data = {"cmd": "status", "params": {}}
                 files = {'json': json.dumps(data)}
-                result = post_to_sandbox(url, files)
+                result = post_to_sandbox(url, files, quiet=True)
                 if not result:
                     result = {"queue": []}
                 
@@ -337,12 +337,13 @@ def post_to_daemon(data):
     return response_json
 
 
-def post_to_sandbox(sandbox_url, data):
+def post_to_sandbox(sandbox_url, data, quiet=False):
     """
     make post request to docker sandbox servers; do retries since container may have just been started
     catch exceptions resulting from request
     """
-    DAEMON_LOGGER.debug(f"Sent to sandbox: {data}")
+    if not quiet:
+        DAEMON_LOGGER.debug(f"Sent to sandbox: {data}")
     tries = 3
     for _ in range(tries):
         try:
@@ -351,11 +352,13 @@ def post_to_sandbox(sandbox_url, data):
             if response_json:
                 break
         except (requests.exceptions.ConnectionError, json.decoder.JSONDecodeError) as e:
-            DAEMON_LOGGER.error(f"Exception during post request: {e}")
+            if not quiet:
+                DAEMON_LOGGER.error(f"Exception during post request: {e}")
             response_json = {}
             time.sleep(1)
-    
-    DAEMON_LOGGER.debug(f"Received from sandbox: {response_json}")
+
+    if not quiet:
+        DAEMON_LOGGER.debug(f"Received from sandbox: {response_json}")
 
     return response_json
 
