@@ -26,6 +26,7 @@ def main():
         os.system(f"tar -czf {tgz_path} {output}")
         sandbox_id = os.getenv("SANDBOX_ID")
         server_url = "https://portal.rentaflop.com/api/host/output"
+        task_id = os.path.basename(task_dir)
         data = {"task_id": str(task_id), "sandbox_id": str(sandbox_id)}
         files = {'output': open(tgz_path, 'rb'), 'json': json.dumps(data)}
         requests.post(server_url, files=files)
