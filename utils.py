@@ -465,3 +465,21 @@ def check_correct_driver():
     run_shell_cmd("nvidia-uninstall -s")
     # no reboot needed
     run_shell_cmd(f"apt install nvidia-driver-{target_version} -y")
+
+
+def wait_for_sandbox_server(container_ip):
+    """
+    wait up to 30 seconds for sandbox server to start
+    if still not up after 30 seconds, return and hope for the best
+    """
+    sandbox_url = f"https://{container_ip}/health"
+    tries = 30
+    for _ in range(tries):
+        try:
+            response = requests.get(sandbox_url, verify=False)
+            if response.status_code == 200:
+                return
+        except (requests.exceptions.ConnectionError, json.decoder.JSONDecodeError) as e:
+            pass
+
+        time.sleep(1)

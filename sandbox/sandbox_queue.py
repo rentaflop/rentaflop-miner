@@ -76,6 +76,11 @@ def push_task(params):
     task_id = params["task_id"]
     start_frame = params["start_frame"]
     end_frame = params["end_frame"]
+    # prevent duplicate tasks from being created in case of network delays or failures
+    existing_task = _return_task_with_id(task_id)
+    if existing_task:
+        return
+    
     # create directory for task and write render file there
     task_dir = os.path.join(FILE_DIR, str(task_id))
     os.makedirs(task_dir)
@@ -220,6 +225,12 @@ def run_flask_server(q):
             return to_return
 
         return jsonify("200")
+
+    
+    @app.route("/health", methods=["GET"])
+    def health():
+        return jsonify("200")
+
     
     app.run(host='0.0.0.0', port=443, ssl_context='adhoc')
 
