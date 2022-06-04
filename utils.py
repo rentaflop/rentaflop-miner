@@ -463,8 +463,8 @@ def check_correct_driver():
 
     # not installed so uninstall existing and install target
     run_shell_cmd("nvidia-uninstall -s")
-    # no reboot needed
     run_shell_cmd(f"apt install nvidia-driver-{target_version} -y")
+    run_shell_cmd("sudo reboot")
 
 
 def wait_for_sandbox_server(container_ip):
