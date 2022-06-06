@@ -450,10 +450,11 @@ def start_crypto_miner(gpu, crypto_port, wallet_address, hostname, mining_algori
     run_shell_cmd(f'echo "sleep 60; rm {config_file}" | at now', quiet=True)
 
 
-def check_correct_driver():
+def check_correct_driver(reboot=True):
     """
     check for correct driver version
     install if not found, otherwise do nothing
+    reboot is required after changing drivers; reboot option toggles this action within this function
     """
     target_version = "510"
     # check if installed
@@ -464,7 +465,8 @@ def check_correct_driver():
     # not installed so uninstall existing and install target
     run_shell_cmd("nvidia-uninstall -s")
     run_shell_cmd(f"apt install nvidia-driver-{target_version} -y")
-    run_shell_cmd("sudo reboot")
+    if reboot:
+        run_shell_cmd("sudo reboot")
 
 
 def wait_for_sandbox_server(container_ip):

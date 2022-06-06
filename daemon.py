@@ -160,6 +160,8 @@ def _first_startup():
     run_shell_cmd("sudo apt-get install iptables-persistent -y")
     run_shell_cmd("sudo apt-get install python3-pip -y && pip3 install speedtest-cli")
     run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
+    # disable reboot during driver check/installation because we reboot on next command
+    check_correct_driver(reboot=False)
     run_shell_cmd("sudo reboot")
 
 
