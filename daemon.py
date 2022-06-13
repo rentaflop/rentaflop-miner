@@ -71,6 +71,9 @@ def _get_registration(is_checkin=True):
                 config_changed = True
 
     else:
+        # if checkin we get IGD again because this can periodically change depending on what the router does
+        global IGD
+        IGD = get_igd(quiet=True)
         rentaflop_id, wallet_address, daemon_port, email, sandbox_id = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID
         # if checkin, we also renew daemon port lease since that seems to disappear occasionally
         run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")

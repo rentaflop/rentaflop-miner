@@ -71,14 +71,14 @@ def log_before_after(func, params):
     return wrapper
 
 
-def get_igd():
+def get_igd(quiet=False):
     """
     returns internet gateway device URL for upnp to use
     """
     timeouts = 10
     time_length = 1
     for _ in range(timeouts):
-        output = run_shell_cmd('upnpc -s | grep "Found valid IGD"', format_output=False)
+        output = run_shell_cmd('upnpc -s | grep "Found valid IGD"', format_output=False, quiet=quiet)
         if "No IGD UPnP Device found" in output:
             time.sleep(time_length)
             time_length *= 2
