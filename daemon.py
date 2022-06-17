@@ -40,13 +40,22 @@ def _start_mining(startup=False):
     startup will sleep for several seconds before attempting to start mining, as if this is a miner restart the old containers
     about to die may still be running
     """
+    # if just started, wait for gpus to "wake up" on boot
     if startup:
         time.sleep(10)
     state = get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD, gpu_only=True, quiet=True)
     gpus = state["gpus"]
-    for gpu in gpus:
-        if gpu["state"] == "stopped":
-            mine({"action": "start", "gpu": gpu["index"]})
+    gpus_stopped = {gpu["index"] for gpu in gpus if gpu["state"] == "stopped"}
+    gpus_stopped_later = gpus_stopped
+    # we want to make sure we're not starting miner back up right before a task is about to be run so we try again before restarting
+    if gpus_stopped and not startup:
+        time.sleep(10)
+        state = get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD, gpu_only=True, quiet=True)
+        gpus = state["gpus"]
+        gpus_stopped_later = {gpu["index"] for gpu in gpus if gpu["state"] == "stopped"}
+    
+    for gpu_index in gpus_stopped.intersection(gpus_stopped_later):
+        mine({"action": "start", "gpu": gpu_index})
 
 
 def _get_registration(is_checkin=True):
