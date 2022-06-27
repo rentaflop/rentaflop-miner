@@ -79,7 +79,7 @@ def get_igd(quiet=False):
     time_length = 1
     for _ in range(timeouts):
         output = run_shell_cmd('upnpc -s | grep "Found valid IGD"', format_output=False, quiet=quiet)
-        if "No IGD UPnP Device found" in output:
+        if not output or "No IGD UPnP Device found" in output:
             time.sleep(time_length)
             time_length *= 2
             continue
