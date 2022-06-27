@@ -211,8 +211,8 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
     stats_vals = []
     # get crypto mining state
     for i, gpu in enumerate(gpu_indexes):
-        output = run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex'", very_quiet=True)
-        if output:
+        output = run_shell_cmd(f"nvidia-smi -i {gpu}", very_quiet=True)
+        if "t-rex" in output:
             state["gpus"][i]["state"] = "crypto"
             khs_val, stats_val = get_mining_stats(gpu)
             khs_vals.append(khs_val)
@@ -220,12 +220,15 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                 stats_val = {}
             stats_vals.append(stats_val)
         else:
-            # TODO still return values times multiplier when renders are running
+            # treat benchmark as gpc since we're conducting benchmark for gpc pricing
+            if "octane" in output:
+                state["gpus"][i]["state"] = "gpc"
+            # TODO still return values times multiplier when renders or benchmarks are running
             khs_vals.append(0)
             stats_vals.append({})
             
-    # get all container names
-    containers = run_shell_cmd('docker ps --filter "name=rentaflop*" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
+    # get all sandbox container names
+    containers = run_shell_cmd('docker ps --filter "name=rentaflop-sandbox*" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
                                quiet=quiet, format_output=False).split()
     for container in containers:
         # container looks like f"rentaflop-sandbox-{gpu}"
