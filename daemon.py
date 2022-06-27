@@ -443,6 +443,13 @@ def status(params):
     return {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD, quiet=True)}
 
 
+def benchmark(params):
+    """
+    run performance benchmark for gpus
+    """
+    pass
+
+
 def prep_daemon_shutdown(server):
     """
     prepare daemon for shutdown without assuming system is restarting
@@ -513,6 +520,7 @@ CMD_TO_FUNC = {
     "uninstall": uninstall,
     "send_logs": send_logs,
     "status": status,
+    "benchmark": benchmark
 }
 IGD = None
 RENTAFLOP_ID = None
