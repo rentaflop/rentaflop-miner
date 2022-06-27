@@ -29,7 +29,7 @@ def check_p2p(include_stdout=False):
     ensure p2p connection requirements are met
     """
     command_output = run_shell_cmd("upnpc -s", format_output=False, quiet=True)
-    if "No IGD UPnP Device found on the network" in command_output:
+    if not command_output or "No IGD UPnP Device found on the network" in command_output:
         _log_and_print(include_stdout, "ERROR", "Error: Please ensure you have a router (or other device) configured to use UPnP on your network.")
 
         return False
