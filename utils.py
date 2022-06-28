@@ -257,7 +257,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
 
     if not gpu_only:
         ports = []
-        if IGD:
+        if igd:
             igd_flag = "" if not igd else f" -u {igd}"
             ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d "-" -f 1 | rev | cut -d " " -f 1 | rev', quiet=quiet, format_output=False).split()
         state["ports"] = ports
