@@ -84,8 +84,9 @@ def _get_registration(is_checkin=True):
         global IGD
         IGD = get_igd(quiet=True)
         rentaflop_id, wallet_address, daemon_port, email, sandbox_id = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID
-        # if checkin, we also renew daemon port lease since that seems to disappear occasionally
-        run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
+        if IGD:
+            # if checkin, we also renew daemon port lease since that seems to disappear occasionally
+            run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
 
     # rentaflop id is either read from the file, already set if it's a checkin, or is initial registration where it's empty str
     is_registered = rentaflop_id != ""
@@ -102,18 +103,23 @@ def _get_registration(is_checkin=True):
             return _get_registration(is_checkin=is_checkin)
     
     # register host with rentaflop or perform checkin if already registered
-    ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
+    # use upnpc to get external address or external website if upnp not available
+    if IGD:
+        ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
+    else:
+        ip = requests.get('https://api.ipify.org').content.decode('utf8')
     if not is_registered:
         daemon_port = select_port(IGD, "daemon")
         config_changed = True
 
-    # handle edge case where internal ip changed, which would cause upnp conflict mapping on next cmd
-    local_lan_ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep "Local LAN ip address" | cut -d ":" -f 2', format_output=False).strip()
-    # get lan ip currently using daemon port and see if it's the same as this device's lan ip
-    lan_ip_forwarded_to_daemon_port = run_shell_cmd(f'upnpc -u {IGD} -l | grep {daemon_port} | cut -d ":" -f 1 | cut -d ">" -f 2', format_output=False).strip()
-    if local_lan_ip != lan_ip_forwarded_to_daemon_port:
-        daemon_port = select_port(IGD, "daemon")
-        config_changed = True
+    if IGD:
+        # handle edge case where internal ip changed, which would cause upnp conflict mapping on next cmd
+        local_lan_ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep "Local LAN ip address" | cut -d ":" -f 2', format_output=False).strip()
+        # get lan ip currently using daemon port and see if it's the same as this device's lan ip
+        lan_ip_forwarded_to_daemon_port = run_shell_cmd(f'upnpc -u {IGD} -l | grep {daemon_port} | cut -d ":" -f 1 | cut -d ">" -f 2', format_output=False).strip()
+        if local_lan_ip != lan_ip_forwarded_to_daemon_port:
+            daemon_port = select_port(IGD, "daemon")
+            config_changed = True
     
     data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id, \
             "email": email, "wallet_address": wallet_address}
@@ -264,14 +270,23 @@ def _handle_startup():
     IGD = get_igd()
     AVAILABLE_RESOURCES = _get_available_resources()
     RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID = _get_registration(is_checkin=False)
-    # ensure daemon flask server is accessible
-    run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
+    if IGD:
+        # ensure daemon flask server is accessible
+        run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
+    else:
+        DAEMON_LOGGER.info("UPnP not available, assuming user has required ports starting at 46443 forwarded to rig")
     # prevent guests from connecting to LAN, run every startup since rules don't seem to stay at top of /etc/iptables/rules.v4
     # TODO this is breaking internet connection for some reason, ensure docker img can't connect to host
     # run_shell_cmd("iptables -I FORWARD -i docker0 -d 192.168.0.0/16 -j DROP")
     run_shell_cmd("iptables -I FORWARD -i docker0 -d 10.0.0.0/8 -j DROP")
     run_shell_cmd("iptables -I FORWARD -i docker0 -d 172.16.0.0/12 -j DROP")
-    local_lan_ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep "Local LAN ip address" | cut -d ":" -f 2', format_output=False).strip()
+    if IGD:
+        local_lan_ip = run_shell_cmd(f'upnpc -u {IGD} -s | grep "Local LAN ip address" | cut -d ":" -f 2', format_output=False).strip()
+    else:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_lan_ip = s.getsockname()[0]
+        s.close()
     run_shell_cmd(f"iptables -A INPUT -i docker0 -d {local_lan_ip} -j DROP")
     run_shell_cmd("sudo iptables-save > /etc/iptables/rules.v4")
     check_correct_driver()
@@ -418,7 +433,8 @@ def uninstall(params):
     _stop_all()
     run_shell_cmd('docker rmi $(docker images -a -q "rentaflop/sandbox") $(docker images | grep none | awk "{ print $3; }") $(docker images "nvidia/cuda" -a -q)')
     # clean up rentaflop host software
-    run_shell_cmd(f"upnpc -u {IGD} -d {DAEMON_PORT} tcp")
+    if IGD:
+        run_shell_cmd(f"upnpc -u {IGD} -d {DAEMON_PORT} tcp")
     daemon_py = os.path.realpath(__file__)
     rentaflop_miner_dir = os.path.dirname(daemon_py)
     run_shell_cmd(f"rm -rf {rentaflop_miner_dir}", quiet=True)

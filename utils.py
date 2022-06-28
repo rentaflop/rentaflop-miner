@@ -75,13 +75,19 @@ def get_igd(quiet=False):
     """
     returns internet gateway device URL for upnp to use
     """
-    timeouts = 10
+    # sleep for up to 127 seconds
+    tries = 8
     time_length = 1
-    for _ in range(timeouts):
-        output = run_shell_cmd('upnpc -s | grep "Found valid IGD"', format_output=False, quiet=quiet)
-        if not output or "No IGD UPnP Device found" in output:
+    is_first = True
+    for _ in range(tries):
+        if not is_first:
             time.sleep(time_length)
             time_length *= 2
+        else:
+            is_first = False
+        
+        output = run_shell_cmd('upnpc -s | grep "Found valid IGD"', format_output=False, quiet=quiet)
+        if not output or "No IGD UPnP Device found" in output:
             continue
 
         for word in output.split():
@@ -253,8 +259,10 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                 state["gpus"][i]["queue"] = container_queue
 
     if not gpu_only:
-        igd_flag = "" if not igd else f" -u {igd}"
-        ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d "-" -f 1 | rev | cut -d " " -f 1 | rev', quiet=quiet, format_output=False).split()
+        ports = []
+        if igd:
+            igd_flag = "" if not igd else f" -u {igd}"
+            ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d "-" -f 1 | rev | cut -d " " -f 1 | rev', quiet=quiet, format_output=False).split()
         state["ports"] = ports
         state["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")
         state["resources"] = available_resources
@@ -278,9 +286,12 @@ def select_port(igd, port_type):
     each type of port starts at a minimum number and ascends
     """
     selected_port = _PORT_TYPE_TO_START[port_type]
-    ports_in_use = run_shell_cmd(f'upnpc -u {igd} -l | grep rentaflop | cut -d "-" -f 1 | rev | cut -d " " -f 1 | rev', format_output=False).split()
-    while str(selected_port) in ports_in_use:
-        selected_port += 1
+    # if upnp not available, we use starting port type for every rig and user manually forwards 46443->rig1:46443, 46444->rig2:46443, etc
+    # TODO create config param for non upnp users to tell rentaflop servers which port to request
+    if igd:
+        ports_in_use = run_shell_cmd(f'upnpc -u {igd} -l | grep rentaflop | cut -d "-" -f 1 | rev | cut -d " " -f 1 | rev', format_output=False).split()
+        while str(selected_port) in ports_in_use:
+            selected_port += 1
 
     return selected_port
 
