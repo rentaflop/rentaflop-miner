@@ -356,6 +356,7 @@ def _stop_all():
     stop all rentaflop docker containers and crypto mining processes
     """
     DAEMON_LOGGER.debug("Stopping containers...")
+    # stops both sandbox and benchmark containers
     containers = run_shell_cmd('docker ps --filter "name=rentaflop*" -q', format_output=False).replace("\n", " ")
     if containers:
         # have to use subprocess here to properly run in bg; run in bg because this command takes over 10 seconds
@@ -363,6 +364,7 @@ def _stop_all():
         arg_list.extend(containers.split())
         subprocess.Popen(arg_list)    
     run_shell_cmd('killall t-rex')
+    run_shell_cmd('killall octane')
     DAEMON_LOGGER.debug("Containers stopped.")
             
             
@@ -447,7 +449,15 @@ def benchmark(params):
     """
     run performance benchmark for gpus
     """
-    pass
+    _stop_all()
+    for gpu in gpu_indexes:
+        container_name = f"rentaflop-benchmark-{gpu}"
+        # start container for benchmarking
+        container_ip = _run_sandbox(gpu, container_name)
+        url = f"https://{container_ip}/benchmark"
+        data = {}
+        files = {'json': json.dumps(data)}
+        post_to_sandbox(url, files)
 
 
 def prep_daemon_shutdown(server):

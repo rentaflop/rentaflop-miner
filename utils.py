@@ -322,7 +322,7 @@ def get_custom_config():
 
 def post_to_daemon(data):
     """
-    make post request to rentaflop daemon servers
+    make post request to rentaflop servers daemon endpoint
     catch exceptions resulting from request
     """
     daemon_url = "https://portal.rentaflop.com/api/host/daemon"
