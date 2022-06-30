@@ -1,6 +1,5 @@
 """
 runs listener within docker sandbox and queues compute tasks
-mines crypto whenever queue is empty
 """
 import subprocess
 import multiprocessing
@@ -166,11 +165,39 @@ def _remove_results(task_id):
     _delete_task_with_id(task_id)
 
 
+def _read_benchmark():
+    """
+    parse benchmark.txt file for benchmark info
+    return obh value
+    """
+    benchmark = run_shell_cmd("awk '/Total score:/{getline; print}' octane/benchmark.txt").strip()
+
+    return benchmark
+
+
+def _handle_benchmark():
+    """
+    check for benchmark output
+    if output exists, send to rentaflop servers and kill sandbox_queue.py processes
+    """
+    if not os.path.exists("octane/benchmark.txt"):
+        return
+    
+    # benchmark job has finished running, so send output and exit container
+    server_url = "https://portal.rentaflop.com/api/host/output"
+    benchmark = _read_benchmark()
+    sandbox_id = os.getenv("SANDBOX_ID")
+    data = {"benchmark": str(benchmark), "sandbox_id": str(sandbox_id)}
+    files = {'json': json.dumps(data)}
+    requests.post(server_url, files=files)
+    # this terminates all sandbox_queue.py processes, which finishes sandbox_setup.sh and the container CMD, causing container exit
+    run_shell_cmd('pkill -f "sandbox_queue.py"')
+
+    
 def handle_finished_tasks():
     """
     checks for any finished tasks and sends results back to servers
     cleans up and removes files afterwards
-    starts crypto miner if all tasks are finished
     """
     # task ids in existence on the file system
     task_ids = os.listdir(FILE_DIR)
@@ -198,6 +225,8 @@ def handle_finished_tasks():
 
     # remove finished tasks from tsp queue
     run_shell_cmd("tsp -C", quiet=True)
+    # check for and handle benchmark jobs; if finished benchmarking, kills sandbox_que.py processes, which causes the container to exit
+    _handle_benchmark()
 
 
 def run_flask_server(q):
@@ -232,6 +261,14 @@ def run_flask_server(q):
         return jsonify("200")
 
     
+    @app.route("/benchmark", methods=["POST"])
+    def benchmark():
+        # kick off benchmark job, handle finished tasks job will deal with results
+        run_shell_cmd(".octane/octane --benchmark -g 0 -a octane/benchmark.txt --no-gui &")
+        
+        return jsonify("200")
+
+
     app.run(host='0.0.0.0', port=443, ssl_context='adhoc')
 
 

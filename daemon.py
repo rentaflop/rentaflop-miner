@@ -471,6 +471,7 @@ def benchmark(params):
         # start container for benchmarking
         container_ip = _run_sandbox(gpu, container_name)
         url = f"https://{container_ip}/benchmark"
+        # sending empty post request for now, at some point will issue challenges to prove benchmark results
         data = {}
         files = {'json': json.dumps(data)}
         post_to_sandbox(url, files)
