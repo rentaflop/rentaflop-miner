@@ -187,7 +187,8 @@ def _handle_benchmark():
     server_url = "https://portal.rentaflop.com/api/host/output"
     benchmark = _read_benchmark()
     sandbox_id = os.getenv("SANDBOX_ID")
-    data = {"benchmark": str(benchmark), "sandbox_id": str(sandbox_id)}
+    gpu = os.getenv("GPU")
+    data = {"benchmark": str(benchmark), "sandbox_id": str(sandbox_id), "gpu": gpu}
     files = {'json': json.dumps(data)}
     requests.post(server_url, files=files)
     # this terminates all sandbox_queue.py processes, which finishes sandbox_setup.sh and the container CMD, causing container exit
