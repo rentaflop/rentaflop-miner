@@ -466,7 +466,7 @@ def benchmark(params):
     run performance benchmark for gpus
     """
     _stop_all()
-    for gpu in gpu_indexes:
+    for gpu in AVAILABLE_RESOURCES["gpu_indexes"]:
         container_name = f"rentaflop-benchmark-{gpu}"
         # start container for benchmarking
         container_ip = _run_sandbox(gpu, container_name)
