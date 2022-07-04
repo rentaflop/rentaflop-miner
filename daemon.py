@@ -29,6 +29,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import time
 import traceback
 import subprocess
+from threading import Thread
 
 
 app = Flask(__name__)
@@ -525,7 +526,11 @@ def run_flask_server(q):
         if func:
             try:
                 if cmd != "status":
-                    finished = log_before_after(func, params)()
+                    func_log = log_before_after(func, params)
+                    if cmd == "benchmark":
+                        Thread(target=func_log).start()
+                    else:
+                        finished = func_log()
                 else:
                     # avoid logging on status since this is called every 10 seconds by hive stats checker
                     finished = func(params)
