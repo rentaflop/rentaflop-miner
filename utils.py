@@ -226,17 +226,24 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                 stats_val = {}
             stats_vals.append(stats_val)
         else:
-            # treat benchmark as gpc since we're conducting benchmark for gpc pricing
-            if "octane" in output:
-                state["gpus"][i]["state"] = "gpc"
             # TODO still return values times multiplier when renders or benchmarks are running
             khs_vals.append(0)
             stats_vals.append({})
-            
-    # get all sandbox container names
-    containers = run_shell_cmd('docker ps --filter "name=rentaflop-sandbox*" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
+    
+    benchmark_containers = run_shell_cmd('docker ps --filter "name=rentaflop-benchmark*" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
                                quiet=quiet, format_output=False).split()
-    for container in containers:
+    for container in benchmark_containers:
+        # container looks like f"rentaflop-sandbox-{gpu}"
+        _, _, gpu = container.split("-")
+        for i, gpu_dict in enumerate(state["gpus"]):
+            if gpu_dict["index"] == gpu:
+                # treat benchmark jobs as gpc
+                state["gpus"][i]["state"] = "gpc"
+    
+    # get all sandbox container names
+    sandbox_containers = run_shell_cmd('docker ps --filter "name=rentaflop-sandbox*" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
+                               quiet=quiet, format_output=False).split()
+    for container in sandbox_containers:
         # container looks like f"rentaflop-sandbox-{gpu}"
         _, _, gpu = container.split("-")
         for i, gpu_dict in enumerate(state["gpus"]):

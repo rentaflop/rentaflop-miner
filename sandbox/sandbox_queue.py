@@ -170,7 +170,7 @@ def _read_benchmark():
     parse benchmark.txt file for benchmark info
     return obh value
     """
-    benchmark = run_shell_cmd("awk '/Total score:/{getline; print}' octane/benchmark.txt").strip()
+    benchmark = run_shell_cmd("awk '/Total score:/{getline; print}' benchmark.txt").strip()
 
     return benchmark
 
@@ -180,7 +180,7 @@ def _handle_benchmark():
     check for benchmark output
     if output exists, send to rentaflop servers and kill sandbox_queue.py processes
     """
-    if not os.path.exists("octane/benchmark.txt"):
+    if not os.path.exists("benchmark.txt"):
         return
     
     # benchmark job has finished running, so send output and exit container
@@ -265,7 +265,7 @@ def run_flask_server(q):
     @app.route("/benchmark", methods=["POST"])
     def benchmark():
         # kick off benchmark job, handle finished tasks job will deal with results
-        run_shell_cmd(".octane/octane --benchmark -g 0 -a octane/benchmark.txt --no-gui &")
+        run_shell_cmd("./octane --benchmark -g 0 -a benchmark.txt --no-gui &")
         
         return jsonify("200")
 

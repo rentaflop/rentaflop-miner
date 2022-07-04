@@ -294,10 +294,11 @@ def _handle_startup():
     _start_mining(startup=True)
 
 
-def _run_sandbox(gpu, container_name):
+def _run_sandbox(gpu, container_name, timeout=0):
     """
     runs docker sandbox based on parameters; does nothing if container_name already running
     checks run command output; if None, it means docker threw an exception caught by run_shell_cmd and we should retry since it sometimes fails on first try
+    if timeout is set, kill docker after timeout seconds (duration of 0 disables timeout)
     """
     # check for existing container running, avoid grep because of substring issues; $ after container name prevents substring issues
     output = run_shell_cmd(f'docker ps --filter "name={container_name}$" --format "{{.Names}}"', quiet=True)
@@ -308,7 +309,7 @@ def _run_sandbox(gpu, container_name):
     for _ in range(tries):
         output = run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env SANDBOX_ID={SANDBOX_ID} --env GPU={gpu} --shm-size=256m -h rentaflop -dt rentaflop/sandbox")
+        --rm --name {container_name} --env SANDBOX_ID={SANDBOX_ID} --env GPU={gpu} --env TIMEOUT={timeout} --shm-size=256m -h rentaflop -dt rentaflop/sandbox")
         if output:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
             wait_for_sandbox_server(container_ip)
@@ -468,8 +469,8 @@ def benchmark(params):
     _stop_all()
     for gpu in AVAILABLE_RESOURCES["gpu_indexes"]:
         container_name = f"rentaflop-benchmark-{gpu}"
-        # start container for benchmarking
-        container_ip = _run_sandbox(gpu, container_name)
+        # start container for benchmarking; 15 minute timeout (900 seconds)
+        container_ip = _run_sandbox(gpu, container_name, timeout=900)
         url = f"https://{container_ip}/benchmark"
         # sending empty post request for now, at some point will issue challenges to prove benchmark results
         data = {}
