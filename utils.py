@@ -364,7 +364,7 @@ def post_to_sandbox(sandbox_url, data, quiet=False):
     catch exceptions resulting from request
     """
     if not quiet:
-        DAEMON_LOGGER.debug(f"Sent to sandbox: {data}")
+        DAEMON_LOGGER.debug(f"Sent to sandbox {sandbox_url}: {data}")
     tries = 3
     for _ in range(tries):
         try:
@@ -379,7 +379,7 @@ def post_to_sandbox(sandbox_url, data, quiet=False):
             time.sleep(1)
 
     if not quiet:
-        DAEMON_LOGGER.debug(f"Received from sandbox: {response_json}")
+        DAEMON_LOGGER.debug(f"Received from sandbox {sandbox_url}: {response_json}")
 
     return response_json
 
