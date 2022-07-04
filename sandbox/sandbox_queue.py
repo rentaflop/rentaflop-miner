@@ -265,7 +265,7 @@ def run_flask_server(q):
     @app.route("/benchmark", methods=["POST"])
     def benchmark():
         # kick off benchmark job, handle finished tasks job will deal with results
-        run_shell_cmd(".octane/octane --benchmark -g 0 -a octane/benchmark.txt --no-gui &")
+        run_shell_cmd("./octane/octane --benchmark -g 0 -a octane/benchmark.txt --no-gui &")
         
         return jsonify("200")
 
