@@ -273,6 +273,7 @@ def _handle_startup():
     AVAILABLE_RESOURCES = _get_available_resources()
     RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID = _get_registration(is_checkin=False)
     OC_SETTINGS = get_oc_settings()
+    DAEMON_LOGGER.debug(f"Found OC settings: {OC_SETTINGS}")
     if IGD:
         # ensure daemon flask server is accessible
         run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")

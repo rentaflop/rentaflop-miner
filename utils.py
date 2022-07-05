@@ -548,8 +548,8 @@ def _write_settings(oc_settings):
     oc_file = os.getenv("NVIDIA_OC_CONF")
     with open(oc_file, "w") as f:
         to_write = ""
-        for k in new_oc_settings:
-            to_write += f'{k}="{new_oc_settings[k]}"\n'
+        for k in oc_settings:
+            to_write += f'{k}="{oc_settings[k]}"\n'
         
         f.write(to_write)
 
