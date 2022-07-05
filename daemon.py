@@ -268,9 +268,11 @@ def _handle_startup():
     global DAEMON_PORT
     global EMAIL
     global SANDBOX_ID
+    global OC_SETTINGS
     IGD = get_igd()
     AVAILABLE_RESOURCES = _get_available_resources()
     RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID = _get_registration(is_checkin=False)
+    OC_SETTINGS = get_oc_settings()
     if IGD:
         # ensure daemon flask server is accessible
         run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
@@ -339,6 +341,7 @@ def mine(params):
         # TODO add pending status to ensure scheduled job doesn't happen to restart crypto mining
         if is_render:
             stop_crypto_miner(gpu)
+            disable_oc([gpu])
             # ensure sandbox for gpu is running, does nothing if already running
             container_ip = _run_sandbox(gpu, container_name)
             url = f"https://{container_ip}"
@@ -349,12 +352,13 @@ def mine(params):
         else:
             run_shell_cmd(f"docker stop {container_name}", very_quiet=True)
             # 4059 is default port from hive
-            crypto_port = 4059 + int(gpu)
+            crypto_port = 4059 + gpu
             # TODO turn into wallet config parameters and combine all these into a global dict instead of 10 different global vars
             currency = "eth" if WALLET_ADDRESS.startswith("0x") else "btc"
             mining_algorithm = "ethash"
             pool_url = "eth.hiveon.com:4444" if currency == "eth" else "stratum+tcp://daggerhashimoto.auto.nicehash.com:9200"
             hostname = socket.gethostname()
+            enable_oc([gpu], OC_SETTINGS)
             # does nothing if already mining
             start_crypto_miner(gpu, crypto_port, WALLET_ADDRESS, hostname, mining_algorithm, pool_url)
     elif action == "stop":
@@ -467,8 +471,10 @@ def benchmark(params):
     """
     run performance benchmark for gpus
     """
+    gpu_indexes = AVAILABLE_RESOURCES["gpu_indexes"]
+    disable_oc(gpu_indexes)
     _stop_all()
-    for gpu in AVAILABLE_RESOURCES["gpu_indexes"]:
+    for gpu in gpu_indexes:
         container_name = f"rentaflop-benchmark-{gpu}"
         # start container for benchmarking; 15 minute timeout (900 seconds)
         container_ip = _run_sandbox(gpu, container_name, timeout=900)
@@ -562,6 +568,7 @@ DAEMON_PORT = None
 EMAIL = None
 AVAILABLE_RESOURCES = None
 SANDBOX_ID = None
+OC_SETTINGS = None
 
 
 def main():

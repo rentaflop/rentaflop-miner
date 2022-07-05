@@ -506,3 +506,93 @@ def wait_for_sandbox_server(container_ip):
             pass
 
         time.sleep(1)
+
+
+def get_oc_settings():
+    """
+    read and return overclock settings
+    """
+    oc_file = os.getenv("NVIDIA_OC_CONF")
+    current_oc_settings = {}
+    with open(oc_file, "r") as f:
+        for line in f:
+            (key, val) = line.replace('"', "").split("=")
+            current_oc_settings[key] = val
+
+    return current_oc_settings
+
+
+def _get_setting_from_key(oc_settings, key, n_gpus):
+    setting = oc_settings[key].split()
+    if not setting:
+        setting = ["0"]*n_gpus
+
+    return setting
+
+
+def _replace_settings(n_gpus, oc_settings, gpu_indexes, key, values):
+    """
+    replace oc_settings for key at gpu_indexes with values
+    """
+    new_settings = _get_setting_from_key(oc_settings, key, n_gpus)
+    for i, gpu in enumerate(gpu_indexes):
+        new_settings[gpu] = values[i]
+
+    oc_settings[key] = " ".join(new_settings)
+
+
+def _write_settings(oc_settings):
+    """
+    write and set oc_settings
+    """
+    oc_file = os.getenv("NVIDIA_OC_CONF")
+    with open(oc_file, "w") as f:
+        to_write = ""
+        for k in new_oc_settings:
+            to_write += f'{k}="{new_oc_settings[k]}"\n'
+        
+        f.write(to_write)
+
+    run_shell_cmd("nvidia-oc", quiet=True)
+
+
+def disable_oc(gpu_indexes):
+    """
+    reset overclock settings for gpus at gpu indexes
+    """
+    current_oc_settings = get_oc_settings()
+    # find n_gpus this way because there might be unsupported gpus present that hive supports
+    n_gpus = max([len(current_oc_settings[k].split()) for k in current_oc_settings])
+    # do nothing if 0 because it means none of the supported gpus are overclocked anyways
+    if n_gpus == 0:
+        return current_oc_settings
+
+    # setting values to 0 does a reset to default OC settings
+    new_values = ["0"]*len(gpu_indexes)
+    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "CLOCK", new_values)
+    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "MEM", new_values)
+    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "FAN", new_values)
+    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "PLIMIT", new_values)
+    _write_settings(current_oc_settings)
+
+
+def enable_oc(gpu_indexes, original_oc_settings):
+    """
+    set overclock settings to original oc_settings
+    """
+    current_oc_settings = get_oc_settings()
+    # find n_gpus this way because there might be unsupported gpus present that hive supports
+    n_gpus = max([len(current_oc_settings[k].split()) for k in current_oc_settings])
+    original_clock_values = _get_setting_from_key(original_oc_settings, "CLOCK", n_gpus)
+    original_clock_values = [original_clock_values[idx] for idx in gpu_indexes]
+    original_mem_values = _get_setting_from_key(original_oc_settings, "MEM", n_gpus)
+    original_mem_values = [original_mem_values[idx] for idx in gpu_indexes]
+    original_fan_values = _get_setting_from_key(original_oc_settings, "FAN", n_gpus)
+    original_fan_values = [original_fan_values[idx] for idx in gpu_indexes]
+    original_plimit_values = _get_setting_from_key(original_oc_settings, "PLIMIT", n_gpus)
+    original_plimit_values = [original_plimit_values[idx] for idx in gpu_indexes]
+    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "CLOCK", original_clock_values)
+    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "MEM", original_mem_values)
+    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "FAN", original_fan_values)
+    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "PLIMIT", original_plimit_values)
+    _write_settings(current_oc_settings)
