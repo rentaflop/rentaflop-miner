@@ -572,7 +572,8 @@ def disable_oc(gpu_indexes):
     _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "CLOCK", new_values)
     _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "MEM", new_values)
     _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "FAN", new_values)
-    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "PLIMIT", new_values)
+    # keep power limit settings so as to not cause overheating
+    # _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "PLIMIT", new_values)
     _write_settings(current_oc_settings)
 
 
