@@ -473,6 +473,7 @@ def benchmark(params):
     run performance benchmark for gpus
     """
     gpu_indexes = AVAILABLE_RESOURCES["gpu_indexes"]
+    gpu_indexes = [int(gpu) for gpu in gpu_indexes]
     disable_oc(gpu_indexes)
     _stop_all()
     for gpu in gpu_indexes:
