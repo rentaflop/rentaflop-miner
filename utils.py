@@ -516,7 +516,7 @@ def get_oc_settings():
     current_oc_settings = {}
     with open(oc_file, "r") as f:
         for line in f:
-            (key, val) = line.replace('"', "").split("=")
+            (key, val) = line.replace('"', "").replace("\n", "").split("=")
             current_oc_settings[key] = val
 
     return current_oc_settings
