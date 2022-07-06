@@ -559,6 +559,7 @@ def _write_settings(oc_settings):
 def disable_oc(gpu_indexes):
     """
     reset overclock settings for gpus at gpu indexes
+    leave power limit settings alone so as to not cause overheating; overclock alone causes issues with rendering
     """
     current_oc_settings = get_oc_settings()
     # find n_gpus this way because there might be unsupported gpus present that hive supports
@@ -572,8 +573,6 @@ def disable_oc(gpu_indexes):
     _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "CLOCK", new_values)
     _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "MEM", new_values)
     _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "FAN", new_values)
-    # keep power limit settings so as to not cause overheating
-    # _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "PLIMIT", new_values)
     _write_settings(current_oc_settings)
 
 
@@ -595,5 +594,4 @@ def enable_oc(gpu_indexes, original_oc_settings):
     _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "CLOCK", original_clock_values)
     _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "MEM", original_mem_values)
     _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "FAN", original_fan_values)
-    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "PLIMIT", original_plimit_values)
     _write_settings(current_oc_settings)
