@@ -75,9 +75,9 @@ def get_igd(quiet=False):
     """
     returns internet gateway device URL for upnp to use
     """
-    # sleep for up to 127 seconds
-    tries = 8
-    time_length = 1
+    # sleep for up to 96 seconds
+    tries = 3
+    time_length = 32
     is_first = True
     for _ in range(tries):
         if not is_first:
