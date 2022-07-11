@@ -27,6 +27,7 @@ SUPPORTED_GPUS = [
     "NVIDIA GeForce RTX 3070 Ti",
     "NVIDIA GeForce RTX 3080",
     "NVIDIA GeForce RTX 3080 Ti",
+    "NVIDIA GeForce RTX 3080 Ti Laptop GPU",
     "NVIDIA GeForce RTX 3090",
 ]
 
