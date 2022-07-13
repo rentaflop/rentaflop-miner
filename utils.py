@@ -515,11 +515,15 @@ def get_oc_settings():
     """
     oc_file = os.getenv("NVIDIA_OC_CONF")
     current_oc_settings = {}
-    with open(oc_file, "r") as f:
-        for line in f:
-            (key, val) = line.replace('"', "").replace("\n", "").split("=")
-            current_oc_settings[key] = val
-
+    try:
+        with open(oc_file, "r") as f:
+            for line in f:
+                (key, val) = line.replace('"', "").replace("\n", "").split("=")
+                current_oc_settings[key] = val
+    except FileNotFoundError:
+        # return None if overclocking not set
+        return None
+    
     return current_oc_settings
 
 
@@ -563,11 +567,14 @@ def disable_oc(gpu_indexes):
     leave power limit settings alone so as to not cause overheating; overclock alone causes issues with rendering
     """
     current_oc_settings = get_oc_settings()
+    # do nothing if overclocking not set
+    if not current_oc_settings:
+        return
     # find n_gpus this way because there might be unsupported gpus present that hive supports
     n_gpus = max([len(current_oc_settings[k].split()) for k in current_oc_settings])
     # do nothing if 0 because it means none of the supported gpus are overclocked anyways
     if n_gpus == 0:
-        return current_oc_settings
+        return
 
     # setting values to 0 does a reset to default OC settings
     new_values = ["0"]*len(gpu_indexes)
@@ -582,6 +589,9 @@ def enable_oc(gpu_indexes, original_oc_settings):
     set overclock settings to original oc_settings
     """
     current_oc_settings = get_oc_settings()
+    # do nothing if overclocking not set
+    if not current_oc_settings or not original_oc_settings:
+        return
     # find n_gpus this way because there might be unsupported gpus present that hive supports
     n_gpus = max([len(current_oc_settings[k].split()) for k in current_oc_settings])
     original_clock_values = _get_setting_from_key(original_oc_settings, "CLOCK", n_gpus)
