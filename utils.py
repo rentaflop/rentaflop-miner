@@ -12,24 +12,37 @@ import os
 import tempfile
 
 
-SUPPORTED_GPUS = [
+SUPPORTED_GPUS = {
+    "NVIDIA GeForce GTX 1060",
+    "NVIDIA GeForce GTX 1070",
     "NVIDIA GeForce GTX 1070 Ti",
     "NVIDIA GeForce GTX 1080",
     "NVIDIA GeForce GTX 1080 Ti",
-    "NVIDIA GeForce RTX 2070 Super",
+    "NVIDIA GeForce RTX 2050",
+    "NVIDIA GeForce RTX 2060",
+    "NVIDIA GeForce RTX 2060 SUPER",
+    "NVIDIA GeForce RTX 2070",
+    "NVIDIA GeForce RTX 2070 SUPER",
     "NVIDIA GeForce RTX 2080",
-    "NVIDIA GeForce RTX 2080 Super",
+    "NVIDIA GeForce RTX 2080 SUPER",
     "NVIDIA GeForce RTX 2080 Ti",
     "NVIDIA GeForce RTX 3050",
+    "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "NVIDIA GeForce RTX 3050 Ti Laptop GPU",
     "NVIDIA GeForce RTX 3060",
+    "NVIDIA GeForce RTX 3060 Laptop GPU",
     "NVIDIA GeForce RTX 3060 Ti",
     "NVIDIA GeForce RTX 3070",
+    "NVIDIA GeForce RTX 3070 Laptop GPU",
     "NVIDIA GeForce RTX 3070 Ti",
+    "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
     "NVIDIA GeForce RTX 3080",
+    "NVIDIA GeForce RTX 3080 Laptop GPU",
     "NVIDIA GeForce RTX 3080 Ti",
     "NVIDIA GeForce RTX 3080 Ti Laptop GPU",
     "NVIDIA GeForce RTX 3090",
-]
+    "NVIDIA GeForce RTX 3090 Ti",
+}
 
 
 def run_shell_cmd(cmd, quiet=False, very_quiet=False, format_output=True):
