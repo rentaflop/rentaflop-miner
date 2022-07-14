@@ -100,13 +100,23 @@ def get_igd(quiet=False):
         else:
             is_first = False
         
-        output = run_shell_cmd('upnpc -s | grep "Found valid IGD"', format_output=False, quiet=quiet)
+        output = run_shell_cmd('upnpc -s', format_output=False, quiet=quiet)
         if not output or "No IGD UPnP Device found" in output:
             continue
 
+        candidate_igds = set()
         for word in output.split():
-            if word.startswith("http"):
-                return word
+            if word.startswith("http") and "miniupnp" not in word:
+                candidate_igds.add(word)
+
+        for candidate in candidate_igds:
+            # test out candidate igd url forwarding with test port to see if it works properly
+            output = run_shell_cmd(f'upnpc -u {candidate} -e "rentaflop" -r 46442 tcp', format_output=False, quiet=quiet)
+            run_shell_cmd(f"upnpc -u {candidate} -d 46442 tcp", format_output=False, quiet=quiet)
+            if not output or "failed with code -1" in output:
+                continue
+
+            return candidate
         
         return None
 
