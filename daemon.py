@@ -269,10 +269,13 @@ def _handle_startup():
     global EMAIL
     global SANDBOX_ID
     global OC_SETTINGS
+    global OC_HASH_FILE
     IGD = get_igd()
     AVAILABLE_RESOURCES = _get_available_resources()
     RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID = _get_registration(is_checkin=False)
-    OC_SETTINGS = get_oc_settings()
+    OC_SETTINGS, oc_hash = get_oc_settings()
+    OC_HASH_FILE = get_tmp_filename()
+    write_oc_hash(oc_hash)
     DAEMON_LOGGER.debug(f"Found OC settings: {OC_SETTINGS}")
     if IGD:
         # ensure daemon flask server is accessible
@@ -342,7 +345,7 @@ def mine(params):
         # TODO add pending status to ensure scheduled job doesn't happen to restart crypto mining
         if is_render:
             stop_crypto_miner(gpu)
-            disable_oc([gpu])
+            disable_oc([gpu], OC_HASH_FILE)
             # ensure sandbox for gpu is running, does nothing if already running
             container_ip = _run_sandbox(gpu, container_name)
             url = f"https://{container_ip}"
@@ -359,7 +362,7 @@ def mine(params):
             mining_algorithm = "ethash"
             pool_url = "eth.hiveon.com:4444" if currency == "eth" else "stratum+tcp://daggerhashimoto.auto.nicehash.com:9200"
             hostname = socket.gethostname()
-            enable_oc([gpu], OC_SETTINGS)
+            enable_oc([gpu], OC_SETTINGS, OC_HASH_FILE)
             # does nothing if already mining
             start_crypto_miner(gpu, crypto_port, WALLET_ADDRESS, hostname, mining_algorithm, pool_url)
     elif action == "stop":
@@ -474,7 +477,7 @@ def benchmark(params):
     """
     gpu_indexes = AVAILABLE_RESOURCES["gpu_indexes"]
     gpu_indexes = [int(gpu) for gpu in gpu_indexes]
-    disable_oc(gpu_indexes)
+    disable_oc(gpu_indexes, OC_HASH_FILE)
     _stop_all()
     for gpu in gpu_indexes:
         container_name = f"rentaflop-benchmark-{gpu}"
@@ -571,6 +574,7 @@ EMAIL = None
 AVAILABLE_RESOURCES = None
 SANDBOX_ID = None
 OC_SETTINGS = None
+OC_HASH_FILE = None
 
 
 def main():

@@ -10,6 +10,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import os
 import tempfile
+import copy
 
 
 SUPPORTED_GPUS = {
@@ -534,20 +535,22 @@ def wait_for_sandbox_server(container_ip):
 
 def get_oc_settings():
     """
-    read and return overclock settings
+    read and return overclock settings and associated hash
     """
     oc_file = os.getenv("NVIDIA_OC_CONF")
     current_oc_settings = {}
+    file_contents = None
     try:
         with open(oc_file, "r") as f:
-            for line in f:
+            file_contents = f.read()
+            for line in file_contents.splitlines():
                 (key, val) = line.replace('"', "").replace("\n", "").split("=")
                 current_oc_settings[key] = val
     except FileNotFoundError:
         # return None if overclocking not set
-        return None
+        return None, hash(file_contents)
     
-    return current_oc_settings
+    return current_oc_settings, hash(file_contents)
 
 
 def _get_setting_from_key(oc_settings, key, n_gpus):
@@ -569,63 +572,107 @@ def _replace_settings(n_gpus, oc_settings, gpu_indexes, key, values):
     oc_settings[key] = " ".join(new_settings)
 
 
-def _write_settings(oc_settings):
+def _write_settings(new_oc_settings):
     """
     write and set oc_settings
     """
+    # since we're about to do a write to oc file, we must check to see if it's changed by user and reset
     oc_file = os.getenv("NVIDIA_OC_CONF")
     with open(oc_file, "w") as f:
         to_write = ""
-        for k in oc_settings:
-            to_write += f'{k}="{oc_settings[k]}"\n'
+        for k in new_oc_settings:
+            to_write += f'{k}="{new_oc_settings[k]}"\n'
         
         f.write(to_write)
 
     run_shell_cmd("nvidia-oc", quiet=True)
 
 
-def disable_oc(gpu_indexes):
+def disable_oc(gpu_indexes, oc_hash_file):
     """
     reset overclock settings for gpus at gpu indexes
     leave power limit settings alone so as to not cause overheating; overclock alone causes issues with rendering
     """
-    current_oc_settings = get_oc_settings()
+    oc_hash = read_oc_hash(oc_hash_file)
+    current_oc_settings, current_hash = get_oc_settings()
     # do nothing if overclocking not set
     if not current_oc_settings:
         return
+    
+    new_oc_settings = copy.deepcopy(current_oc_settings)
     # find n_gpus this way because there might be unsupported gpus present that hive supports
-    n_gpus = max([len(current_oc_settings[k].split()) for k in current_oc_settings])
+    n_gpus = max([len(new_oc_settings[k].split()) for k in new_oc_settings])
     # do nothing if 0 because it means none of the supported gpus are overclocked anyways
     if n_gpus == 0:
         return
+    # oc file was modified by another program prior to disabling oc, so we restart miner to pull in those changes
+    # doing restart because this code runs in separate thread and we can't overwrite globals in main thread (could use files or db at some point)
+    if oc_hash != current_oc_hash:
+        DAEMON_LOGGER.info("Detected changes to OC settings, restarting miner...")
+        os.system("miner restart")
 
     # setting values to 0 does a reset to default OC settings
     new_values = ["0"]*len(gpu_indexes)
-    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "CLOCK", new_values)
-    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "MEM", new_values)
-    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "FAN", new_values)
-    _write_settings(current_oc_settings)
+    _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "CLOCK", new_values)
+    _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "MEM", new_values)
+    _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "FAN", new_values)
+    _write_settings(new_oc_settings)
+    _, new_oc_hash = get_oc_settings()
+    write_oc_hash(oc_hash_file, new_oc_hash)
 
 
-def enable_oc(gpu_indexes, original_oc_settings):
+def enable_oc(gpu_indexes, original_oc_settings, oc_hash_file):
     """
     set overclock settings to original oc_settings
     """
-    current_oc_settings = get_oc_settings()
+    oc_hash = read_oc_hash(oc_hash_file)
+    current_oc_settings, current_oc_hash = get_oc_settings()
     # do nothing if overclocking not set
     if not current_oc_settings or not original_oc_settings:
         return
+    # oc file was modified by another program prior to disabling oc, so we restart miner to pull in those changes
+    # doing restart because this code runs in separate thread and we can't overwrite globals in main thread (could use files or db at some point)
+    if oc_hash != current_oc_hash:
+        DAEMON_LOGGER.info("Detected changes to OC settings, restarting miner...")
+        os.system("miner restart")
+    
+    new_oc_settings = copy.deepcopy(current_oc_settings)
     # find n_gpus this way because there might be unsupported gpus present that hive supports
-    n_gpus = max([len(current_oc_settings[k].split()) for k in current_oc_settings])
+    n_gpus = max([len(new_oc_settings[k].split()) for k in new_oc_settings])
     original_clock_values = _get_setting_from_key(original_oc_settings, "CLOCK", n_gpus)
     original_clock_values = [original_clock_values[idx] for idx in gpu_indexes]
     original_mem_values = _get_setting_from_key(original_oc_settings, "MEM", n_gpus)
     original_mem_values = [original_mem_values[idx] for idx in gpu_indexes]
     original_fan_values = _get_setting_from_key(original_oc_settings, "FAN", n_gpus)
     original_fan_values = [original_fan_values[idx] for idx in gpu_indexes]
-    original_plimit_values = _get_setting_from_key(original_oc_settings, "PLIMIT", n_gpus)
-    original_plimit_values = [original_plimit_values[idx] for idx in gpu_indexes]
-    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "CLOCK", original_clock_values)
-    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "MEM", original_mem_values)
-    _replace_settings(n_gpus, current_oc_settings, gpu_indexes, "FAN", original_fan_values)
-    _write_settings(current_oc_settings)
+    _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "CLOCK", original_clock_values)
+    _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "MEM", original_mem_values)
+    _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "FAN", original_fan_values)
+    _write_settings(new_oc_settings)
+    # original oc settings not overwritten, but we just overwrote oc file so need to update to new hash
+    _, new_oc_hash = get_oc_settings()
+    write_oc_hash(oc_hash_file, new_oc_hash)
+
+
+def write_oc_hash(oc_hash_file, oc_hash):
+    """
+    write oc hash to oc hash file
+    """
+    with open(oc_hash_file, "w") as f:
+        f.write(oc_hash)
+
+
+def read_oc_hash(oc_hash_file):
+    """
+    write oc hash to oc hash file
+    """
+    with open(oc_hash_file, "r") as f:
+        return f.read()
+
+
+def get_tmp_filename():
+    """
+    create a tmp file and return its name
+    """
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        return tmp.name
