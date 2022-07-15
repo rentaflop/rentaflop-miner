@@ -674,7 +674,7 @@ def _check_hash_difference(original_oc_hash, new_oc_hash):
     check oc file was modified by another program prior to disabling oc. If so, we restart miner to pull in those changes
     doing restart because this code runs in separate thread and we can't overwrite globals in main thread (could use files or db at some point)
     """
-    if oc_hash != current_oc_hash:
+    if original_oc_hash != new_oc_hash:
         DAEMON_LOGGER.info("Detected changes to OC settings, restarting miner...")
         kill_other_daemons()
         sys.exit(0)
