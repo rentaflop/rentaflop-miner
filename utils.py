@@ -11,7 +11,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import os
 import tempfile
 import copy
-import sys
 
 
 SUPPORTED_GPUS = {
@@ -536,7 +535,7 @@ def wait_for_sandbox_server(container_ip):
 
 def get_oc_settings():
     """
-    read and return overclock settings and associated hash
+    read and return currently-set overclock settings and associated hash
     """
     oc_file = os.getenv("NVIDIA_OC_CONF")
     current_oc_settings = {}
@@ -589,12 +588,12 @@ def _write_settings(new_oc_settings):
     run_shell_cmd("nvidia-oc", quiet=True)
 
 
-def disable_oc(gpu_indexes, oc_hash_file):
+def disable_oc(gpu_indexes):
     """
     reset overclock settings for gpus at gpu indexes
     leave power limit settings alone so as to not cause overheating; overclock alone causes issues with rendering
     """
-    oc_hash = read_oc_hash(oc_hash_file)
+    original_oc_settings, oc_hash = read_oc_file()
     DAEMON_LOGGER.debug(oc_hash)
     current_oc_settings, current_hash = get_oc_settings()
     DAEMON_LOGGER.debug(f"Current: {current_oc_hash}")
@@ -609,7 +608,9 @@ def disable_oc(gpu_indexes, oc_hash_file):
     if n_gpus == 0:
         return
 
-    _check_hash_difference(oc_hash, current_oc_hash)
+    is_different = _check_hash_difference(current_oc_settings, oc_hash, current_oc_hash)
+    if is_different:
+        original_oc_settings = current_oc_settings
     # setting values to 0 does a reset to default OC settings
     new_values = ["0"]*len(gpu_indexes)
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "CLOCK", new_values)
@@ -618,14 +619,14 @@ def disable_oc(gpu_indexes, oc_hash_file):
     _write_settings(new_oc_settings)
     _, new_oc_hash = get_oc_settings()
     DAEMON_LOGGER.debug(f"New: {new_oc_hash}")
-    write_oc_hash(oc_hash_file, new_oc_hash)
+    write_oc_file(original_oc_settings, new_oc_hash)
 
 
-def enable_oc(gpu_indexes, original_oc_settings, oc_hash_file):
+def enable_oc(gpu_indexes, original_oc_settings):
     """
     set overclock settings to original oc_settings
     """
-    oc_hash = read_oc_hash(oc_hash_file)
+    original_oc_settings, oc_hash = read_oc_file()
     DAEMON_LOGGER.debug(oc_hash)
     current_oc_settings, current_oc_hash = get_oc_settings()
     DAEMON_LOGGER.debug(f"Current: {current_oc_hash}")
@@ -633,7 +634,10 @@ def enable_oc(gpu_indexes, original_oc_settings, oc_hash_file):
     if not current_oc_settings or not original_oc_settings:
         return
 
-    _check_hash_difference(oc_hash, current_oc_hash)
+    is_different = _check_hash_difference(current_oc_settings, oc_hash, current_oc_hash)
+    # do nothing if user set new oc settings, since we assume these are already enabled
+    if is_different:
+        return
     new_oc_settings = copy.deepcopy(current_oc_settings)
     # find n_gpus this way because there might be unsupported gpus present that hive supports
     n_gpus = max([len(new_oc_settings[k].split()) for k in new_oc_settings])
@@ -650,39 +654,39 @@ def enable_oc(gpu_indexes, original_oc_settings, oc_hash_file):
     # original oc settings not overwritten, but we just overwrote oc file so need to update to new hash
     _, new_oc_hash = get_oc_settings()
     DAEMON_LOGGER.debug(f"New: {new_oc_hash}")
-    write_oc_hash(oc_hash_file, new_oc_hash)
+    write_oc_file(original_oc_settings, new_oc_hash)
 
 
-def write_oc_hash(oc_hash_file, oc_hash):
+def write_oc_file(oc_settings, oc_hash):
     """
-    write oc hash to oc hash file
+    write oc settings and hash to tmp file
     """
-    with open(oc_hash_file, "w") as f:
-        f.write(str(oc_hash))
+    oc_tmp_file = "/tmp/oc_file.json"
+    with open(oc_tmp_file, "w") as f:
+        oc_dict = {"oc_settings": oc_settings, "oc_hash": oc_hash}
+        json.dump(oc_dict, f)
 
 
-def read_oc_hash(oc_hash_file):
+def read_oc_file():
     """
-    write oc hash to oc hash file
+    read oc settings and hash from tmp file
     """
-    with open(oc_hash_file, "r") as f:
-        return int(f.read())
+    oc_tmp_file = "/tmp/oc_file.json"
+    with open(oc_tmp_file, "r") as f:
+        oc_dict = json.load(f)
+
+    return oc_dict["oc_settings"], oc_dict["oc_hash"]
 
 
-def _check_hash_difference(original_oc_hash, new_oc_hash):
+def _check_hash_difference(new_oc_settings, original_oc_hash, new_oc_hash):
     """
-    check oc file was modified by another program prior to disabling oc. If so, we restart miner to pull in those changes
-    doing restart because this code runs in separate thread and we can't overwrite globals in main thread (could use files or db at some point)
+    check if oc file was modified by another program prior to disabling oc. If so, we save changes to oc tmp file
+    return boolean indicating whether difference found
     """
     if original_oc_hash != new_oc_hash:
-        DAEMON_LOGGER.info("Detected changes to OC settings, restarting miner...")
-        kill_other_daemons()
-        sys.exit(0)
+        DAEMON_LOGGER.info(f"Detected changes to OC settings: {new_oc_settings}")
+        write_oc_file(new_oc_settings, new_oc_hash)
 
+        return True
 
-def get_tmp_filename():
-    """
-    create a tmp file and return its name
-    """
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        return tmp.name
+    return False

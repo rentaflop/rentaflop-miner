@@ -268,16 +268,13 @@ def _handle_startup():
     global DAEMON_PORT
     global EMAIL
     global SANDBOX_ID
-    global OC_SETTINGS
-    global OC_HASH_FILE
     IGD = get_igd()
     AVAILABLE_RESOURCES = _get_available_resources()
     RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID = _get_registration(is_checkin=False)
-    OC_SETTINGS, oc_hash = get_oc_settings()
-    DAEMON_LOGGER.debug(oc_hash)
-    OC_HASH_FILE = get_tmp_filename()
-    write_oc_hash(OC_HASH_FILE, oc_hash)
-    DAEMON_LOGGER.debug(f"Found OC settings: {OC_SETTINGS}")
+    oc_settings, oc_hash = get_oc_settings()
+    # OC file contains original (set by user in hive) oc settings and hash of current (not necessarily original) oc settings
+    write_oc_file(oc_settings, oc_hash)
+    DAEMON_LOGGER.debug(f"Found OC settings: {oc_settings}")
     if IGD:
         # ensure daemon flask server is accessible
         run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
@@ -346,7 +343,7 @@ def mine(params):
         # TODO add pending status to ensure scheduled job doesn't happen to restart crypto mining
         if is_render:
             stop_crypto_miner(gpu)
-            disable_oc([gpu], OC_HASH_FILE)
+            disable_oc([gpu])
             # ensure sandbox for gpu is running, does nothing if already running
             container_ip = _run_sandbox(gpu, container_name)
             url = f"https://{container_ip}"
@@ -574,8 +571,6 @@ DAEMON_PORT = None
 EMAIL = None
 AVAILABLE_RESOURCES = None
 SANDBOX_ID = None
-OC_SETTINGS = None
-OC_HASH_FILE = None
 
 
 def main():
