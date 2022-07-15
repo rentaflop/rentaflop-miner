@@ -659,7 +659,7 @@ def write_oc_hash(oc_hash_file, oc_hash):
     write oc hash to oc hash file
     """
     with open(oc_hash_file, "w") as f:
-        f.write(oc_hash)
+        f.write(str(oc_hash))
 
 
 def read_oc_hash(oc_hash_file):
