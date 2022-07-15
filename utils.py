@@ -595,7 +595,9 @@ def disable_oc(gpu_indexes, oc_hash_file):
     leave power limit settings alone so as to not cause overheating; overclock alone causes issues with rendering
     """
     oc_hash = read_oc_hash(oc_hash_file)
+    DAEMON_LOGGER.debug(oc_hash)
     current_oc_settings, current_hash = get_oc_settings()
+    DAEMON_LOGGER.debug(f"Current: {current_oc_hash}")
     # do nothing if overclocking not set
     if not current_oc_settings:
         return
@@ -619,6 +621,7 @@ def disable_oc(gpu_indexes, oc_hash_file):
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "FAN", new_values)
     _write_settings(new_oc_settings)
     _, new_oc_hash = get_oc_settings()
+    DAEMON_LOGGER.debug(f"New: {new_oc_hash}")
     write_oc_hash(oc_hash_file, new_oc_hash)
 
 
@@ -627,7 +630,9 @@ def enable_oc(gpu_indexes, original_oc_settings, oc_hash_file):
     set overclock settings to original oc_settings
     """
     oc_hash = read_oc_hash(oc_hash_file)
+    DAEMON_LOGGER.debug(oc_hash)
     current_oc_settings, current_oc_hash = get_oc_settings()
+    DAEMON_LOGGER.debug(f"Current: {current_oc_hash}")
     # do nothing if overclocking not set
     if not current_oc_settings or not original_oc_settings:
         return
@@ -652,6 +657,7 @@ def enable_oc(gpu_indexes, original_oc_settings, oc_hash_file):
     _write_settings(new_oc_settings)
     # original oc settings not overwritten, but we just overwrote oc file so need to update to new hash
     _, new_oc_hash = get_oc_settings()
+    DAEMON_LOGGER.debug(f"New: {new_oc_hash}")
     write_oc_hash(oc_hash_file, new_oc_hash)
 
 
@@ -668,7 +674,7 @@ def read_oc_hash(oc_hash_file):
     write oc hash to oc hash file
     """
     with open(oc_hash_file, "r") as f:
-        return f.read()
+        return int(f.read())
 
 
 def get_tmp_filename():

@@ -274,6 +274,7 @@ def _handle_startup():
     AVAILABLE_RESOURCES = _get_available_resources()
     RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID = _get_registration(is_checkin=False)
     OC_SETTINGS, oc_hash = get_oc_settings()
+    DAEMON_LOGGER.debug(oc_hash)
     OC_HASH_FILE = get_tmp_filename()
     write_oc_hash(OC_HASH_FILE, oc_hash)
     DAEMON_LOGGER.debug(f"Found OC settings: {OC_SETTINGS}")
