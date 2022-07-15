@@ -622,7 +622,7 @@ def disable_oc(gpu_indexes):
     write_oc_file(original_oc_settings, new_oc_hash)
 
 
-def enable_oc(gpu_indexes, original_oc_settings):
+def enable_oc(gpu_indexes):
     """
     set overclock settings to original oc_settings
     """

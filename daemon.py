@@ -360,7 +360,7 @@ def mine(params):
             mining_algorithm = "ethash"
             pool_url = "eth.hiveon.com:4444" if currency == "eth" else "stratum+tcp://daggerhashimoto.auto.nicehash.com:9200"
             hostname = socket.gethostname()
-            enable_oc([gpu], OC_SETTINGS, OC_HASH_FILE)
+            enable_oc([gpu])
             # does nothing if already mining
             start_crypto_miner(gpu, crypto_port, WALLET_ADDRESS, hostname, mining_algorithm, pool_url)
     elif action == "stop":
@@ -475,7 +475,7 @@ def benchmark(params):
     """
     gpu_indexes = AVAILABLE_RESOURCES["gpu_indexes"]
     gpu_indexes = [int(gpu) for gpu in gpu_indexes]
-    disable_oc(gpu_indexes, OC_HASH_FILE)
+    disable_oc(gpu_indexes)
     _stop_all()
     for gpu in gpu_indexes:
         container_name = f"rentaflop-benchmark-{gpu}"
