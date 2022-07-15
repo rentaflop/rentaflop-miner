@@ -609,7 +609,8 @@ def disable_oc(gpu_indexes, oc_hash_file):
     # doing restart because this code runs in separate thread and we can't overwrite globals in main thread (could use files or db at some point)
     if oc_hash != current_oc_hash:
         DAEMON_LOGGER.info("Detected changes to OC settings, restarting miner...")
-        os.system("miner restart")
+        os.system("miner restart &")
+        return
 
     # setting values to 0 does a reset to default OC settings
     new_values = ["0"]*len(gpu_indexes)
@@ -634,7 +635,8 @@ def enable_oc(gpu_indexes, original_oc_settings, oc_hash_file):
     # doing restart because this code runs in separate thread and we can't overwrite globals in main thread (could use files or db at some point)
     if oc_hash != current_oc_hash:
         DAEMON_LOGGER.info("Detected changes to OC settings, restarting miner...")
-        os.system("miner restart")
+        os.system("miner restart &")
+        return
     
     new_oc_settings = copy.deepcopy(current_oc_settings)
     # find n_gpus this way because there might be unsupported gpus present that hive supports
