@@ -275,7 +275,7 @@ def _handle_startup():
     RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID = _get_registration(is_checkin=False)
     OC_SETTINGS, oc_hash = get_oc_settings()
     OC_HASH_FILE = get_tmp_filename()
-    write_oc_hash(oc_hash)
+    write_oc_hash(OC_HASH_FILE, oc_hash)
     DAEMON_LOGGER.debug(f"Found OC settings: {OC_SETTINGS}")
     if IGD:
         # ensure daemon flask server is accessible
