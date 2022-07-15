@@ -608,12 +608,8 @@ def disable_oc(gpu_indexes, oc_hash_file):
     # do nothing if 0 because it means none of the supported gpus are overclocked anyways
     if n_gpus == 0:
         return
-    # oc file was modified by another program prior to disabling oc, so we restart miner to pull in those changes
-    # doing restart because this code runs in separate thread and we can't overwrite globals in main thread (could use files or db at some point)
-    if oc_hash != current_oc_hash:
-        DAEMON_LOGGER.info("Detected changes to OC settings, restarting miner...")
-        sys.exit(0)
 
+    _check_hash_difference(oc_hash, current_oc_hash)
     # setting values to 0 does a reset to default OC settings
     new_values = ["0"]*len(gpu_indexes)
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "CLOCK", new_values)
@@ -636,12 +632,8 @@ def enable_oc(gpu_indexes, original_oc_settings, oc_hash_file):
     # do nothing if overclocking not set
     if not current_oc_settings or not original_oc_settings:
         return
-    # oc file was modified by another program prior to disabling oc, so we restart miner to pull in those changes
-    # doing restart because this code runs in separate thread and we can't overwrite globals in main thread (could use files or db at some point)
-    if oc_hash != current_oc_hash:
-        DAEMON_LOGGER.info("Detected changes to OC settings, restarting miner...")
-        sys.exit(0)
-    
+
+    _check_hash_difference(oc_hash, current_oc_hash)
     new_oc_settings = copy.deepcopy(current_oc_settings)
     # find n_gpus this way because there might be unsupported gpus present that hive supports
     n_gpus = max([len(new_oc_settings[k].split()) for k in new_oc_settings])
@@ -675,6 +667,17 @@ def read_oc_hash(oc_hash_file):
     """
     with open(oc_hash_file, "r") as f:
         return int(f.read())
+
+
+def _check_hash_difference(original_oc_hash, new_oc_hash):
+    """
+    check oc file was modified by another program prior to disabling oc. If so, we restart miner to pull in those changes
+    doing restart because this code runs in separate thread and we can't overwrite globals in main thread (could use files or db at some point)
+    """
+    if oc_hash != current_oc_hash:
+        DAEMON_LOGGER.info("Detected changes to OC settings, restarting miner...")
+        kill_other_daemons()
+        sys.exit(0)
 
 
 def get_tmp_filename():
