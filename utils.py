@@ -595,7 +595,7 @@ def disable_oc(gpu_indexes):
     """
     original_oc_settings, oc_hash = read_oc_file()
     DAEMON_LOGGER.debug(oc_hash)
-    current_oc_settings, current_hash = get_oc_settings()
+    current_oc_settings, current_oc_hash = get_oc_settings()
     DAEMON_LOGGER.debug(f"Current: {current_oc_hash}")
     # do nothing if overclocking not set
     if not current_oc_settings:
