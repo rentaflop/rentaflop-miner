@@ -409,7 +409,7 @@ def update(params, reboot=True, second_update=False):
         # must run all commands even if second update
         target_version = params.get("target_version", "")
         # use test branch develop if testing on rentaflop_one otherwise use prod branch master
-        branch = "develop" if socket.gethostname() == "rentaflop_one" else "master"
+        branch = "develop" if socket.gethostname() in ["rentaflop_one", "rentaflop_two"] else "master"
         run_shell_cmd(f"git checkout {branch}")
         run_shell_cmd("git pull")
         if target_version:
