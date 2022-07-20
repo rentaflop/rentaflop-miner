@@ -495,6 +495,7 @@ def prep_daemon_shutdown(server):
     """
     _stop_all()
     DAEMON_LOGGER.debug("Stopping server...")
+    time.sleep(3)
     server.terminate()
     DAEMON_LOGGER.debug("Stopping daemon.")
     logging.shutdown()
