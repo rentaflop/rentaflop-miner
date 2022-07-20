@@ -114,10 +114,8 @@ def get_igd(quiet=False):
             # test out candidate igd url forwarding with test port to see if it works properly
             output = run_shell_cmd(f'upnpc -u {candidate} -e "rentaflop" -r 46442 tcp', format_output=False, quiet=quiet)
             run_shell_cmd(f"upnpc -u {candidate} -d 46442 tcp", format_output=False, quiet=quiet)
-            if not output or "failed with code -1" in output:
-                continue
-
-            return candidate
+            if output and "is redirected to internal" in output:
+                return candidate
         
         return None
 
