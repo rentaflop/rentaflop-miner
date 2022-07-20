@@ -350,7 +350,7 @@ def mine(params):
             end_frame = start_frame + n_frames - 1
             data = {"cmd": "push", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame}}
             files = {'render_file': render_file, 'json': json.dumps(data)}
-            # post_to_sandbox(url, files)
+            post_to_sandbox(url, files)
         else:
             run_shell_cmd(f"docker stop {container_name}", very_quiet=True)
             # 4059 is default port from hive

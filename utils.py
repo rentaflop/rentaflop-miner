@@ -463,7 +463,8 @@ def stop_crypto_miner(gpu):
     stop crypto miner on gpu
     """
     # find t-rex pid running on this specific gpu and kill it to stop crypto mining
-    run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex' | " + "awk '{ print $5 }' | xargs -n1 kill -9", very_quiet=True)
+    # can't use signal 9 to kill because it causes GPU errors
+    run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex' | " + "awk '{ print $5 }' | xargs -n1 kill -15", very_quiet=True)
 
 
 def start_crypto_miner(gpu, crypto_port, wallet_address, hostname, mining_algorithm, pool_url):
