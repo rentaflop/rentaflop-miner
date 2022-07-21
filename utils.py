@@ -395,7 +395,7 @@ def post_to_sandbox(sandbox_url, data, quiet=False):
             response_json = response.json()
             if response_json:
                 break
-        except (requests.exceptions.ConnectionError, json.decoder.JSONDecodeError) as e:
+        except (requests.exceptions.ConnectionError, requests.exceptions.InvalidURL, json.decoder.JSONDecodeError) as e:
             if not quiet:
                 DAEMON_LOGGER.error(f"Exception during post request: {e}")
             response_json = {}
