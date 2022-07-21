@@ -612,7 +612,6 @@ def disable_oc(gpu_indexes):
     new_values = ["0"]*len(gpu_indexes)
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "CLOCK", new_values)
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "MEM", new_values)
-    _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "FAN", new_values)
     _write_settings(new_oc_settings)
     _, new_oc_hash = get_oc_settings()
     write_oc_file(original_oc_settings, new_oc_hash)
@@ -639,11 +638,8 @@ def enable_oc(gpu_indexes):
     original_clock_values = [original_clock_values[idx] for idx in gpu_indexes]
     original_mem_values = _get_setting_from_key(original_oc_settings, "MEM", n_gpus)
     original_mem_values = [original_mem_values[idx] for idx in gpu_indexes]
-    original_fan_values = _get_setting_from_key(original_oc_settings, "FAN", n_gpus)
-    original_fan_values = [original_fan_values[idx] for idx in gpu_indexes]
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "CLOCK", original_clock_values)
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "MEM", original_mem_values)
-    _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "FAN", original_fan_values)
     _write_settings(new_oc_settings)
     # original oc settings not overwritten, but we just overwrote oc file so need to update to new hash
     _, new_oc_hash = get_oc_settings()
