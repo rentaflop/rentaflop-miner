@@ -308,7 +308,10 @@ def _run_sandbox(gpu, container_name, timeout=0):
     # check for existing container running, avoid grep because of substring issues; $ after container name prevents substring issues
     output = run_shell_cmd(f'docker ps --filter "name={container_name}$" --format "{{.Names}}"', quiet=True)
     if output:
-        return
+        # already running so just return ip
+        container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
+        
+        return container_ip
 
     tries = 2
     for _ in range(tries):
