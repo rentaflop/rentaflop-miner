@@ -370,6 +370,7 @@ def mine(params):
             data = {"cmd": "pop", "params": {"task_id": task_id}}
             files = {'json': json.dumps(data)}
             post_to_sandbox(url, files)
+            enable_oc([gpu])
         else:
             stop_crypto_miner(gpu)
 
@@ -494,6 +495,10 @@ def prep_daemon_shutdown(server):
     stops all mining jobs and terminates server
     """
     _stop_all()
+    gpu_indexes = AVAILABLE_RESOURCES["gpu_indexes"]
+    gpu_indexes = [int(gpu) for gpu in gpu_indexes]
+    # make sure we restore oc settings back to original
+    enable_oc(gpu_indexes)
     DAEMON_LOGGER.debug("Stopping server...")
     time.sleep(5)
     server.terminate()
