@@ -2,7 +2,7 @@
 utility functions to be used in various parts of host software
 """
 import subprocess
-from config import DAEMON_LOGGER, REGISTRATION_FILE
+from config import DAEMON_LOGGER, REGISTRATION_FILE, db, Overclock
 import time
 import json
 import requests
@@ -592,7 +592,7 @@ def disable_oc(gpu_indexes):
     reset overclock settings for gpus at gpu indexes
     leave power limit settings alone so as to not cause overheating; overclock alone causes issues with rendering
     """
-    original_oc_settings, oc_hash = read_oc_file()
+    original_oc_settings, oc_hash = read_oc_settings()
     current_oc_settings, current_oc_hash = get_oc_settings()
     # do nothing if overclocking not set
     if not current_oc_settings:
@@ -614,14 +614,14 @@ def disable_oc(gpu_indexes):
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "MEM", new_values)
     _write_settings(new_oc_settings)
     _, new_oc_hash = get_oc_settings()
-    write_oc_file(original_oc_settings, new_oc_hash)
+    write_oc_settings(original_oc_settings, new_oc_hash)
 
 
 def enable_oc(gpu_indexes):
     """
     set overclock settings to original oc_settings
     """
-    original_oc_settings, oc_hash = read_oc_file()
+    original_oc_settings, oc_hash = read_oc_settings()
     current_oc_settings, current_oc_hash = get_oc_settings()
     # do nothing if overclocking not set
     if not current_oc_settings or not original_oc_settings:
@@ -643,26 +643,34 @@ def enable_oc(gpu_indexes):
     _write_settings(new_oc_settings)
     # original oc settings not overwritten, but we just overwrote oc file so need to update to new hash
     _, new_oc_hash = get_oc_settings()
-    write_oc_file(original_oc_settings, new_oc_hash)
+    write_oc_settings(original_oc_settings, new_oc_hash)
 
 
-def write_oc_file(oc_settings, oc_hash):
+def write_oc_settings(oc_settings, oc_hash):
     """
-    write oc settings and hash to tmp file
+    write oc settings and hash to db
     """
-    oc_tmp_file = "/tmp/oc_file.json"
-    with open(oc_tmp_file, "w") as f:
-        oc_dict = {"oc_settings": oc_settings, "oc_hash": oc_hash}
-        json.dump(oc_dict, f)
+    oc_dict = {"oc_settings": oc_settings, "oc_hash": oc_hash}
+    oc_str = json.dumps(oc_dict)
+    existing_oc_settings = Overclock.query.all()
+    if existing_oc_settings:
+        existing_oc_settings = existing_oc_settings[-1]
+        existing_oc_settings.oc_settings = oc_str
+    else:
+        oc_settings = Overclock(oc_settings=oc_str)
+        db.session.add(oc_settings)
+    
+    db.session.commit()
 
 
-def read_oc_file():
+def read_oc_settings():
     """
-    read oc settings and hash from tmp file
+    read oc settings and hash from db
+    requires overclock settings to already exist in db
     """
-    oc_tmp_file = "/tmp/oc_file.json"
-    with open(oc_tmp_file, "r") as f:
-        oc_dict = json.load(f)
+    existing_oc_settings = Overclock.query.all()
+    existing_oc_settings = existing_oc_settings[-1]
+    oc_dict = json.loads(existing_oc_settings.oc_settings)
 
     return oc_dict["oc_settings"], oc_dict["oc_hash"]
 
@@ -674,8 +682,18 @@ def _check_hash_difference(new_oc_settings, original_oc_hash, new_oc_hash):
     """
     if original_oc_hash != new_oc_hash:
         DAEMON_LOGGER.info(f"Detected changes to OC settings: {new_oc_settings}")
-        write_oc_file(new_oc_settings, new_oc_hash)
+        write_oc_settings(new_oc_settings, new_oc_hash)
 
         return True
 
     return False
+
+
+def check_installation():
+    """
+    check installation for requirements not necessarily installed during first startup
+    install anything missing
+    """
+    check_correct_driver()
+    install_or_update_crypto_miner()
+    run_shell_cmd("sudo apt-get install mysql-server -y && /etc/init.d/mysql start", quiet=True)

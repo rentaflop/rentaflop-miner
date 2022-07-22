@@ -1,2 +1,4 @@
 flask
 flask_apscheduler
+flask_sqlalchemy
+pymysql

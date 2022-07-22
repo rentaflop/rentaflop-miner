@@ -5,9 +5,9 @@ import os
 import logging
 import uuid
 import multiprocessing
-from flask import Flask, jsonify, request, abort, redirect
+from flask import jsonify, request, abort, redirect
 from flask_apscheduler import APScheduler
-from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, REGISTRATION_FILE
+from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, REGISTRATION_FILE, app
 from utils import *
 import sys
 import requests
@@ -20,11 +20,6 @@ import time
 import traceback
 import subprocess
 from threading import Thread
-# from flask_sqlalchemy import SQLAlchemy
-# import pymysql
-
-
-app = Flask(__name__)
 
 
 def _start_mining(startup=False):
@@ -264,8 +259,8 @@ def _handle_startup():
     AVAILABLE_RESOURCES = _get_available_resources()
     RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID = _get_registration(is_checkin=False)
     oc_settings, oc_hash = get_oc_settings()
-    # OC file contains original (set by user in hive) oc settings and hash of current (not necessarily original) oc settings
-    write_oc_file(oc_settings, oc_hash)
+    # db table contains original (set by user in hive) oc settings and hash of current (not necessarily original) oc settings
+    write_oc_settings(oc_settings, oc_hash)
     DAEMON_LOGGER.debug(f"Found OC settings: {oc_settings}")
     if IGD:
         # ensure daemon flask server is accessible
@@ -286,8 +281,7 @@ def _handle_startup():
         s.close()
     run_shell_cmd(f"iptables -A INPUT -i docker0 -d {local_lan_ip} -j DROP")
     run_shell_cmd("sudo iptables-save > /etc/iptables/rules.v4")
-    check_correct_driver()
-    install_or_update_crypto_miner()
+    check_installation()
     _start_mining(startup=True)
 
 
