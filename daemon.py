@@ -21,6 +21,9 @@ if __name__=="__main__":
         try:
             from main import main
             main()
+
+            # must return here to prevent looping
+            return 0
         except:
             import traceback
             import time
