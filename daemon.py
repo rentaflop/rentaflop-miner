@@ -19,11 +19,12 @@ if __name__=="__main__":
     # max sleep is 1 week
     for _ in range(10080):
         try:
+            import sys
             from main import main
             main()
 
-            # must return here to prevent looping
-            return 0
+            # must exit here to prevent looping
+            sys.exit(0)
         except:
             import traceback
             import time
