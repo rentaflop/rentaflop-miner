@@ -669,7 +669,7 @@ def read_oc_file():
 
 def _check_hash_difference(new_oc_settings, original_oc_hash, new_oc_hash):
     """
-    check if oc file was modified by another program prior to disabling oc. If so, we save changes to oc tmp file
+    check if oc file was modified by another program. If so, we save changes to oc tmp file
     return boolean indicating whether difference found
     """
     if original_oc_hash != new_oc_hash:
