@@ -259,6 +259,7 @@ def _handle_startup():
     IGD = get_igd()
     AVAILABLE_RESOURCES = _get_available_resources()
     RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID = _get_registration(is_checkin=False)
+    check_installation()
     oc_settings, oc_hash = get_oc_settings()
     # db table contains original (set by user in hive) oc settings and hash of current (not necessarily original) oc settings
     write_oc_settings(oc_settings, oc_hash)
@@ -282,7 +283,6 @@ def _handle_startup():
         s.close()
     run_shell_cmd(f"iptables -A INPUT -i docker0 -d {local_lan_ip} -j DROP")
     run_shell_cmd("sudo iptables-save > /etc/iptables/rules.v4")
-    check_installation()
     _start_mining(startup=True)
 
 
