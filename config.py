@@ -27,27 +27,25 @@ LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log
 REGISTRATION_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "rentaflop_config.json")
 FIRST_STARTUP = not os.path.exists(LOG_FILE)
 DAEMON_LOGGER = _get_logger(LOG_FILE)
+app = None
+db = None
 
-app = Flask(__name__)
-os.system("/etc/init.d/mysql start")
-os.system('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'daemon';"''')
-os.system('mysql -u root -pdaemon -e "create database daemon;"')
 
 class Config(object):
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:daemon@localhost/daemon"
     SECRET_KEY = uuid.uuid4().hex
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-app.config.from_object(Config)
-db = SQLAlchemy(app)
 
-class Overclock(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    # looks like '{"oc_settings": ..., "oc_hash": ...}'
-    oc_settings = db.Column(db.String(2048))
+def get_app_db():
+    """
+    returns app and db objects and does necessary setup
+    """
+    if not app:
+        global app
+        global db
+        app = Flask(__name__)
+        app.config.from_object(Config)
+        db = SQLAlchemy(app)
 
-    def __repr__(self):
-        return f"<Overclock {self.oc_settings}>"
-
-db.drop_all(app=app)
-db.create_all(app=app)
+    return app, db

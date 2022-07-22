@@ -7,7 +7,7 @@ import uuid
 import multiprocessing
 from flask import jsonify, request, abort, redirect
 from flask_apscheduler import APScheduler
-from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, REGISTRATION_FILE, app
+from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, REGISTRATION_FILE, get_app_db
 from utils import *
 import sys
 import requests
@@ -20,6 +20,7 @@ import time
 import traceback
 import subprocess
 from threading import Thread
+app, _ = get_app_db()
 
 
 def _start_mining(startup=False):

@@ -2,7 +2,7 @@
 utility functions to be used in various parts of host software
 """
 import subprocess
-from config import DAEMON_LOGGER, REGISTRATION_FILE, db, Overclock
+from config import DAEMON_LOGGER, REGISTRATION_FILE, get_app_db
 import time
 import json
 import requests
@@ -13,6 +13,7 @@ import tempfile
 import copy
 
 
+app, db = get_app_db()
 SUPPORTED_GPUS = {
     "NVIDIA GeForce GTX 1060",
     "NVIDIA GeForce GTX 1070",
@@ -44,6 +45,15 @@ SUPPORTED_GPUS = {
     "NVIDIA GeForce RTX 3090",
     "NVIDIA GeForce RTX 3090 Ti",
 }
+
+
+class Overclock(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    # looks like '{"oc_settings": ..., "oc_hash": ...}'
+    oc_settings = db.Column(db.String(2048))
+
+    def __repr__(self):
+        return f"<Overclock {self.oc_settings}>"
 
 
 def run_shell_cmd(cmd, quiet=False, very_quiet=False, format_output=True):
@@ -697,3 +707,7 @@ def check_installation():
     check_correct_driver()
     install_or_update_crypto_miner()
     run_shell_cmd("sudo apt-get install mysql-server -y && /etc/init.d/mysql start", quiet=True)
+    os.system('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'daemon';"''')
+    os.system('mysql -u root -pdaemon -e "create database daemon;"')
+    db.drop_all(app=app)
+    db.create_all(app=app)
