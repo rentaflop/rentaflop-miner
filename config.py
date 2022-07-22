@@ -41,9 +41,9 @@ def get_app_db():
     """
     returns app and db objects and does necessary setup
     """
+    global app
+    global db
     if not app:
-        global app
-        global db
         app = Flask(__name__)
         app.config.from_object(Config)
         db = SQLAlchemy(app)
