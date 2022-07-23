@@ -364,11 +364,13 @@ def get_custom_config():
     wallet_address = custom_template.split(".")[0]
     email = ""
     disable_crypto = False
+    # eliminate all whitespace
+    custom_user_config = "".join(custom_user_config.split())
     custom_values = custom_user_config.split(";")
     for custom_value in custom_values:
         if custom_value.startswith("EMAIL="):
             email = custom_value.replace("EMAIL=", "")
-        elif custom_value.startswith("DISABLE_CRYPTO"):
+        elif custom_value.startswith("DISABLE_CRYPTO") and "false" not in custom_value.lower():
             disable_crypto = True
 
     return email, disable_crypto, wallet_address
