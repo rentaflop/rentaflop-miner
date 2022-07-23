@@ -59,10 +59,15 @@ def _get_registration(is_checkin=True):
             wallet_address = rentaflop_config.get("wallet_address", "")
             daemon_port = rentaflop_config.get("daemon_port", "")
             email = rentaflop_config.get("email", "")
+            disable_crypto = rentaflop_config.get("disable_crypto", False)
             sandbox_id = rentaflop_config.get("sandbox_id", "")
-            current_email, current_wallet_address = get_custom_config()
+            current_email, current_disable_crypto, current_wallet_address = get_custom_config()
             if current_email != email and current_email:
                 email = current_email
+                config_changed = True
+            # not checking truth value of current_disable_crypto since we only care about change in value
+            if current_disable_crypto != disable_crypto:
+                disable_crypto = current_disable_crypto
                 config_changed = True
             if current_wallet_address != wallet_address and current_wallet_address:
                 wallet_address = current_wallet_address
@@ -72,7 +77,7 @@ def _get_registration(is_checkin=True):
         # if checkin we get IGD again because this can periodically change depending on what the router does
         global IGD
         IGD = get_igd(quiet=True)
-        rentaflop_id, wallet_address, daemon_port, email, sandbox_id = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID
+        rentaflop_id, wallet_address, daemon_port, email, disable_crypto, sandbox_id = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, DISABLE_CRYPTO, SANDBOX_ID
         if IGD:
             # if checkin, we also renew daemon port lease since that seems to disappear occasionally
             run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
@@ -119,7 +124,7 @@ def _get_registration(is_checkin=True):
         if is_checkin:
             return
         if is_registered:
-            return rentaflop_id, wallet_address, daemon_port, email, sandbox_id
+            return rentaflop_id, wallet_address, daemon_port, email, disable_crypto, sandbox_id
         raise
     if not is_registered:
         rentaflop_id = response_json["rentaflop_id"]
@@ -128,12 +133,12 @@ def _get_registration(is_checkin=True):
 
     # if we just registered or changed config, save registration info
     if config_changed:
-        update_config(rentaflop_id, wallet_address, daemon_port, email, sandbox_id)
+        update_config(rentaflop_id, wallet_address, daemon_port, email, disable_crypto, sandbox_id)
         # don't change this without also changing the grep search for this string above
         if not is_registered:
             DAEMON_LOGGER.debug("Registration successful.")
 
-    return rentaflop_id, wallet_address, daemon_port, email, sandbox_id
+    return rentaflop_id, wallet_address, daemon_port, email, disable_crypto, sandbox_id
 
 
 def _first_startup():
@@ -255,10 +260,12 @@ def _handle_startup():
     global WALLET_ADDRESS
     global DAEMON_PORT
     global EMAIL
+    global DISABLE_CRYPTO
     global SANDBOX_ID
     IGD = get_igd()
     AVAILABLE_RESOURCES = _get_available_resources()
-    RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, SANDBOX_ID = _get_registration(is_checkin=False)
+    RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, DISABLE_CRYPTO, SANDBOX_ID = _get_registration(is_checkin=False)
+    # must do installation check before anything required by it is used
     check_installation()
     oc_settings, oc_hash = get_oc_settings()
     # db table contains original (set by user in hive) oc settings and hash of current (not necessarily original) oc settings
@@ -565,6 +572,7 @@ RENTAFLOP_ID = None
 WALLET_ADDRESS = None
 DAEMON_PORT = None
 EMAIL = None
+DISABLE_CRYPTO = None
 AVAILABLE_RESOURCES = None
 SANDBOX_ID = None
 

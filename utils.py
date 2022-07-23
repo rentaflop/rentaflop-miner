@@ -363,12 +363,15 @@ def get_custom_config():
 
     wallet_address = custom_template.split(".")[0]
     email = ""
+    disable_crypto = False
     custom_values = custom_user_config.split(";")
     for custom_value in custom_values:
         if custom_value.startswith("EMAIL="):
             email = custom_value.replace("EMAIL=", "")
+        elif custom_value.startswith("DISABLE_CRYPTO"):
+            disable_crypto = True
 
-    return email, wallet_address
+    return email, disable_crypto, wallet_address
 
 
 def post_to_daemon(data):
@@ -417,7 +420,7 @@ def post_to_sandbox(sandbox_url, data, quiet=False):
     return response_json
 
 
-def update_config(rentaflop_id=None, wallet_address=None, daemon_port=None, email=None, sandbox_id=None):
+def update_config(rentaflop_id=None, wallet_address=None, daemon_port=None, email=None, disable_crypto=None, sandbox_id=None):
     """
     update rentaflop config file with new values
     """
@@ -436,6 +439,9 @@ def update_config(rentaflop_id=None, wallet_address=None, daemon_port=None, emai
             is_changed = True
         if email and email != rentaflop_config.get("email", ""):
             rentaflop_config["email"] = email
+            is_changed = True
+        if disable_crypto is not None and disable_crypto != rentaflop_config.get("disable_crypto", False):
+            rentaflop_config["disable_crypto"] = disable_crypto
             is_changed = True
         if sandbox_id and sandbox_id != rentaflop_config.get("sandbox_id", ""):
             rentaflop_config["sandbox_id"] = sandbox_id
