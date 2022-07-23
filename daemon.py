@@ -25,7 +25,7 @@ if __name__=="__main__":
 
             # must exit here to prevent looping
             sys.exit(0)
-        except:
+        except SyntaxError:
             import traceback
             import time
             import os
