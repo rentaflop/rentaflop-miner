@@ -290,7 +290,8 @@ def _handle_startup():
         s.close()
     run_shell_cmd(f"iptables -A INPUT -i docker0 -d {local_lan_ip} -j DROP")
     run_shell_cmd("sudo iptables-save > /etc/iptables/rules.v4")
-    _start_mining(startup=True)
+    if not DISABLE_CRYPTO:
+        _start_mining(startup=True)
 
 
 def _run_sandbox(gpu, container_name, timeout=0):
@@ -349,6 +350,8 @@ def mine(params):
             files = {'render_file': render_file, 'json': json.dumps(data)}
             post_to_sandbox(url, files)
         else:
+            if DISABLE_CRYPTO:
+                return
             run_shell_cmd(f"docker stop {container_name}", very_quiet=True)
             # 4059 is default port from hive
             crypto_port = 4059 + gpu
@@ -583,7 +586,8 @@ def main():
         app.secret_key = uuid.uuid4().hex
         # create a scheduler that periodically checks for stopped GPUs and starts mining on them; periodic checkin to rentaflop servers
         scheduler = APScheduler()
-        scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=60)
+        if not DISABLE_CRYPTO:
+            scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=60)
         scheduler.add_job(id='Rentaflop Checkin', func=_get_registration, trigger="interval", seconds=3600)
         scheduler.start()
         # run server, allowing it to shut itself down
