@@ -59,9 +59,8 @@ def _get_registration(is_checkin=True):
             wallet_address = rentaflop_config.get("wallet_address", "")
             daemon_port = rentaflop_config.get("daemon_port", "")
             email = rentaflop_config.get("email", "")
-            disable_crypto = rentaflop_config.get("disable_crypto", False)
-            if disable_crypto:
-                disable_crypto = True
+            disable_crypto = rentaflop_config.get("disable_crypto", "false")
+            disable_crypto = False if disable_crypto == "false" else True
             sandbox_id = rentaflop_config.get("sandbox_id", "")
             current_email, current_disable_crypto, current_wallet_address = get_custom_config()
             if current_email != email and current_email:
