@@ -510,7 +510,6 @@ def before_request():
     # don't allow anyone who isn't rentaflop to communicate with host daemon
     # only people who know a host's rentaflop id are the host and rentaflop
     # file size check in app config
-    DAEMON_LOGGER.debug(f"Received request with size: {request.content_length}")
     json_file = request.files.get("json")
     request_json = json.loads(json_file.read())
     json_file.seek(0)

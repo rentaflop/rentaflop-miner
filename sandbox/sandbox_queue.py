@@ -233,7 +233,6 @@ def handle_finished_tasks():
 def run_flask_server(q):
     @app.route("/", methods=["POST"])
     def index():
-        SANDBOX_LOGGER.debug(f"Received request with size: {request.content_length}")
         request_json = json.loads(request.files.get("json").read())
         cmd = request_json.get("cmd")
         params = request_json.get("params")
