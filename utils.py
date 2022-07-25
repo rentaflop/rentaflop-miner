@@ -614,6 +614,7 @@ def disable_oc(gpu_indexes):
     # do nothing if overclocking not set
     if not current_oc_settings:
         # release Overclock table lock
+        DAEMON_LOGGER.info("Lock released")
         db.session.commit()
         
         return
@@ -624,6 +625,7 @@ def disable_oc(gpu_indexes):
     # do nothing if 0 because it means none of the supported gpus are overclocked anyways
     if n_gpus == 0:
         # release Overclock table lock
+        DAEMON_LOGGER.info("Lock released")
         db.session.commit()
 
         return
@@ -650,6 +652,7 @@ def enable_oc(gpu_indexes):
     # do nothing if overclocking not set
     if not current_oc_settings or not original_oc_settings:
         # release Overclock table lock
+        DAEMON_LOGGER.info("Lock released")
         db.session.commit()
 
         return
@@ -658,6 +661,7 @@ def enable_oc(gpu_indexes):
     # do nothing if user set new oc settings, since we assume these are already enabled
     if is_different:
         # release Overclock table lock
+        DAEMON_LOGGER.info("Lock released")
         db.session.commit()
 
         return
@@ -692,6 +696,7 @@ def write_oc_settings(oc_settings, oc_hash, db, commit=True):
         db.session.add(oc_settings)
 
     if commit:
+        DAEMON_LOGGER.info("Lock released")
         db.session.commit()
 
 
@@ -704,6 +709,7 @@ def read_oc_settings():
     _, db = get_app_db()
     # with_for_update acquires lock on the overclock table, which is necessary to avoid multiple concurrent threads from messing up the settings
     # if a concurrent thread tries to read or write the table when another thread has the lock, it will wait until the lock is released
+    DAEMON_LOGGER.info("Lock acquired")
     existing_oc_settings = db.session.query(Overclock.oc_settings).with_for_update().first()
     existing_oc_settings = existing_oc_settings[0]
     oc_dict = json.loads(existing_oc_settings)
@@ -739,5 +745,6 @@ def check_installation():
     run_shell_cmd('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'daemon';"''', quiet=True)
     run_shell_cmd('mysql -u root -pdaemon -e "create database daemon;"', quiet=True)
     app, db = get_app_db()
+    db.init_app(app)
     db.drop_all(app=app)
     db.create_all(app=app)
