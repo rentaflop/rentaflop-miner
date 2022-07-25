@@ -20,7 +20,7 @@ import time
 import traceback
 import subprocess
 from threading import Thread
-app, _ = get_app_db()
+app, db = get_app_db()
 
 
 def _start_mining(startup=False):
@@ -269,7 +269,7 @@ def _handle_startup():
     check_installation()
     oc_settings, oc_hash = get_oc_settings()
     # db table contains original (set by user in hive) oc settings and hash of current (not necessarily original) oc settings
-    write_oc_settings(oc_settings, oc_hash)
+    write_oc_settings(oc_settings, oc_hash, db)
     DAEMON_LOGGER.debug(f"Found OC settings: {oc_settings}")
     if IGD:
         # ensure daemon flask server is accessible
