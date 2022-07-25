@@ -628,7 +628,7 @@ def disable_oc(gpu_indexes):
 
         return
 
-    is_different = _check_hash_difference(current_oc_settings, oc_hash, current_oc_hash)
+    is_different = _check_hash_difference(current_oc_settings, oc_hash, current_oc_hash, db)
     if is_different:
         original_oc_settings = current_oc_settings
     # setting values to 0 does a reset to default OC settings
@@ -654,7 +654,7 @@ def enable_oc(gpu_indexes):
 
         return
 
-    is_different = _check_hash_difference(current_oc_settings, oc_hash, current_oc_hash)
+    is_different = _check_hash_difference(current_oc_settings, oc_hash, current_oc_hash, db)
     # do nothing if user set new oc settings, since we assume these are already enabled
     if is_different:
         # release Overclock table lock
@@ -677,7 +677,7 @@ def enable_oc(gpu_indexes):
     write_oc_settings(original_oc_settings, new_oc_hash, db)
 
 
-def write_oc_settings(oc_settings, oc_hash, db):
+def write_oc_settings(oc_settings, oc_hash, db, commit=True):
     """
     write oc settings and hash to db
     """
@@ -690,8 +690,9 @@ def write_oc_settings(oc_settings, oc_hash, db):
     else:
         oc_settings = Overclock(oc_settings=oc_str)
         db.session.add(oc_settings)
-    
-    db.session.commit()
+
+    if commit:
+        db.session.commit()
 
 
 def read_oc_settings():
@@ -710,14 +711,14 @@ def read_oc_settings():
     return oc_dict["oc_settings"], oc_dict["oc_hash"], db
 
 
-def _check_hash_difference(new_oc_settings, original_oc_hash, new_oc_hash):
+def _check_hash_difference(new_oc_settings, original_oc_hash, new_oc_hash, db):
     """
     check if oc file was modified by another program. If so, we save changes to oc tmp file
     return boolean indicating whether difference found
     """
     if original_oc_hash != new_oc_hash:
         DAEMON_LOGGER.info(f"Detected changes to OC settings: {new_oc_settings}")
-        write_oc_settings(new_oc_settings, new_oc_hash)
+        write_oc_settings(new_oc_settings, new_oc_hash, db, commit=False)
 
         return True
 
