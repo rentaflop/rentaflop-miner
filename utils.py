@@ -614,6 +614,9 @@ def disable_oc(gpu_indexes):
     current_oc_settings, current_oc_hash = get_oc_settings()
     # do nothing if overclocking not set
     if not current_oc_settings:
+        # release Overclock table lock
+        db.session.commit()
+        
         return
     
     new_oc_settings = copy.deepcopy(current_oc_settings)
@@ -621,6 +624,9 @@ def disable_oc(gpu_indexes):
     n_gpus = max([len(new_oc_settings[k].split()) for k in new_oc_settings])
     # do nothing if 0 because it means none of the supported gpus are overclocked anyways
     if n_gpus == 0:
+        # release Overclock table lock
+        db.session.commit()
+
         return
 
     is_different = _check_hash_difference(current_oc_settings, oc_hash, current_oc_hash)
@@ -632,6 +638,7 @@ def disable_oc(gpu_indexes):
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "MEM", new_values)
     _write_settings(new_oc_settings)
     _, new_oc_hash = get_oc_settings()
+    # releases lock
     write_oc_settings(original_oc_settings, new_oc_hash)
 
 
@@ -643,11 +650,17 @@ def enable_oc(gpu_indexes):
     current_oc_settings, current_oc_hash = get_oc_settings()
     # do nothing if overclocking not set
     if not current_oc_settings or not original_oc_settings:
+        # release Overclock table lock
+        db.session.commit()
+
         return
 
     is_different = _check_hash_difference(current_oc_settings, oc_hash, current_oc_hash)
     # do nothing if user set new oc settings, since we assume these are already enabled
     if is_different:
+        # release Overclock table lock
+        db.session.commit()
+
         return
     new_oc_settings = copy.deepcopy(current_oc_settings)
     # find n_gpus this way because there might be unsupported gpus present that hive supports
@@ -661,6 +674,7 @@ def enable_oc(gpu_indexes):
     _write_settings(new_oc_settings)
     # original oc settings not overwritten, but we just overwrote oc file so need to update to new hash
     _, new_oc_hash = get_oc_settings()
+    # releases lock
     write_oc_settings(original_oc_settings, new_oc_hash)
 
 
@@ -685,10 +699,13 @@ def read_oc_settings():
     """
     read oc settings and hash from db
     requires overclock settings to already exist in db
+    requires calling function to free the overclock table lock by calling db.session.commit()
     """
-    existing_oc_settings = Overclock.query.all()
-    existing_oc_settings = existing_oc_settings[-1]
-    oc_dict = json.loads(existing_oc_settings.oc_settings)
+    # with_for_update acquires lock on the overclock table, which is necessary to avoid multiple concurrent threads from messing up the settings
+    # if a concurrent thread tries to read or write the table when another thread has the lock, it will wait until the lock is released
+    existing_oc_settings = db.session.query(Overclock.oc_settings).with_for_update().first()
+    existing_oc_settings = existing_oc_settings[0]
+    oc_dict = json.loads(existing_oc_settings)
 
     return oc_dict["oc_settings"], oc_dict["oc_hash"]
 
