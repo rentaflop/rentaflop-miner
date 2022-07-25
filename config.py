@@ -27,8 +27,6 @@ LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log
 REGISTRATION_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "rentaflop_config.json")
 FIRST_STARTUP = not os.path.exists(LOG_FILE)
 DAEMON_LOGGER = _get_logger(LOG_FILE)
-app = None
-db = None
 
 
 class Config(object):
@@ -41,11 +39,8 @@ def get_app_db():
     """
     returns app and db objects and does necessary setup
     """
-    global app
-    global db
-    if not app:
-        app = Flask(__name__)
-        app.config.from_object(Config)
-        db = SQLAlchemy(app)
+    app = Flask(__name__)
+    app.config.from_object(Config)
+    db = SQLAlchemy(app)
 
     return app, db

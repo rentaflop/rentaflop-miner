@@ -13,7 +13,6 @@ import tempfile
 import copy
 
 
-app, db = get_app_db()
 SUPPORTED_GPUS = {
     "NVIDIA GeForce GTX 1060",
     "NVIDIA GeForce GTX 1070",
@@ -46,11 +45,11 @@ SUPPORTED_GPUS = {
     "NVIDIA GeForce RTX 3090 Ti",
 }
 
-
-class Overclock(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+_, DB = get_app_db()
+class Overclock(DB.Model):
+    id = DB.Column(DB.Integer, primary_key=True)
     # looks like '{"oc_settings": ..., "oc_hash": ...}'
-    oc_settings = db.Column(db.String(2048))
+    oc_settings = DB.Column(DB.String(2048))
 
     def __repr__(self):
         return f"<Overclock {self.oc_settings}>"
@@ -610,7 +609,7 @@ def disable_oc(gpu_indexes):
     reset overclock settings for gpus at gpu indexes
     leave power limit settings alone so as to not cause overheating; overclock alone causes issues with rendering
     """
-    original_oc_settings, oc_hash = read_oc_settings()
+    original_oc_settings, oc_hash, db = read_oc_settings()
     current_oc_settings, current_oc_hash = get_oc_settings()
     # do nothing if overclocking not set
     if not current_oc_settings:
@@ -639,14 +638,14 @@ def disable_oc(gpu_indexes):
     _write_settings(new_oc_settings)
     _, new_oc_hash = get_oc_settings()
     # releases lock
-    write_oc_settings(original_oc_settings, new_oc_hash)
+    write_oc_settings(original_oc_settings, new_oc_hash, db)
 
 
 def enable_oc(gpu_indexes):
     """
     set overclock settings to original oc_settings
     """
-    original_oc_settings, oc_hash = read_oc_settings()
+    original_oc_settings, oc_hash, db = read_oc_settings()
     current_oc_settings, current_oc_hash = get_oc_settings()
     # do nothing if overclocking not set
     if not current_oc_settings or not original_oc_settings:
@@ -675,10 +674,10 @@ def enable_oc(gpu_indexes):
     # original oc settings not overwritten, but we just overwrote oc file so need to update to new hash
     _, new_oc_hash = get_oc_settings()
     # releases lock
-    write_oc_settings(original_oc_settings, new_oc_hash)
+    write_oc_settings(original_oc_settings, new_oc_hash, db)
 
 
-def write_oc_settings(oc_settings, oc_hash):
+def write_oc_settings(oc_settings, oc_hash, db):
     """
     write oc settings and hash to db
     """
@@ -701,13 +700,14 @@ def read_oc_settings():
     requires overclock settings to already exist in db
     requires calling function to free the overclock table lock by calling db.session.commit()
     """
+    _, db = get_app_db()
     # with_for_update acquires lock on the overclock table, which is necessary to avoid multiple concurrent threads from messing up the settings
     # if a concurrent thread tries to read or write the table when another thread has the lock, it will wait until the lock is released
     existing_oc_settings = db.session.query(Overclock.oc_settings).with_for_update().first()
     existing_oc_settings = existing_oc_settings[0]
     oc_dict = json.loads(existing_oc_settings)
 
-    return oc_dict["oc_settings"], oc_dict["oc_hash"]
+    return oc_dict["oc_settings"], oc_dict["oc_hash"], db
 
 
 def _check_hash_difference(new_oc_settings, original_oc_hash, new_oc_hash):
@@ -737,5 +737,6 @@ def check_installation():
     run_shell_cmd("sudo systemctl start mysql", quiet=True)
     run_shell_cmd('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'daemon';"''', quiet=True)
     run_shell_cmd('mysql -u root -pdaemon -e "create database daemon;"', quiet=True)
+    app, db = get_app_db()
     db.drop_all(app=app)
     db.create_all(app=app)
