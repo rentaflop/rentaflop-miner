@@ -33,6 +33,7 @@ class Config(object):
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:daemon@localhost/daemon"
     SECRET_KEY = uuid.uuid4().hex
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    MAX_CONTENT_LENGTH = 500 * 1024 * 1024
 
 
 def get_app_db():

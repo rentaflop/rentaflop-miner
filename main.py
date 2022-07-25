@@ -338,7 +338,6 @@ def mine(params):
         is_render = True
     
     if action == "start":
-        # TODO add pending status to ensure scheduled job doesn't happen to restart crypto mining
         if is_render:
             stop_crypto_miner(gpu)
             disable_oc([gpu])
@@ -510,7 +509,8 @@ def prep_daemon_shutdown(server):
 def before_request():
     # don't allow anyone who isn't rentaflop to communicate with host daemon
     # only people who know a host's rentaflop id are the host and rentaflop
-    # TODO check size first to prevent DOS attack
+    # file size check in app config
+    DAEMON_LOGGER.debug(f"Received request with size: {request.content_length}")
     json_file = request.files.get("json")
     request_json = json.loads(json_file.read())
     json_file.seek(0)
