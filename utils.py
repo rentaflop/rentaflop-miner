@@ -413,7 +413,10 @@ def post_to_sandbox(sandbox_url, data, quiet=False):
             if not quiet:
                 DAEMON_LOGGER.error(f"Exception during post request: {e}")
             response_json = {}
-            time.sleep(1)
+            # must return file to beginning of stream if post failed
+            if "render_file" in data:
+                data["render_file"].seek(0)
+            time.sleep(3)
 
     if not quiet:
         DAEMON_LOGGER.debug(f"Received from sandbox {sandbox_url}: {response_json}")

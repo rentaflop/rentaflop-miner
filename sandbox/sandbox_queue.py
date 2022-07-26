@@ -205,14 +205,14 @@ def handle_finished_tasks():
     for task_id in task_ids:
         # find finished tasks
         if os.path.exists(os.path.join(FILE_DIR, str(task_id), "finished.txt")):
-            # send results, clean files, and remove task from queue
+            # clean files and remove task from queue
             _remove_results(task_id)
             continue
         # set timeout on queued task and kill if exceeded time limit
         start_time = os.path.getmtime(os.path.join(FILE_DIR, str(task_id), "started.txt"))
         start_time = dt.datetime.fromtimestamp(start_time)
         current_time = dt.datetime.utcnow()
-        timeout = dt.timedelta(hours=1)
+        timeout = dt.timedelta(hours=2)
         if timeout < (current_time-start_time):
             # remove task from queue
             deleted_tsp = _delete_task_with_id(task_id)
