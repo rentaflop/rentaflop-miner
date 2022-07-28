@@ -742,7 +742,8 @@ def check_installation():
     run_shell_cmd("sudo systemctl start mysql", quiet=True)
     run_shell_cmd('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'daemon';"''', quiet=True)
     run_shell_cmd('mysql -u root -pdaemon -e "create database daemon;"', quiet=True)
-    app, db = get_app_db()
-    db.init_app(app)
-    db.drop_all(app=app)
-    db.create_all(app=app)
+    app, _ = get_app_db()
+    # use db object tables initialized with
+    DB.init_app(app)
+    DB.drop_all(app=app)
+    DB.create_all(app=app)
