@@ -212,6 +212,7 @@ def handle_finished_tasks():
         start_time = os.path.getmtime(os.path.join(FILE_DIR, str(task_id), "started.txt"))
         start_time = dt.datetime.fromtimestamp(start_time)
         current_time = dt.datetime.utcnow()
+        # if timeout updated, make sure to also update in retask_task lambda
         timeout = dt.timedelta(hours=2)
         if timeout < (current_time-start_time):
             # remove task from queue
