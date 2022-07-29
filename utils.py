@@ -354,11 +354,24 @@ def get_custom_config():
 
     custom_user_config = ""
     custom_template = ""
+    # default pool url and hash alg
+    pool_url = "eth.hiveon.com:4444"
+    hash_algorithm = "ethash"
     for config_val in config_vals:
         if config_val.startswith("CUSTOM_USER_CONFIG="):
             custom_user_config = config_val.replace("CUSTOM_USER_CONFIG=", "").replace("'", "")
         elif config_val.startswith("CUSTOM_TEMPLATE="):
             custom_template = config_val.replace("CUSTOM_TEMPLATE=", "").replace('"', "")
+        elif config_val.startswith("CUSTOM_URL="):
+            pool_url_val = config_val.replace("CUSTOM_URL=", "").replace('"', "")
+            # make sure there's actually a value set
+            if pool_url_val:
+                pool_url = pool_url_val
+        elif config_val.startswith("CUSTOM_ALGO="):
+            hash_algorithm_val = config_val.replace("CUSTOM_ALGO=", "").replace('"', "")
+            # make sure there's actually a value set
+            if hash_algorithm_val:
+                hash_algorithm = hash_algorithm_val
 
     wallet_address = custom_template.split(".")[0]
     email = ""
@@ -372,7 +385,7 @@ def get_custom_config():
         elif custom_value.startswith("DISABLE_CRYPTO") and "false" not in custom_value.lower():
             disable_crypto = True
 
-    return email, disable_crypto, wallet_address
+    return email, disable_crypto, wallet_address, pool_url, hash_algorithm
 
 
 def post_to_daemon(data):
@@ -424,7 +437,8 @@ def post_to_sandbox(sandbox_url, data, quiet=False):
     return response_json
 
 
-def update_config(rentaflop_id=None, wallet_address=None, daemon_port=None, email=None, disable_crypto=None, sandbox_id=None):
+def update_config(rentaflop_id=None, wallet_address=None, daemon_port=None, email=None, disable_crypto=None, sandbox_id=None, \
+                  pool_url=None, hash_algorithm=None):
     """
     update rentaflop config file with new values
     """
@@ -449,6 +463,12 @@ def update_config(rentaflop_id=None, wallet_address=None, daemon_port=None, emai
             is_changed = True
         if sandbox_id and sandbox_id != rentaflop_config.get("sandbox_id", ""):
             rentaflop_config["sandbox_id"] = sandbox_id
+            is_changed = True
+        if pool_url and pool_url != rentaflop_config.get("pool_url", ""):
+            rentaflop_config["pool_url"] = pool_url
+            is_changed = True
+        if hash_algorithm and hash_algorithm != rentaflop_config.get("hash_algorithm", ""):
+            rentaflop_config["hash_algorithm"] = hash_algorithm
             is_changed = True
 
     if is_changed:
@@ -485,7 +505,7 @@ def stop_crypto_miner(gpu):
     run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex' | " + "awk '{ print $5 }' | xargs -n1 kill -15", very_quiet=True)
 
 
-def start_crypto_miner(gpu, crypto_port, wallet_address, hostname, mining_algorithm, pool_url):
+def start_crypto_miner(gpu, crypto_port, wallet_address, hostname, pool_url, hash_algorithm):
     """
     start crypto miner on gpu; do nothing if already running
     """
@@ -503,7 +523,7 @@ def start_crypto_miner(gpu, crypto_port, wallet_address, hostname, mining_algori
         pools["user"] = wallet_address
         pools["url"] = pool_url
         pools["worker"] = f"{hostname}_{gpu}"
-        config_json["algo"] = mining_algorithm
+        config_json["algo"] = hash_algorithm
 
     with open(config_file, "w") as f:
         json.dump(config_json, f)

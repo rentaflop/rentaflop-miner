@@ -61,7 +61,9 @@ def _get_registration(is_checkin=True):
             email = rentaflop_config.get("email", "")
             disable_crypto = rentaflop_config.get("disable_crypto", False)
             sandbox_id = rentaflop_config.get("sandbox_id", "")
-            current_email, current_disable_crypto, current_wallet_address = get_custom_config()
+            pool_url = rentaflop_config.get("pool_url", "")
+            hash_algorithm = rentaflop_config.get("hash_algorithm", "")
+            current_email, current_disable_crypto, current_wallet_address, current_pool_url, current_hash_algorithm = get_custom_config()
             if current_email != email and current_email:
                 email = current_email
                 config_changed = True
@@ -72,12 +74,20 @@ def _get_registration(is_checkin=True):
             if current_wallet_address != wallet_address and current_wallet_address:
                 wallet_address = current_wallet_address
                 config_changed = True
-
+            # not checking truth value of pool url since it's guaranteed to be set
+            if current_pool_url != pool_url:
+                pool_url = current_pool_url
+                config_changed = True
+            # not checking truth value of hash alg since it's guaranteed to be set
+            if current_hash_algorithm != hash_algorithm:
+                hash_algorithm = current_hash_algorithm
+                config_changed = True
     else:
         # if checkin we get IGD again because this can periodically change depending on what the router does
         global IGD
         IGD = get_igd(quiet=True)
-        rentaflop_id, wallet_address, daemon_port, email, disable_crypto, sandbox_id = RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, DISABLE_CRYPTO, SANDBOX_ID
+        rentaflop_id, wallet_address, daemon_port, email, disable_crypto, sandbox_id, pool_url, hash_algorithm = \
+            RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, DISABLE_CRYPTO, SANDBOX_ID, POOL_URL, HASH_ALGORITHM
         if IGD:
             # if checkin, we also renew daemon port lease since that seems to disappear occasionally
             run_shell_cmd(f"upnpc -u {IGD} -e 'rentaflop' -r {DAEMON_PORT} tcp")
@@ -124,7 +134,7 @@ def _get_registration(is_checkin=True):
         if is_checkin:
             return
         if is_registered:
-            return rentaflop_id, wallet_address, daemon_port, email, disable_crypto, sandbox_id
+            return rentaflop_id, wallet_address, daemon_port, email, disable_crypto, sandbox_id, pool_url, hash_algorithm
         raise
     if not is_registered:
         rentaflop_id = response_json["rentaflop_id"]
@@ -133,12 +143,12 @@ def _get_registration(is_checkin=True):
 
     # if we just registered or changed config, save registration info
     if config_changed:
-        update_config(rentaflop_id, wallet_address, daemon_port, email, disable_crypto, sandbox_id)
+        update_config(rentaflop_id, wallet_address, daemon_port, email, disable_crypto, sandbox_id, pool_url, hash_algorithm)
         # don't change this without also changing the grep search for this string above
         if not is_registered:
             DAEMON_LOGGER.debug("Registration successful.")
 
-    return rentaflop_id, wallet_address, daemon_port, email, disable_crypto, sandbox_id
+    return rentaflop_id, wallet_address, daemon_port, email, disable_crypto, sandbox_id, pool_url, hash_algorithm
 
 
 def _first_startup():
@@ -253,6 +263,7 @@ def _handle_startup():
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
     run_shell_cmd("./nvidia_uvm_init.sh", quiet=True)
+    # TODO turn into wallet config parameters and combine all these into a global dict instead of 10 different global vars
     # set IGD to speed up upnpc commands
     global IGD
     global AVAILABLE_RESOURCES
@@ -262,9 +273,11 @@ def _handle_startup():
     global EMAIL
     global DISABLE_CRYPTO
     global SANDBOX_ID
+    global POOL_URL
+    global HASH_ALGORITHM
     IGD = get_igd()
     AVAILABLE_RESOURCES = _get_available_resources()
-    RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, DISABLE_CRYPTO, SANDBOX_ID = _get_registration(is_checkin=False)
+    RENTAFLOP_ID, WALLET_ADDRESS, DAEMON_PORT, EMAIL, DISABLE_CRYPTO, SANDBOX_ID, POOL_URL, HASH_ALGORITHM = _get_registration(is_checkin=False)
     # must do installation check before anything required by it is used
     check_installation()
     oc_settings, oc_hash = get_oc_settings()
@@ -354,14 +367,10 @@ def mine(params):
             run_shell_cmd(f"docker stop {container_name}", very_quiet=True)
             # 4059 is default port from hive
             crypto_port = 4059 + gpu
-            # TODO turn into wallet config parameters and combine all these into a global dict instead of 10 different global vars
-            currency = "eth" if WALLET_ADDRESS.startswith("0x") else "btc"
-            mining_algorithm = "ethash"
-            pool_url = "eth.hiveon.com:4444" if currency == "eth" else "stratum+tcp://daggerhashimoto.auto.nicehash.com:9200"
             hostname = socket.gethostname()
             enable_oc([gpu])
             # does nothing if already mining
-            start_crypto_miner(gpu, crypto_port, WALLET_ADDRESS, hostname, mining_algorithm, pool_url)
+            start_crypto_miner(gpu, crypto_port, WALLET_ADDRESS, hostname, POOL_URL, HASH_ALGORITHM)
     elif action == "stop":
         if is_render:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
@@ -577,6 +586,8 @@ EMAIL = None
 DISABLE_CRYPTO = None
 AVAILABLE_RESOURCES = None
 SANDBOX_ID = None
+POOL_URL = None
+HASH_ALGORITHM = None
 
 
 def main():
