@@ -127,7 +127,7 @@ def _get_registration(is_checkin=True):
     
     data = {"state": get_state(available_resources=AVAILABLE_RESOURCES, igd=IGD), "ip": ip, "port": str(daemon_port), "rentaflop_id": rentaflop_id, \
             "email": email, "wallet_address": wallet_address}
-    response_json = post_to_daemon(data)
+    response_json = post_to_rentaflop(data, "daemon")
     if not response_json:
         type_str = "checkin" if is_checkin else "registration"
         DAEMON_LOGGER.error(f"Failed {type_str}!")
@@ -513,6 +513,19 @@ def prep_daemon_shutdown(server):
     DAEMON_LOGGER.debug("Stopping daemon.")
     logging.shutdown()
 
+
+def clean_logs():
+    """
+    send logs to rentaflop servers and clear contents of logs, leaving an 1-line file indicating registration
+    """
+    logs = send_logs({})
+    if RENTAFLOP_ID:
+        logs["rentaflop_id"] = RENTAFLOP_ID
+    post_to_rentaflop(logs, "logs")
+    with open(LOG_FILE, "w") as f:
+        # must write this because of check in _get_registration
+        f.write("Registration successful.")
+
     
 @app.before_request
 def before_request():
@@ -598,7 +611,8 @@ def main():
         scheduler = APScheduler()
         if not DISABLE_CRYPTO:
             scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=60)
-        scheduler.add_job(id='Rentaflop Checkin', func=_get_registration, trigger="interval", seconds=3600)
+        scheduler.add_job(id='Rentaflop Checkin', func=_get_registration, trigger="interval", minutes=60)
+        scheduler.add_job(id='Clean Logs', func=clean_logs, trigger="interval", minutes=60*24*7)
         scheduler.start()
         # run server, allowing it to shut itself down
         q = multiprocessing.Queue()
@@ -619,7 +633,7 @@ def main():
         error = traceback.format_exc()
         DAEMON_LOGGER.error(f"Entering update loop because of uncaught exception: {error}")
         data = {"rentaflop_id": RENTAFLOP_ID, "exception": error}
-        post_to_daemon(data)
+        post_to_rentaflop(data, "daemon")
         # don't loop too fast
         time.sleep(300)
         # handle runtime errors and other issues by performing an update, preventing most bugs from breaking a rentaflop installation

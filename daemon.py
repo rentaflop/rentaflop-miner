@@ -25,7 +25,7 @@ if __name__=="__main__":
 
             # must exit here to prevent looping
             sys.exit(0)
-        except SyntaxError:
+        except (SyntaxError, ModuleNotFoundError):
             import traceback
             import time
             import os
@@ -36,6 +36,7 @@ if __name__=="__main__":
             print("Running reinstallation...")
             
             os.system("pip3 install -r requirements.txt")
+            os.system("sudo apt-get update")
             branch = "develop" if socket.gethostname() in ["rentaflop_one", "rentaflop_two"] else "master"
             os.system(f"git checkout {branch}")
             os.system("git pull")

@@ -388,22 +388,22 @@ def get_custom_config():
     return email, disable_crypto, wallet_address, pool_url, hash_algorithm
 
 
-def post_to_daemon(data):
+def post_to_rentaflop(data, endpoint):
     """
-    make post request to rentaflop servers daemon endpoint
+    make post request to specified rentaflop server host endpoint
     catch exceptions resulting from request
     """
-    daemon_url = "https://portal.rentaflop.com/api/host/daemon"
-    DAEMON_LOGGER.debug(f"Sent to /api/host/daemon: {data}")
+    rentaflop_url = f"https://portal.rentaflop.com/api/host/{endpoint}"
+    DAEMON_LOGGER.debug(f"Sent to /api/host/{endpoint}: {data}")
     try:
-        response = requests.post(daemon_url, json=data)
+        response = requests.post(rentaflop_url, json=data)
         response_json = response.json()
     except (requests.exceptions.ConnectionError, json.decoder.JSONDecodeError) as e:
         DAEMON_LOGGER.error(f"Exception during post request: {e}")
 
         return {}
     
-    DAEMON_LOGGER.debug(f"Received from /api/host/daemon: {response.status_code} {response_json}")
+    DAEMON_LOGGER.debug(f"Received from /api/host/{endpoint}: {response.status_code} {response_json}")
 
     return response_json
 
@@ -757,8 +757,6 @@ def check_installation():
     check_correct_driver()
     install_or_update_crypto_miner()
     # TODO put most installation checks on failure in daemon.py
-    run_shell_cmd("pip3 install -r requirements.txt", quiet=True)
-    run_shell_cmd("sudo apt-get update", quiet=True)
     run_shell_cmd("sudo apt-get install mysql-server -y && /etc/init.d/mysql start", quiet=True)
     run_shell_cmd("mkdir /var/log/mysql", quiet=True)
     run_shell_cmd("sudo chown -R mysql:mysql /var/log/mysql", quiet=True)
