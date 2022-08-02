@@ -756,6 +756,9 @@ def check_installation():
     """
     check_correct_driver()
     install_or_update_crypto_miner()
+    # TODO put most installation checks on failure in daemon.py
+    run_shell_cmd("pip3 install -r requirements.txt", quiet=True)
+    run_shell_cmd("sudo apt-get update", quiet=True)
     run_shell_cmd("sudo apt-get install mysql-server -y && /etc/init.d/mysql start", quiet=True)
     run_shell_cmd("mkdir /var/log/mysql", quiet=True)
     run_shell_cmd("sudo chown -R mysql:mysql /var/log/mysql", quiet=True)
