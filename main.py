@@ -232,13 +232,12 @@ def _get_available_resources():
     """
     run requirement checks and return dict containing available VM system resources
     """
-    passed_checks, gpus = perform_host_requirement_checks()
+    passed_checks, resources = perform_host_requirement_checks()
     if not passed_checks:
         print("Failed minimum requirement checks. Please see our minimum system requirements at https://portal.rentaflop.com/blog/hosting")
         DAEMON_LOGGER.error("Failed requirement checks!")
-        raise Exception(f"Failed requirement checks! Available GPUS: {gpus}")
+        raise Exception(f"Failed requirement checks! Available GPUS: {resources}")
     
-    resources = {"gpu_indexes": gpus}
     DAEMON_LOGGER.debug(f"Finished requirement checks, found available resources: {resources}")
 
     return resources

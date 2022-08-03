@@ -129,20 +129,6 @@ def get_igd(quiet=False):
         return None
 
 
-def get_gpus(available_resources, quiet=False):
-    """
-    returns [gpu names], [corresponding gpu indexes] in order from lowest to highest index
-    """
-    gpu_names = []
-    gpu_indexes = available_resources["gpu_indexes"]
-    for gpu_index in gpu_indexes:
-        gpu_info = run_shell_cmd(f"nvidia-smi -i {gpu_index} --query-gpu=gpu_name --format=csv", quiet=quiet, format_output=False).split("\n")
-        gpu_name = gpu_info[1]
-        gpu_names.append(gpu_name)
-    
-    return gpu_names, gpu_indexes
-
-
 def get_mining_stats(gpu):
     """
     return hash rate and gpu mining stats for gpu
@@ -241,7 +227,8 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
     }
     """
     state = {}
-    gpu_names, gpu_indexes = get_gpus(available_resources, quiet)
+    gpu_indexes = available_resources["gpu_indexes"]
+    gpu_names = available_resources["gpu_names"]
     state["gpus"] = [{"index":gpu_index, "name": gpu_names[i], "state": "stopped", "queue": []} for i, gpu_index in enumerate(gpu_indexes)]
     n_gpus = len(gpu_names)
     state["n_gpus"] = str(n_gpus)
@@ -304,7 +291,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
             ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d "-" -f 1 | rev | cut -d " " -f 1 | rev', quiet=quiet, format_output=False).split()
         state["ports"] = ports
         state["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")
-        state["resources"] = available_resources
+        state["resources"] = {"gpu_indexes": available_resources["gpu_indexes"]}
         khs, stats = get_khs_stats(khs_vals, stats_vals)
         state["khs"] = khs
         state["stats"] = stats

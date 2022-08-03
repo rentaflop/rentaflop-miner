@@ -103,15 +103,17 @@ def check_gpu_resources(include_stdout=False):
     if len(gpu_info) > 1:
         gpu_info = gpu_info[1:]
     gpus = []
+    names = []
     for line in gpu_info:
         gpu_idx, gpu_name = line.split(", ")
         if gpu_name in SUPPORTED_GPUS:
             gpus.append(int(gpu_idx))
+            names.append(gpu_name)
 
     if not gpus:
         _log_and_print(include_stdout, "ERROR", f"Error: Please ensure your machine has at least one supported GPU.")
 
-        return []
+        return {"gpu_indexes": [], "gpu_names": []}
 
     """
     # excluding pcie check since minimum req for this was removed; perhaps we add a low pcie bandwidth warning in the future
@@ -129,13 +131,16 @@ def check_gpu_resources(include_stdout=False):
     if not any(gpu_to_result.values()):
         _log_and_print(include_stdout, "INFO", "Supported GPUs found, but none meet minimum PCIe bandwidth requirements.")
 
-        return []
+        return {"gpu_indexes": [], "gpu_names": []}
     passed_gpus = [key for key in gpu_to_result if gpu_to_result[key]]
     """
     passed_gpus = [str(gpu) for gpu in gpus]
     _log_and_print(include_stdout, "DEBUG", f"Passed GPU resources check with at least one GPU. Identified: {passed_gpus}.")
+    idx_names = zip(passed_gpus, names)
+    idx_names = sorted(idx_names)
+    resources = {"gpu_indexes": [idx_name[0] for idx_name in idx_names], "gpu_names": [idx_name[1] for idx_name in idx_names]}
 
-    return sorted(passed_gpus)
+    return resources
 
 
 def check_cpu_resources(include_stdout=False):
@@ -173,6 +178,6 @@ def perform_host_requirement_checks():
     gpus = check_gpu_resources(include_stdout=True)
     # check_cpu_resources(include_stdout=True)
     # check_memory_resources(include_stdout=True)
-    passed_checks = len(gpus) > 0
+    passed_checks = len(gpus["gpu_indexes"]) > 0
 
     return passed_checks, gpus
