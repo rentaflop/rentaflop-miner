@@ -272,7 +272,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
                 url = f"https://{container_ip}"
                 data = {"cmd": "status", "params": {}}
                 files = {'json': json.dumps(data)}
-                result = post_to_sandbox(url, files, quiet=True)
+                result = post_to_sandbox(url, files, quiet=True, very_quiet=True)
                 if not result:
                     result = {"queue": []}
                 
@@ -395,7 +395,7 @@ def post_to_rentaflop(data, endpoint):
     return response_json
 
 
-def post_to_sandbox(sandbox_url, data, quiet=False):
+def post_to_sandbox(sandbox_url, data, quiet=False, very_quiet=False):
     """
     make post request to docker sandbox servers; do retries since container may have just been started
     catch exceptions resulting from request
@@ -410,7 +410,7 @@ def post_to_sandbox(sandbox_url, data, quiet=False):
             if response_json:
                 break
         except (requests.exceptions.ConnectionError, requests.exceptions.InvalidURL, json.decoder.JSONDecodeError) as e:
-            if not quiet:
+            if not very_quiet:
                 DAEMON_LOGGER.error(f"Exception during post request: {e}")
             response_json = {}
             # must return file to beginning of stream if post failed
