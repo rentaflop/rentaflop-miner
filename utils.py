@@ -785,6 +785,6 @@ def install_all_requirements():
     run_shell_cmd("sudo systemctl restart docker")
     run_shell_cmd("echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections")
     run_shell_cmd("echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections")
-    run_shell_cmd("sudo apt-get install iptables-persistent -y")
-    run_shell_cmd("sudo apt-get install python3-pip -y && pip3 install speedtest-cli mysql-server")
+    run_shell_cmd("sudo apt-get install iptables-persistent mysql-server -y")
+    run_shell_cmd("sudo apt-get install python3-pip -y && pip3 install speedtest-cli")
     run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
