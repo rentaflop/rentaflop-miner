@@ -514,7 +514,7 @@ def prep_daemon_shutdown(server):
     logging.shutdown()
 
 
-def clean_logs():
+def clean_logs(clear_contents=True):
     """
     send logs to rentaflop servers and clear contents of logs, leaving an 1-line file indicating registration
     """
@@ -522,9 +522,10 @@ def clean_logs():
     if RENTAFLOP_ID:
         logs["rentaflop_id"] = RENTAFLOP_ID
     post_to_rentaflop(logs, "logs")
-    with open(LOG_FILE, "w") as f:
-        # must write this because of check in _get_registration
-        f.write("Registration successful.")
+    if clear_contents:
+        with open(LOG_FILE, "w") as f:
+            # must write this because of check in _get_registration
+            f.write("Registration successful.")
 
     
 @app.before_request
@@ -633,6 +634,8 @@ def main():
     except:
         error = traceback.format_exc()
         DAEMON_LOGGER.error(f"Entering update loop because of uncaught exception: {error}")
+        # send logs and error data to rentaflop servers
+        clean_logs(clear_contents=False)
         data = {"rentaflop_id": RENTAFLOP_ID, "exception": error}
         post_to_rentaflop(data, "daemon")
         # don't loop too fast
