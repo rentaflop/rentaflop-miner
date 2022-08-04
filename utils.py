@@ -743,8 +743,7 @@ def check_installation():
     """
     check_correct_driver()
     install_or_update_crypto_miner()
-    # TODO put most installation checks on failure in daemon.py
-    run_shell_cmd("sudo apt-get install mysql-server -y && /etc/init.d/mysql start", quiet=True)
+    run_shell_cmd("/etc/init.d/mysql start", quiet=True)
     run_shell_cmd("mkdir /var/log/mysql", quiet=True)
     run_shell_cmd("sudo chown -R mysql:mysql /var/log/mysql", quiet=True)
     run_shell_cmd("sudo systemctl start mysql", quiet=True)
@@ -755,3 +754,37 @@ def check_installation():
     DB.init_app(app)
     DB.drop_all(app=app)
     DB.create_all(app=app)
+
+
+def install_all_requirements():
+    """
+    install all rentaflop requirements except specific versioned packages that are checked on startup, such as nvidia driver and crypto miner
+    """
+    run_shell_cmd("pip3 install -r requirements.txt")
+    # skipping system update
+    # list of sources for security updates
+    # run_shell_cmd("sudo sh -c 'grep ^deb /etc/apt/sources.list | grep security > /etc/apt/sources.security.only.list'")
+    # perform system update
+    # update({"type": "system"}, reboot=False)
+    # make sure we have all available storage for installation
+    run_shell_cmd("disk-expand")
+    # install dependencies
+    run_shell_cmd("sudo apt-get install ca-certificates curl gnupg lsb-release -y")
+    run_shell_cmd("curl -fsSL https://download.docker.com/linux/debian/gpg \
+    | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg --batch --yes")
+    run_shell_cmd('echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] \
+    https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null')
+    run_shell_cmd("distribution=$(. /etc/os-release; echo $ID$VERSION_ID) \
+    && curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add - \
+    && curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list")
+    run_shell_cmd("sudo apt-get update -y")
+    run_shell_cmd("sudo apt-get install miniupnpc docker-ce docker-ce-cli containerd.io nvidia-docker2 -y")
+    # docker setup
+    run_shell_cmd("sudo sed -i 's/#no-cgroups = false/no-cgroups = true/' /etc/nvidia-container-runtime/config.toml")
+    run_shell_cmd(r'''sudo sed -i '$s/}/,\n"userns-remap":"default"}/' /etc/docker/daemon.json''')
+    run_shell_cmd("sudo systemctl restart docker")
+    run_shell_cmd("echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections")
+    run_shell_cmd("echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections")
+    run_shell_cmd("sudo apt-get install iptables-persistent -y")
+    run_shell_cmd("sudo apt-get install python3-pip -y && pip3 install speedtest-cli mysql-server")
+    run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")

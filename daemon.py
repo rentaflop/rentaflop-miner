@@ -17,9 +17,14 @@ if __name__=="__main__":
     # we need this file as a wrapper to main.py because we need to be able to catch errors on new imports/syntax when new libraries are added
     # if there's an issue, install everything and try again
     # max sleep is 1 week
+    # last-ditch effort to catch and fix code issues
     for _ in range(10080):
         try:
             import sys
+            import importlib
+            import main
+            # ensure latest code changes are pulled each loop
+            importlib.reload(main)
             from main import main
             main()
 
@@ -33,11 +38,10 @@ if __name__=="__main__":
             
             error = traceback.format_exc()
             print(f"Caught error in daemon: {error}")
-            print("Running reinstallation...")
-            
+            # for python import errors
+            print("Running requirements.txt reinstallation...")            
             os.system("pip3 install -r requirements.txt")
-            os.system("sudo apt-get update")
             branch = "develop" if socket.gethostname() in ["rentaflop_one", "rentaflop_two"] else "master"
             os.system(f"git checkout {branch}")
             os.system("git pull")
-            time.sleep(60)
+            time.sleep(180)
