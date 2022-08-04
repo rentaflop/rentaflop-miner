@@ -528,15 +528,14 @@ def check_correct_driver(reboot=True):
     install if not found, otherwise do nothing
     reboot is required after changing drivers; reboot option toggles this action within this function
     """
-    target_version = "510"
+    target_version = "510.73.05"
     # check if installed
-    output = run_shell_cmd(f"dpkg -l | grep nvidia-driver-{target_version}")
+    output = run_shell_cmd(f'cat /proc/driver/nvidia/version | grep "{target_version}"')
     if output:
         return
 
     # not installed so uninstall existing and install target
-    run_shell_cmd("nvidia-uninstall -s")
-    run_shell_cmd(f"apt install nvidia-driver-{target_version} -y")
+    run_shell_cmd("nvidia-driver-update {target_version}")
     if reboot:
         run_shell_cmd("sudo reboot")
 
