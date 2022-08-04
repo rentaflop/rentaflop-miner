@@ -508,7 +508,8 @@ def prep_daemon_shutdown(server):
     enable_oc(gpu_indexes)
     DAEMON_LOGGER.debug("Stopping server...")
     time.sleep(5)
-    server.terminate()
+    if server:
+        server.terminate()
     DAEMON_LOGGER.debug("Stopping daemon.")
     logging.shutdown()
 
@@ -604,6 +605,7 @@ HASH_ALGORITHM = None
 
 def main():
     try:
+        server = None
         _handle_startup()
         app.secret_key = uuid.uuid4().hex
         # create a scheduler that periodically checks for stopped GPUs and starts mining on them; periodic checkin to rentaflop servers

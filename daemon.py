@@ -25,7 +25,7 @@ if __name__=="__main__":
 
             # must exit here to prevent looping
             sys.exit(0)
-        except (SyntaxError, ModuleNotFoundError):
+        except (SyntaxError, ModuleNotFoundError, NameError, UnboundLocalError):
             import traceback
             import time
             import os
