@@ -3,7 +3,7 @@
     {
       "user": "wallet_address",
       "url": "pool_url",
-      "pass": "x",
+      "pass": "pool_password",
       "worker": "rentaflop_hostname"
     }
   ],

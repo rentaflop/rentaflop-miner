@@ -344,6 +344,7 @@ def get_custom_config():
     # default pool url and hash alg
     pool_url = "eth.hiveon.com:4444"
     hash_algorithm = "ethash"
+    custom_pass = ""
     for config_val in config_vals:
         if config_val.startswith("CUSTOM_USER_CONFIG="):
             custom_user_config = config_val.replace("CUSTOM_USER_CONFIG=", "").replace("'", "")
@@ -359,10 +360,13 @@ def get_custom_config():
             # make sure there's actually a value set
             if hash_algorithm_val:
                 hash_algorithm = hash_algorithm_val
+        elif config_val.startswith("CUSTOM_PASS="):
+            custom_pass = config_val.replace("CUSTOM_PASS=", "").replace('"', "")
 
     wallet_address = custom_template.split(".")[0]
     email = ""
     disable_crypto = False
+    # parse custom config args from flight sheet
     # eliminate all whitespace
     custom_user_config = "".join(custom_user_config.split())
     custom_values = custom_user_config.split(";")
@@ -372,7 +376,7 @@ def get_custom_config():
         elif custom_value.startswith("DISABLE_CRYPTO") and "false" not in custom_value.lower():
             disable_crypto = True
 
-    return email, disable_crypto, wallet_address, pool_url, hash_algorithm
+    return email, disable_crypto, wallet_address, pool_url, hash_algorithm, custom_pass
 
 
 def post_to_rentaflop(data, endpoint):
@@ -424,8 +428,7 @@ def post_to_sandbox(sandbox_url, data, quiet=False, very_quiet=False):
     return response_json
 
 
-def update_config(rentaflop_id=None, wallet_address=None, daemon_port=None, email=None, disable_crypto=None, sandbox_id=None, \
-                  pool_url=None, hash_algorithm=None):
+def update_config(rentaflop_id=None, daemon_port=None, sandbox_id=None, wallet_address=None, email=None):
     """
     update rentaflop config file with new values
     """
@@ -436,26 +439,17 @@ def update_config(rentaflop_id=None, wallet_address=None, daemon_port=None, emai
         if rentaflop_id and rentaflop_id != rentaflop_config.get("rentaflop_id", ""):
             rentaflop_config["rentaflop_id"] = rentaflop_id
             is_changed = True
-        if wallet_address and wallet_address != rentaflop_config.get("wallet_address", ""):
-            rentaflop_config["wallet_address"] = wallet_address
-            is_changed = True
         if daemon_port and daemon_port != rentaflop_config.get("daemon_port", 0):
             rentaflop_config["daemon_port"] = daemon_port
-            is_changed = True
-        if email and email != rentaflop_config.get("email", ""):
-            rentaflop_config["email"] = email
-            is_changed = True
-        if disable_crypto is not None and disable_crypto != rentaflop_config.get("disable_crypto", False):
-            rentaflop_config["disable_crypto"] = disable_crypto
             is_changed = True
         if sandbox_id and sandbox_id != rentaflop_config.get("sandbox_id", ""):
             rentaflop_config["sandbox_id"] = sandbox_id
             is_changed = True
-        if pool_url and pool_url != rentaflop_config.get("pool_url", ""):
-            rentaflop_config["pool_url"] = pool_url
+        if wallet_address and wallet_address != rentaflop_config.get("wallet_address", ""):
+            rentaflop_config["wallet_address"] = wallet_address
             is_changed = True
-        if hash_algorithm and hash_algorithm != rentaflop_config.get("hash_algorithm", ""):
-            rentaflop_config["hash_algorithm"] = hash_algorithm
+        if email and email != rentaflop_config.get("email", ""):
+            rentaflop_config["email"] = email
             is_changed = True
 
     if is_changed:
@@ -492,7 +486,7 @@ def stop_crypto_miner(gpu):
     run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex' | " + "awk '{ print $5 }' | xargs -n1 kill -15", very_quiet=True)
 
 
-def start_crypto_miner(gpu, crypto_port, wallet_address, hostname, pool_url, hash_algorithm):
+def start_crypto_miner(gpu, crypto_port, hostname, crypto_config):
     """
     start crypto miner on gpu; do nothing if already running
     """
@@ -507,10 +501,11 @@ def start_crypto_miner(gpu, crypto_port, wallet_address, hostname, pool_url, has
         with open("config.json", "r") as f:
             config_json = json.load(f)
         pools = config_json["pools"][0]
-        pools["user"] = wallet_address
-        pools["url"] = pool_url
+        pools["user"] = crypto_config["wallet_address"]
+        pools["url"] = crypto_config["pool_url"]
+        pools["pass"] = crypto_config["pass"]
         pools["worker"] = f"{hostname}_{gpu}"
-        config_json["algo"] = hash_algorithm
+        config_json["algo"] = crypto_config["hash_algorithm"]
 
     with open(config_file, "w") as f:
         json.dump(config_json, f)
