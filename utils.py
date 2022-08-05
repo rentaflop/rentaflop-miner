@@ -530,7 +530,7 @@ def check_correct_driver(reboot=True):
         return
 
     # not installed so uninstall existing and install target
-    run_shell_cmd("nvidia-driver-update {target_version}")
+    run_shell_cmd(f"nvidia-driver-update {target_version}")
     if reboot:
         run_shell_cmd("sudo reboot")
 
