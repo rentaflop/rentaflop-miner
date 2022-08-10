@@ -95,40 +95,6 @@ def log_before_after(func, params):
     return wrapper
 
 
-def get_igd(quiet=False):
-    """
-    returns internet gateway device URL for upnp to use
-    """
-    # sleep for up to 96 seconds
-    tries = 3
-    time_length = 32
-    is_first = True
-    for _ in range(tries):
-        if not is_first:
-            time.sleep(time_length)
-            time_length *= 2
-        else:
-            is_first = False
-        
-        output = run_shell_cmd('upnpc -s', format_output=False, quiet=quiet)
-        if not output or "No IGD UPnP Device found" in output:
-            continue
-
-        candidate_igds = set()
-        for word in output.split():
-            if word.startswith("http") and "miniupnp" not in word:
-                candidate_igds.add(word)
-
-        for candidate in candidate_igds:
-            # test out candidate igd url forwarding with test port to see if it works properly
-            output = run_shell_cmd(f'upnpc -u {candidate} -e "rentaflop" -r 46442 tcp', format_output=False, quiet=quiet)
-            run_shell_cmd(f"upnpc -u {candidate} -d 46442 tcp", format_output=False, quiet=quiet)
-            if output and "is redirected to internal" in output:
-                return candidate
-        
-        return None
-
-
 def get_mining_stats(gpu):
     """
     return hash rate and gpu mining stats for gpu
@@ -176,11 +142,10 @@ def get_khs_stats(khs_vals, stats_vals):
     return khs, stats    
 
 
-def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
+def get_state(available_resources, gpu_only=False, quiet=False):
     """
     returns a dictionary with all relevant daemon state information
-    this includes gpus, running containers, container use, upnp ports, etc.
-    igd is internet gateway device to speed up upnpc command
+    this includes gpus, running containers, container use, etc.
     gpu_only will determine whether to only get gpu-related info
     state looks like this:
     {
@@ -286,10 +251,6 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
 
     if not gpu_only:
         ports = []
-        if igd:
-            igd_flag = "" if not igd else f" -u {igd}"
-            ports = run_shell_cmd(f'upnpc{igd_flag} -l | grep rentaflop | cut -d "-" -f 1 | rev | cut -d " " -f 1 | rev', quiet=quiet, format_output=False).split()
-        state["ports"] = ports
         state["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")
         state["resources"] = {"gpu_indexes": available_resources["gpu_indexes"]}
         khs, stats = get_khs_stats(khs_vals, stats_vals)
@@ -299,27 +260,7 @@ def get_state(available_resources, igd=None, gpu_only=False, quiet=False):
     return state            
 
 
-# find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
-_PORT_TYPE_TO_START = {
-    "daemon": 46443,
-}
 _START_TIME = time.time()
-
-
-def select_port(igd, port_type):
-    """
-    finds next available port by port_type and returns the number
-    each type of port starts at a minimum number and ascends
-    """
-    selected_port = _PORT_TYPE_TO_START[port_type]
-    # if upnp not available, we use starting port type for every rig and user manually forwards 46443->rig1:46443, 46444->rig2:46443, etc
-    # TODO create config param for non upnp users to tell rentaflop servers which port to request
-    if igd:
-        ports_in_use = run_shell_cmd(f'upnpc -u {igd} -l | grep rentaflop | cut -d "-" -f 1 | rev | cut -d " " -f 1 | rev', format_output=False).split()
-        while str(selected_port) in ports_in_use:
-            selected_port += 1
-
-    return selected_port
 
 
 def kill_other_daemons():
@@ -772,7 +713,7 @@ def install_all_requirements():
     && curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add - \
     && curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list")
     run_shell_cmd("sudo apt-get update -y")
-    run_shell_cmd("sudo apt-get install miniupnpc docker-ce docker-ce-cli containerd.io nvidia-docker2 -y")
+    run_shell_cmd("sudo apt-get install docker-ce docker-ce-cli containerd.io nvidia-docker2 -y")
     # docker setup
     run_shell_cmd("sudo sed -i 's/#no-cgroups = false/no-cgroups = true/' /etc/nvidia-container-runtime/config.toml")
     run_shell_cmd(r'''sudo sed -i '$s/}/,\n"userns-remap":"default"}/' /etc/docker/daemon.json''')

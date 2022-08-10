@@ -16,10 +16,9 @@ Here are the minimum basic system requirements:
 
 1. A discrete Nvidia graphics card from the last several years (10, 20, or 30 series)
 1. About 3GB free storage
-1. An Internet connection with the ability to run Universal Plug and Play (UPnP)
 1. HiveOS     
 
-Most consumer routers support UPnP out of the box. If you're not currently running HiveOS, we recommend getting an
+If you're not currently running HiveOS, we recommend getting an
 inexpensive 8GB flash drive and following the GPU instructions [here](https://hiveon.com/install/) to create a bootable USB. We like this route because
 it allows you to separate mining from personal business. You can boot the USB when you want to mine and boot your other drive when you want
 to do gaming or use your graphics card(s) otherwise.

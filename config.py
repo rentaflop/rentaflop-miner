@@ -27,6 +27,8 @@ LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log
 REGISTRATION_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "rentaflop_config.json")
 FIRST_STARTUP = not os.path.exists(LOG_FILE)
 DAEMON_LOGGER = _get_logger(LOG_FILE)
+# find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
+DAEMON_PORT = 46443
 
 
 class Config(object):

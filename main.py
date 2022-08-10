@@ -7,7 +7,7 @@ import uuid
 import multiprocessing
 from flask import jsonify, request, abort, redirect
 from flask_apscheduler import APScheduler
-from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, REGISTRATION_FILE, get_app_db
+from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, REGISTRATION_FILE, DAEMON_PORT, get_app_db
 from utils import *
 import sys
 import requests
@@ -32,14 +32,14 @@ def _start_mining(startup=False):
     # if just started, wait for gpus to "wake up" on boot
     if startup:
         time.sleep(10)
-    state = get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], igd=RENTAFLOP_CONFIG["igd"], gpu_only=True, quiet=True)
+    state = get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], gpu_only=True, quiet=True)
     gpus = state["gpus"]
     gpus_stopped = {gpu["index"] for gpu in gpus if gpu["state"] == "stopped"}
     gpus_stopped_later = gpus_stopped
     # we want to make sure we're not starting miner back up right before a task is about to be run so we try again before restarting
     if gpus_stopped and not startup:
         time.sleep(10)
-        state = get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], igd=RENTAFLOP_CONFIG["igd"], gpu_only=True, quiet=True)
+        state = get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], gpu_only=True, quiet=True)
         gpus = state["gpus"]
         gpus_stopped_later = {gpu["index"] for gpu in gpus if gpu["state"] == "stopped"}
     
@@ -59,7 +59,7 @@ def _get_registration(is_checkin=True):
             # this is because rentaflop db saves these so we need to know when to update it
             rentaflop_id = rentaflop_config.get("rentaflop_id", "")
             wallet_address = rentaflop_config.get("wallet_address", "")
-            daemon_port = rentaflop_config.get("daemon_port", "")
+            daemon_port = rentaflop_config.get("daemon_port", 0)
             email = rentaflop_config.get("email", "")
             sandbox_id = rentaflop_config.get("sandbox_id", "")
             current_email, disable_crypto, current_wallet_address, pool_url, hash_algorithm, password = get_custom_config()
@@ -69,17 +69,12 @@ def _get_registration(is_checkin=True):
             if current_wallet_address != wallet_address and current_wallet_address:
                 wallet_address = current_wallet_address
                 config_changed = True
+            if daemon_port != DAEMON_PORT:
+                config_changed = True
             crypto_config = {"wallet_address": wallet_address, "email": email, "disable_crypto": disable_crypto, "pool_url": pool_url, \
                              "hash_algorithm": hash_algorithm, "pass": password}
     else:
-        # if checkin we get igd again because this can periodically change depending on what the router does
-        global RENTAFLOP_CONFIG
-        RENTAFLOP_CONFIG["igd"] = get_igd(quiet=True)
-        rentaflop_id, daemon_port, sandbox_id, crypto_config = RENTAFLOP_CONFIG["rentaflop_id"], RENTAFLOP_CONFIG["daemon_port"], \
-            RENTAFLOP_CONFIG["sandbox_id"], RENTAFLOP_CONFIG["crypto_config"]
-        if RENTAFLOP_CONFIG["igd"]:
-            # if checkin, we also renew daemon port lease since that seems to disappear occasionally
-            run_shell_cmd(f"upnpc -u {RENTAFLOP_CONFIG['igd']} -e 'rentaflop' -r {RENTAFLOP_CONFIG['daemon_port']} tcp")
+        rentaflop_id, sandbox_id, crypto_config = RENTAFLOP_CONFIG["rentaflop_id"], RENTAFLOP_CONFIG["sandbox_id"], RENTAFLOP_CONFIG["crypto_config"]
 
     # rentaflop id is either read from the file, already set if it's a checkin, or is initial registration where it's empty str
     is_registered = rentaflop_id != ""
@@ -95,36 +90,26 @@ def _get_registration(is_checkin=True):
             
             return _get_registration(is_checkin=is_checkin)
     
-    # register host with rentaflop or perform checkin if already registered
-    # use upnpc to get external address or external website if upnp not available
-    if RENTAFLOP_CONFIG["igd"]:
-        ip = run_shell_cmd(f'upnpc -u {RENTAFLOP_CONFIG["igd"]} -s | grep ExternalIPAddress | cut -d " " -f 3', format_output=False).replace("\n", "")
-    else:
+    # using external website to get ip address
+    try:
         ip = requests.get('https://api.ipify.org').content.decode('utf8')
-    if not is_registered:
-        daemon_port = select_port(RENTAFLOP_CONFIG["igd"], "daemon")
-        config_changed = True
-
-    if RENTAFLOP_CONFIG["igd"]:
-        # handle edge case where internal ip changed, which would cause upnp conflict mapping on next cmd
-        local_lan_ip = run_shell_cmd(f'upnpc -u {RENTAFLOP_CONFIG["igd"]} -s | grep "Local LAN ip address" | cut -d ":" -f 2', format_output=False).strip()
-        # get lan ip currently using daemon port and see if it's the same as this device's lan ip
-        lan_ip_forwarded_to_daemon_port = run_shell_cmd(f'upnpc -u {RENTAFLOP_CONFIG["igd"]} -l | grep {daemon_port} | cut -d ":" -f 1 | cut -d ">" -f 2', format_output=False).strip()
-        if local_lan_ip != lan_ip_forwarded_to_daemon_port:
-            daemon_port = select_port(RENTAFLOP_CONFIG["igd"], "daemon")
-            config_changed = True
-    
-    data = {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], igd=RENTAFLOP_CONFIG["igd"]), "ip": ip, \
-            "port": str(daemon_port), "rentaflop_id": rentaflop_id, "email": crypto_config["email"], "wallet_address": crypto_config["wallet_address"]}
+    except requests.exceptions.ConnectionError:
+        ip = None
+    # register host with rentaflop or perform checkin if already registered
+    data = {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"]), "ip": ip, \
+            "rentaflop_id": rentaflop_id, "email": crypto_config["email"], "wallet_address": crypto_config["wallet_address"]}
     response_json = post_to_rentaflop(data, "daemon")
     if not response_json:
         type_str = "checkin" if is_checkin else "registration"
         DAEMON_LOGGER.error(f"Failed {type_str}!")
         if is_checkin:
-            return
+            return {}
         if is_registered:
-            return rentaflop_id, daemon_port, sandbox_id, crypto_config
+            return rentaflop_id, sandbox_id, crypto_config
         raise
+    elif is_checkin:
+        return response_json
+    
     if not is_registered:
         rentaflop_id = response_json["rentaflop_id"]
         sandbox_id = response_json["sandbox_id"]
@@ -132,12 +117,24 @@ def _get_registration(is_checkin=True):
 
     # if we just registered or changed config, save registration info
     if config_changed:
-        update_config(rentaflop_id, daemon_port, sandbox_id, crypto_config["wallet_address"], crypto_config["email"])
+        # still saving daemon port because it's used by h-stats.sh to query status
+        update_config(rentaflop_id, DAEMON_PORT, sandbox_id, crypto_config["wallet_address"], crypto_config["email"])
         # don't change this without also changing the grep search for this string above
         if not is_registered:
             DAEMON_LOGGER.debug("Registration successful.")
 
-    return rentaflop_id, daemon_port, sandbox_id, crypto_config
+    return rentaflop_id, sandbox_id, crypto_config
+
+
+def _handle_checkin():
+    """
+    handles checkins with rentaflop servers and executes instructions returned
+    """
+    # instruction looks like {"cmd": ..., "params": ..., "rentaflop_id": ...}
+    instruction_json = _get_registration()
+    # hand off instruction to localhost web server
+    files = {"json": json.dumps(instruction_json)}
+    requests.post(f"https://localhost:{DAEMON_PORT}", files=files, verify=False)
 
 
 def _first_startup():
@@ -225,12 +222,9 @@ def _handle_startup():
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
     run_shell_cmd("./nvidia_uvm_init.sh", quiet=True)
-    # TODO turn into wallet config parameters and combine all these into a global dict instead of 10 different global vars
-    # set igd to speed up upnpc commands
     global RENTAFLOP_CONFIG
-    RENTAFLOP_CONFIG["igd"] = get_igd()
     RENTAFLOP_CONFIG["available_resources"] = _get_available_resources()
-    RENTAFLOP_CONFIG["rentaflop_id"], RENTAFLOP_CONFIG["daemon_port"], RENTAFLOP_CONFIG["sandbox_id"], RENTAFLOP_CONFIG["crypto_config"] = \
+    RENTAFLOP_CONFIG["rentaflop_id"], RENTAFLOP_CONFIG["sandbox_id"], RENTAFLOP_CONFIG["crypto_config"] = \
         _get_registration(is_checkin=False)
     # must do installation check before anything required by it is used
     check_installation()
@@ -238,23 +232,15 @@ def _handle_startup():
     # db table contains original (set by user in hive) oc settings and hash of current (not necessarily original) oc settings
     write_oc_settings(oc_settings, oc_hash, db)
     DAEMON_LOGGER.debug(f"Found OC settings: {oc_settings}")
-    if RENTAFLOP_CONFIG["igd"]:
-        # ensure daemon flask server is accessible
-        run_shell_cmd(f"upnpc -u {RENTAFLOP_CONFIG['igd']} -e 'rentaflop' -r {RENTAFLOP_CONFIG['daemon_port']} tcp")
-    else:
-        DAEMON_LOGGER.info("UPnP not available, assuming user has required ports starting at 46443 forwarded to rig")
     # prevent guests from connecting to LAN, run every startup since rules don't seem to stay at top of /etc/iptables/rules.v4
     # TODO this is breaking internet connection for some reason, ensure docker img can't connect to host
     # run_shell_cmd("iptables -I FORWARD -i docker0 -d 192.168.0.0/16 -j DROP")
     run_shell_cmd("iptables -I FORWARD -i docker0 -d 10.0.0.0/8 -j DROP")
     run_shell_cmd("iptables -I FORWARD -i docker0 -d 172.16.0.0/12 -j DROP")
-    if RENTAFLOP_CONFIG["igd"]:
-        local_lan_ip = run_shell_cmd(f'upnpc -u {RENTAFLOP_CONFIG["igd"]} -s | grep "Local LAN ip address" | cut -d ":" -f 2', format_output=False).strip()
-    else:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        local_lan_ip = s.getsockname()[0]
-        s.close()
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    local_lan_ip = s.getsockname()[0]
+    s.close()
     run_shell_cmd(f"iptables -A INPUT -i docker0 -d {local_lan_ip} -j DROP")
     run_shell_cmd("sudo iptables-save > /etc/iptables/rules.v4")
     if not RENTAFLOP_CONFIG["crypto_config"]["disable_crypto"]:
@@ -404,8 +390,6 @@ def uninstall(params):
     _stop_all()
     run_shell_cmd('docker rmi $(docker images -a -q "rentaflop/sandbox") $(docker images | grep none | awk "{ print $3; }") $(docker images "nvidia/cuda" -a -q)')
     # clean up rentaflop host software
-    if RENTAFLOP_CONFIG["igd"]:
-        run_shell_cmd(f"upnpc -u {RENTAFLOP_CONFIG['igd']} -d {RENTAFLOP_CONFIG['daemon_port']} tcp")
     daemon_py = os.path.realpath(__file__)
     rentaflop_miner_dir = os.path.dirname(daemon_py)
     run_shell_cmd(f"rm -rf {rentaflop_miner_dir}", quiet=True)
@@ -429,7 +413,7 @@ def status(params):
     """
     return the state of this host
     """
-    return {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], igd=RENTAFLOP_CONFIG["igd"], quiet=True)}
+    return {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], quiet=True)}
 
 
 def benchmark(params):
@@ -538,7 +522,7 @@ def run_flask_server(q):
 
         return jsonify("200")
     
-    app.run(host='0.0.0.0', port=RENTAFLOP_CONFIG["daemon_port"], ssl_context='adhoc')
+    app.run(host='0.0.0.0', port=DAEMON_PORT, ssl_context='adhoc')
     
     
 CMD_TO_FUNC = {
@@ -549,10 +533,10 @@ CMD_TO_FUNC = {
     "status": status,
     "benchmark": benchmark
 }
-# rentaflop config looks like {"igd": ..., "rentaflop_id": ..., "daemon_port": ..., "sandbox_id": ..., \
+# rentaflop config looks like {"rentaflop_id": ..., "sandbox_id": ..., \
 # "available_resources": {"gpu_indexes": [...], "gpu_names": [...]}, "crypto_config": {"wallet_address": ..., \
 # "email": ..., "disable_crypto": ..., "pool_url": ..., "hash_algorithm": ..., "pass": ...}}
-RENTAFLOP_CONFIG = {"igd": None, "rentaflop_id": None, "daemon_port": None, "sandbox_id": None, "available_resources": {}, \
+RENTAFLOP_CONFIG = {"rentaflop_id": None, "sandbox_id": None, "available_resources": {}, \
                     "crypto_config": {}}
 
 
@@ -565,7 +549,7 @@ def main():
         scheduler = APScheduler()
         if not RENTAFLOP_CONFIG["crypto_config"]["disable_crypto"]:
             scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=60)
-        scheduler.add_job(id='Rentaflop Checkin', func=_get_registration, trigger="interval", minutes=60)
+        scheduler.add_job(id='Rentaflop Checkin', func=_handle_checkin, trigger="interval", seconds=60)
         scheduler.add_job(id='Clean Logs', func=clean_logs, trigger="interval", minutes=60*24*7)
         scheduler.start()
         # run server, allowing it to shut itself down

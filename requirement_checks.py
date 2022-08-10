@@ -1,6 +1,6 @@
 """
 performs minimum system requirement checks to host on rentaflop
-checks drive size, hardware virtualization, firewall support for UPnP, internet bandwidth, CPU, etc.
+checks drive size, hardware virtualization, internet bandwidth, CPU, etc.
 if no GPU, instruct user to drive to micro center
 """
 import re
@@ -22,21 +22,6 @@ def _log_and_print(include_stdout, level, msg):
     daemon_log_func[level](msg)
     if include_stdout:
         print(msg)
-
-    
-def check_p2p(include_stdout=False):
-    """
-    ensure p2p connection requirements are met
-    """
-    command_output = run_shell_cmd("upnpc -s", format_output=False, quiet=True)
-    if not command_output or "No IGD UPnP Device found on the network" in command_output:
-        _log_and_print(include_stdout, "WARNING", "Warning: Please ensure you have a router (or other device) configured to use UPnP or port forwarding on your network.")
-        
-        return False
-
-    _log_and_print(include_stdout, "DEBUG", "Passed p2p connection check.")
-
-    return True
 
 
 def check_drive_size(include_stdout=False):
@@ -171,8 +156,6 @@ def perform_host_requirement_checks():
     performs all the necessary checks to ensure host can be added to rentaflop network
     returns number of vms to create, resources per vm, and list of gpu indexes to use
     """
-    # p2p isn't a strict requirement but prints helpful log warning
-    passed_p2p = check_p2p(include_stdout=True)
     # check_drive_size(include_stdout=True)
     # check_bandwidth(include_stdout=True)
     gpus = check_gpu_resources(include_stdout=True)
