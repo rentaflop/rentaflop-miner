@@ -320,22 +320,24 @@ def get_custom_config():
     return email, disable_crypto, wallet_address, pool_url, hash_algorithm, custom_pass
 
 
-def post_to_rentaflop(data, endpoint):
+def post_to_rentaflop(data, endpoint, quiet=False):
     """
     make post request to specified rentaflop server host endpoint
     catch exceptions resulting from request
     """
     rentaflop_url = f"https://portal.rentaflop.com/api/host/{endpoint}"
-    DAEMON_LOGGER.debug(f"Sent to /api/host/{endpoint}: {data}")
+    if not quiet:
+        DAEMON_LOGGER.debug(f"Sent to /api/host/{endpoint}: {data}")
     try:
         response = requests.post(rentaflop_url, json=data)
         response_json = response.json()
     except (requests.exceptions.ConnectionError, json.decoder.JSONDecodeError) as e:
         DAEMON_LOGGER.error(f"Exception during post request: {e}")
 
-        return {}
-    
-    DAEMON_LOGGER.debug(f"Received from /api/host/{endpoint}: {response.status_code} {response_json}")
+        return None
+
+    if not quiet:
+        DAEMON_LOGGER.debug(f"Received from /api/host/{endpoint}: {response.status_code} {response_json}")
 
     return response_json
 
