@@ -733,7 +733,8 @@ def get_render_file(rentaflop_id, job_id):
     """
     server_url = "https://api.rentaflop.com/host/input"
     data = {"rentaflop_id": str(rentaflop_id), "job_id": str(job_id)}
-    file_url = requests.post(server_url, json=data)
+    api_response = requests.post(server_url, json=data)
+    file_url = api_response.json()["url"]
     file_response = requests.get(file_url, stream=True)
     render_file = file_response.raw
 
