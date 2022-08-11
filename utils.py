@@ -725,3 +725,16 @@ def install_all_requirements():
     run_shell_cmd("sudo apt-get install iptables-persistent mysql-server -y")
     run_shell_cmd("sudo apt-get install python3-pip -y && pip3 install speedtest-cli")
     run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
+
+
+def get_render_file(rentaflop_id, job_id):
+    """
+    fetch render file from rentaflop servers
+    """
+    server_url = "https://api.rentaflop.com/host/input"
+    data = {"rentaflop_id": str(rentaflop_id), "job_id": str(job_id)}
+    file_url = requests.post(server_url, json=data)
+    file_response = requests.get(file_url, stream=True)
+    render_file = file_response.raw
+
+    return render_file

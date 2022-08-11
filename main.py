@@ -287,7 +287,7 @@ def mine(params):
     task_id = params.get("task_id")
     start_frame = params.get("start_frame")
     n_frames = params.get("n_frames")
-    render_file = params.get("render_file")
+    job_id = params.get("job_id")
     container_name = f"rentaflop-sandbox-{gpu}"
     is_render = False
     if task_id:
@@ -295,6 +295,7 @@ def mine(params):
     
     if action == "start":
         if is_render:
+            render_file = get_render_file(RENTAFLOP_CONFIG["rentaflop_id"], job_id)
             stop_crypto_miner(gpu)
             disable_oc([gpu])
             # ensure sandbox for gpu is running, does nothing if already running
