@@ -32,7 +32,8 @@ def main():
         # first request to get upload location
         data = {"task_id": str(task_id), "sandbox_id": str(sandbox_id)}
         response = requests.post(server_url, json=data)
-        storage_url, fields = response["url"], response["fields"]
+        response_json = response.json()
+        storage_url, fields = response_json["url"], response_json["fields"]
         # upload output to upload location
         with open(tgz_path, 'rb') as f:
             files = {'file': f}
