@@ -98,6 +98,8 @@ def _get_registration(is_checkin=True):
     # register host with rentaflop or perform checkin if already registered
     data = {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], quiet=is_checkin), "ip": ip, \
             "rentaflop_id": rentaflop_id, "email": crypto_config["email"], "wallet_address": crypto_config["wallet_address"]}
+    if not is_checkin:
+        data["ignore_instruction"] = True
     response_json = post_to_rentaflop(data, "daemon", quiet=is_checkin)
     if response_json is None:
         type_str = "checkin" if is_checkin else "registration"
