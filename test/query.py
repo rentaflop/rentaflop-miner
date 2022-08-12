@@ -26,7 +26,7 @@ def send_query(args):
     construct and send query from args
     """
     url = "https://localhost:46443"
-    with open("../rentaflop_config.json", "r") as f:
+    with open("/hive/miners/custom/rentaflop/rentaflop-miner/rentaflop_config.json", "r") as f:
         config = json.load(f)
         rentaflop_id = config["rentaflop_id"]
     cmd = args.cmd
