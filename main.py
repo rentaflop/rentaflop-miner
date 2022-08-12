@@ -268,9 +268,9 @@ def _run_sandbox(gpu, container_name, timeout=0):
 
     tries = 2
     for _ in range(tries):
-        output = run_shell_cmd(f"sudo docker run --gpus all --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
+        output = run_shell_cmd(f'''sudo docker run --gpus '"device={gpu}"' --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env SANDBOX_ID={RENTAFLOP_CONFIG['sandbox_id']} --env GPU={gpu} --env TIMEOUT={timeout} --shm-size=256m -h rentaflop -dt rentaflop/sandbox")
+        --rm --name {container_name} --env SANDBOX_ID={RENTAFLOP_CONFIG['sandbox_id']} --env GPU={gpu} --env TIMEOUT={timeout} --shm-size=256m -h rentaflop -dt rentaflop/sandbox''')
         if output:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
             wait_for_sandbox_server(container_ip)
