@@ -13,8 +13,6 @@ def parse_clargs():
     parse and return command line args
     """
     parser = argparse.ArgumentParser(description='Test daemon queries')
-    parser.add_argument('-u', '--url', help="daemon URL including port")
-    parser.add_argument('-r', '--rentaflop_id', help="rentaflop id of host")
     parser.add_argument('-c', '--cmd', help="command to send host")
     parser.add_argument('-p', '--params', help="params for command")
     parser.add_argument('-f', '--file', help="file for command")
@@ -27,8 +25,10 @@ def send_query(args):
     """
     construct and send query from args
     """
-    url = args.url
-    rentaflop_id = args.rentaflop_id
+    url = "https://localhost:46443"
+    with open("../rentaflop_config.json", "r") as f:
+        config = json.load(f)
+        rentaflop_id = config["rentaflop_id"]
     cmd = args.cmd
     params = args.params
     params = json.loads(params)
