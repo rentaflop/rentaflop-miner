@@ -95,14 +95,14 @@ def log_before_after(func, params):
     return wrapper
 
 
-def get_mining_stats(gpu):
+def get_mining_stats():
     """
-    return hash rate and gpu mining stats for gpu
+    return hash rate and gpu mining stats for gpus
     """
     khs = 0
     stats = "null"
     # 4059 is default port from hive
-    crypto_port = 4059 + int(gpu)
+    crypto_port = 4059
     khs_stats = run_shell_cmd(f"./h-stats.sh {crypto_port}", format_output=False, quiet=True)
     if khs_stats:
         khs_stats = khs_stats.splitlines()
@@ -113,33 +113,6 @@ def get_mining_stats(gpu):
     # TODO if running gpc, apply rentaflop multiplier to estimate additional crypto earnings
 
     return khs, stats
-
-    
-def get_khs_stats(khs_vals, stats_vals):
-    """
-    combine khs and stats values from each GPU into one for host
-    return khs, stats
-    """
-    khs = sum(khs_vals)
-    stats = {"hs": [], "hs_units": "khs", "temp": [], "fan": [], "uptime": 0, "ver": "", "ar": [], "algo": "rentaflop", "bus_numbers": []}
-    total_accepted = 0
-    total_rejected = 0
-    for stats_val in stats_vals:
-        stats["hs"].extend(stats_val.get("hs", []))
-        stats["temp"].extend(stats_val.get("temp", []))
-        stats["fan"].extend(stats_val.get("fan", []))
-        stats["bus_numbers"].extend(stats_val.get("bus_numbers", []))
-        ar = stats_val.get("ar", [])
-        if not ar:
-            ar = [0, 0]
-        total_accepted += ar[0]
-        total_rejected += ar[1]
-    
-    stats["uptime"] = round(time.time() - _START_TIME)
-    stats["ar"] = [total_accepted, total_rejected, 0, "0"]
-    stats["total_khs"] = str(khs)
-
-    return khs, stats    
 
 
 def get_state(available_resources, gpu_only=False, quiet=False):
@@ -194,66 +167,54 @@ def get_state(available_resources, gpu_only=False, quiet=False):
     state = {}
     gpu_indexes = available_resources["gpu_indexes"]
     gpu_names = available_resources["gpu_names"]
-    state["gpus"] = [{"index":gpu_index, "name": gpu_names[i], "state": "stopped", "queue": []} for i, gpu_index in enumerate(gpu_indexes)]
+    state["gpus"] = [{"index": gpu_index, "name": gpu_names[i]} for i, gpu_index in enumerate(gpu_indexes)]
     n_gpus = len(gpu_names)
     state["n_gpus"] = str(n_gpus)
-    khs_vals = []
-    stats_vals = []
+    state["status"] = "stopped"
+    state["queue"] = []
+    khs = 0
+    stats = {}
     # get crypto mining state
-    for i, gpu in enumerate(gpu_indexes):
-        output = run_shell_cmd(f"nvidia-smi -i {gpu}", very_quiet=True)
-        if "t-rex" in output:
-            state["gpus"][i]["state"] = "crypto"
-            khs_val, stats_val = get_mining_stats(gpu)
-            khs_vals.append(khs_val)
-            if isinstance(stats_val, str) and stats_val == "null":
-                stats_val = {}
-            stats_vals.append(stats_val)
-        else:
-            # TODO still return values times multiplier when renders or benchmarks are running
-            khs_vals.append(0)
-            stats_vals.append({})
+    output = run_shell_cmd(f"nvidia-smi", very_quiet=True)
+    if "t-rex" in output:
+        state["status"] = "crypto"
+        khs, stats = get_mining_stats()
+    else:
+        # TODO still return values times multiplier when renders or benchmarks are running
+        pass
     
-    benchmark_containers = run_shell_cmd('docker ps --filter "name=rentaflop-benchmark*" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
+    stats["uptime"] = round(time.time() - _START_TIME)
+    stats["algo"] = "rentaflop"
+    benchmark_container = run_shell_cmd('docker ps --filter "name=rentaflop-benchmark" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
                                quiet=quiet, format_output=False).split()
-    for container in benchmark_containers:
-        # container looks like f"rentaflop-sandbox-{gpu}"
-        _, _, gpu = container.split("-")
-        for i, gpu_dict in enumerate(state["gpus"]):
-            if gpu_dict["index"] == gpu:
-                # treat benchmark jobs as gpc
-                state["gpus"][i]["state"] = "gpc"
+    if benchmark_container:
+        # treat benchmark jobs as gpc
+        state["status"] = "gpc"
     
     # get all sandbox container names
-    sandbox_containers = run_shell_cmd('docker ps --filter "name=rentaflop-sandbox*" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
+    sandbox_container = run_shell_cmd('docker ps --filter "name=rentaflop-sandbox" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
                                quiet=quiet, format_output=False).split()
-    for container in sandbox_containers:
-        # container looks like f"rentaflop-sandbox-{gpu}"
-        _, _, gpu = container.split("-")
-        for i, gpu_dict in enumerate(state["gpus"]):
-            if gpu_dict["index"] == gpu:
-                # request queued jobs from docker
-                container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container, format_output=False, quiet=quiet).strip()
-                url = f"https://{container_ip}"
-                data = {"cmd": "status", "params": {}}
-                files = {'json': json.dumps(data)}
-                result = post_to_sandbox(url, files, quiet=True, very_quiet=True)
-                if not result:
-                    result = {"queue": []}
-                
-                container_queue = result.get("queue")
-                container_state = "stopped"
-                if container_queue:
-                    container_state = "gpc"
-                    
-                state["gpus"][i]["state"] = container_state
-                state["gpus"][i]["queue"] = container_queue
+    if sandbox_container:
+        # request queued tasks from docker
+        container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container, format_output=False, quiet=quiet).strip()
+        url = f"https://{container_ip}"
+        data = {"cmd": "status", "params": {}}
+        files = {'json': json.dumps(data)}
+        result = post_to_sandbox(url, files, quiet=True, very_quiet=True)
+        if not result:
+            result = {"queue": []}
+
+        container_queue = result.get("queue")
+        container_state = "stopped"
+        if container_queue:
+            container_state = "gpc"
+
+        state["status"] = container_state
+        state["queue"] = container_queue
 
     if not gpu_only:
-        ports = []
         state["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")
         state["resources"] = {"gpu_indexes": available_resources["gpu_indexes"]}
-        khs, stats = get_khs_stats(khs_vals, stats_vals)
         state["khs"] = khs
         state["stats"] = stats
 
@@ -420,21 +381,20 @@ def install_or_update_crypto_miner():
     run_shell_cmd(f"curl -L https://trex-miner.com/download/t-rex-{target_version}-linux.tar.gz > trex.tgz && mkdir trex && tar -xzf trex.tgz -C trex && rm trex.tgz")
 
 
-def stop_crypto_miner(gpu):
+def stop_crypto_miner():
     """
-    stop crypto miner on gpu
+    stop crypto miner
     """
-    # find t-rex pid running on this specific gpu and kill it to stop crypto mining
-    # can't use signal 9 to kill because it causes GPU errors
-    run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex' | " + "awk '{ print $5 }' | xargs -n1 kill -15", very_quiet=True)
+    # don't use signal 9 to kill because it causes GPU errors (defaults to signal 15)
+    run_shell_cmd('killall t-rex')
 
 
-def start_crypto_miner(gpu, crypto_port, hostname, crypto_config):
+def start_crypto_miner(crypto_port, hostname, crypto_config):
     """
-    start crypto miner on gpu; do nothing if already running
+    start crypto miner on gpus; do nothing if already running
     """
     # do nothing if running
-    output = run_shell_cmd(f"nvidia-smi -i {gpu} | grep 't-rex'", very_quiet=True)
+    output = run_shell_cmd(f"nvidia-smi | grep 't-rex'", very_quiet=True)
     if output:
         return
     
@@ -454,7 +414,7 @@ def start_crypto_miner(gpu, crypto_port, hostname, crypto_config):
         json.dump(config_json, f)
 
     # run miner
-    os.system(f"./trex/t-rex -c {config_file} --api-bind-http 127.0.0.1:{crypto_port} -d {gpu} &")
+    os.system(f"./trex/t-rex -c {config_file} --api-bind-http 127.0.0.1:{crypto_port} &")
 
     # clean up tmp file after 60 seconds without hangup
     run_shell_cmd(f'echo "sleep 60; rm {config_file}" | at now', quiet=True)
@@ -556,6 +516,7 @@ def disable_oc(gpu_indexes):
     reset overclock settings for gpus at gpu indexes
     leave power limit settings alone so as to not cause overheating; overclock alone causes issues with rendering
     """
+    gpu_indexes = [int(gpu) for gpu in gpu_indexes]
     original_oc_settings, oc_hash, db = read_oc_settings()
     current_oc_settings, current_oc_hash = get_oc_settings()
     # do nothing if overclocking not set

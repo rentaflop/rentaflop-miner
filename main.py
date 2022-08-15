@@ -25,7 +25,7 @@ app, db = get_app_db()
 
 def _start_mining(startup=False):
     """
-    starts mining on any stopped GPUs
+    starts mining during GPU downtime
     startup will sleep for several seconds before attempting to start mining, as if this is a miner restart the old containers
     about to die may still be running
     """
@@ -33,18 +33,18 @@ def _start_mining(startup=False):
     if startup:
         time.sleep(10)
     state = get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], gpu_only=True, quiet=True)
-    gpus = state["gpus"]
-    gpus_stopped = {gpu["index"] for gpu in gpus if gpu["state"] == "stopped"}
+    status = state["status"]
+    gpus_stopped = status == "stopped"
     gpus_stopped_later = gpus_stopped
     # we want to make sure we're not starting miner back up right before a task is about to be run so we try again before restarting
     if gpus_stopped and not startup:
         time.sleep(10)
         state = get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], gpu_only=True, quiet=True)
-        gpus = state["gpus"]
-        gpus_stopped_later = {gpu["index"] for gpu in gpus if gpu["state"] == "stopped"}
+        status = state["status"]
+        gpus_stopped_later = status == "stopped"
     
-    for gpu_index in gpus_stopped.intersection(gpus_stopped_later):
-        mine({"action": "start", "gpu": gpu_index})
+    if gpus_stopped and gpus_stopped_later
+        mine({"action": "start"})
 
 
 def _get_registration(is_checkin=True):
@@ -252,7 +252,7 @@ def _handle_startup():
         _start_mining(startup=True)
 
 
-def _run_sandbox(gpu, container_name, timeout=0):
+def _run_sandbox(container_name, timeout=0):
     """
     runs docker sandbox based on parameters; does nothing if container_name already running
     checks run command output; if None, it means docker threw an exception caught by run_shell_cmd and we should retry since it sometimes fails on first try
@@ -266,11 +266,17 @@ def _run_sandbox(gpu, container_name, timeout=0):
         
         return container_ip
 
+    gpu_flags = []
+    gpu_indexes = RENTAFLOP_CONFIG["available_resources"]["gpu_indexes"]
+    for gpu_index in gpu_indexes:
+        gpu_flags.append(f"--device /dev/nvidia{gpu_index}:/dev/nvidia{gpu_index}")
+    
+    gpu_flags_str = " ".join(gpu_flags)
     tries = 2
     for _ in range(tries):
-        output = run_shell_cmd(f'''sudo docker run --gpus '"device={gpu}"' --device /dev/nvidia{gpu}:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl \
+        output = run_shell_cmd(f'''sudo docker run --gpus all {gpu_flags_str} --device /dev/nvidiactl:/dev/nvidiactl \
         --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env SANDBOX_ID={RENTAFLOP_CONFIG['sandbox_id']} --env GPU={gpu} --env TIMEOUT={timeout} --shm-size=256m -h rentaflop -dt rentaflop/sandbox''')
+        --rm --name {container_name} --env SANDBOX_ID={RENTAFLOP_CONFIG['sandbox_id']} --env TIMEOUT={timeout} --shm-size=256m -h rentaflop -dt rentaflop/sandbox''')
         if output:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
             wait_for_sandbox_server(container_ip)
@@ -281,16 +287,16 @@ def _run_sandbox(gpu, container_name, timeout=0):
 def mine(params):
     """
     handle commands related to mining, whether crypto mining or guest "mining"
-    params looks like {"action": "start" | "stop", "gpu": "0", "task_id": "13245", "render_file": contents}
+    params looks like {"action": "start" | "stop", "task_id": "13245", "render_file": contents}
     iff render job, we receive task_id and render_file parameter (if action is start) that contains data to be rendered
     """
     action = params["action"]
-    gpu = int(params["gpu"])
     task_id = params.get("task_id")
     start_frame = params.get("start_frame")
     n_frames = params.get("n_frames")
     job_id = params.get("job_id")
-    container_name = f"rentaflop-sandbox-{gpu}"
+    container_name = f"rentaflop-sandbox"
+    gpu_indexes = RENTAFLOP_CONFIG["available_resources"]["gpu_indexes"]
     is_render = False
     if task_id:
         is_render = True
@@ -298,10 +304,10 @@ def mine(params):
     if action == "start":
         if is_render:
             render_file = get_render_file(RENTAFLOP_CONFIG["rentaflop_id"], job_id)
-            stop_crypto_miner(gpu)
-            disable_oc([gpu])
+            stop_crypto_miner()
+            disable_oc(gpu_indexes)
             # ensure sandbox for gpu is running, does nothing if already running
-            container_ip = _run_sandbox(gpu, container_name)
+            container_ip = _run_sandbox(container_name)
             url = f"https://{container_ip}"
             end_frame = start_frame + n_frames - 1
             data = {"cmd": "push", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame}}
@@ -312,11 +318,11 @@ def mine(params):
                 return
             run_shell_cmd(f"docker stop {container_name}", very_quiet=True)
             # 4059 is default port from hive
-            crypto_port = 4059 + gpu
+            crypto_port = 4059
             hostname = socket.gethostname()
-            enable_oc([gpu])
+            enable_oc(gpu_indexes)
             # does nothing if already mining
-            start_crypto_miner(gpu, crypto_port, hostname, RENTAFLOP_CONFIG["crypto_config"])
+            start_crypto_miner(crypto_port, hostname, RENTAFLOP_CONFIG["crypto_config"])
     elif action == "stop":
         if is_render:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
@@ -324,9 +330,8 @@ def mine(params):
             data = {"cmd": "pop", "params": {"task_id": task_id}}
             files = {'json': json.dumps(data)}
             post_to_sandbox(url, files)
-            enable_oc([gpu])
         else:
-            stop_crypto_miner(gpu)
+            stop_crypto_miner()
 
 
 def _stop_all():
@@ -426,19 +431,17 @@ def benchmark(params):
     """
     run performance benchmark for gpus
     """
-    gpu_indexes = RENTAFLOP_CONFIG["available_resources"]["gpu_indexes"]
-    gpu_indexes = [int(gpu) for gpu in gpu_indexes]
     _stop_all()
+    gpu_indexes = RENTAFLOP_CONFIG["available_resources"]["gpu_indexes"]
     disable_oc(gpu_indexes)
-    for gpu in gpu_indexes:
-        container_name = f"rentaflop-benchmark-{gpu}"
-        # start container for benchmarking; 15 minute timeout (900 seconds)
-        container_ip = _run_sandbox(gpu, container_name, timeout=900)
-        url = f"https://{container_ip}/benchmark"
-        # sending empty post request for now, at some point will issue challenges to prove benchmark results
-        data = {}
-        files = {'json': json.dumps(data)}
-        post_to_sandbox(url, files)
+    container_name = f"rentaflop-benchmark"
+    # start container for benchmarking; 15 minute timeout (900 seconds)
+    container_ip = _run_sandbox(container_name, timeout=900)
+    url = f"https://{container_ip}/benchmark"
+    # sending empty post request for now, at some point will issue challenges to prove benchmark results
+    data = {}
+    files = {'json': json.dumps(data)}
+    post_to_sandbox(url, files)
 
 
 def prep_daemon_shutdown(server):
