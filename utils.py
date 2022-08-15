@@ -407,7 +407,7 @@ def start_crypto_miner(crypto_port, hostname, crypto_config):
         pools["user"] = crypto_config["wallet_address"]
         pools["url"] = crypto_config["pool_url"]
         pools["pass"] = crypto_config["pass"]
-        pools["worker"] = f"{hostname}_{gpu}"
+        pools["worker"] = hostname
         config_json["algo"] = crypto_config["hash_algorithm"]
 
     with open(config_file, "w") as f:
