@@ -553,6 +553,7 @@ def enable_oc(gpu_indexes):
     """
     set overclock settings to original oc_settings
     """
+    gpu_indexes = [int(gpu) for gpu in gpu_indexes]
     original_oc_settings, oc_hash, db = read_oc_settings()
     current_oc_settings, current_oc_hash = get_oc_settings()
     # do nothing if overclocking not set
