@@ -43,7 +43,7 @@ def _start_mining(startup=False):
         status = state["status"]
         gpus_stopped_later = status == "stopped"
     
-    if gpus_stopped and gpus_stopped_later
+    if gpus_stopped and gpus_stopped_later:
         mine({"action": "start"})
 
 
