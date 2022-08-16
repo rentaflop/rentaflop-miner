@@ -193,11 +193,12 @@ def get_state(available_resources, gpu_only=False, quiet=False):
         state["status"] = "gpc"
     
     # get all sandbox container names
-    sandbox_container = run_shell_cmd('docker ps --filter "name=rentaflop-sandbox" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
+    container_name = "rentaflop-sandbox"
+    sandbox_container = run_shell_cmd(f'docker ps --filter "name={container_name}" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
                                quiet=quiet, format_output=False).split()
     if sandbox_container:
         # request queued tasks from docker
-        container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container, format_output=False, quiet=quiet).strip()
+        container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False, quiet=quiet).strip()
         url = f"https://{container_ip}"
         data = {"cmd": "status", "params": {}}
         files = {'json': json.dumps(data)}
