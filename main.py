@@ -96,7 +96,8 @@ def _get_registration(is_checkin=True):
     except requests.exceptions.ConnectionError:
         ip = None
     # register host with rentaflop or perform checkin if already registered
-    data = {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], quiet=is_checkin), "ip": ip, \
+    data = {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], quiet=is_checkin, version=RENTAFLOP_CONFIG["version"], \
+                               algo=RENTAFLOP_CONFIG["crypto_config"]["hash_algorithm"]), "ip": ip, \
             "rentaflop_id": rentaflop_id, "email": crypto_config["email"], "wallet_address": crypto_config["wallet_address"]}
     if not is_checkin:
         data["ignore_instruction"] = True
