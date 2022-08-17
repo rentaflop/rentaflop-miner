@@ -116,7 +116,7 @@ def get_mining_stats():
     return khs, stats
 
 
-def get_state(available_resources, gpu_only=False, quiet=False, version="rentaflop", algo="rentaflop"):
+def get_state(available_resources, gpu_only=False, quiet=False, version=None, algo=None):
     """
     returns a dictionary with all relevant daemon state information
     this includes gpus, running containers, container use, etc.
@@ -175,7 +175,10 @@ def get_state(available_resources, gpu_only=False, quiet=False, version="rentafl
     state["queue"] = []
     khs = 0
     stats = {}
-        
+    if not version:
+        version = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")
+    if not algo:
+        algo = "rentaflop"
     # get crypto mining state
     output = run_shell_cmd(f"nvidia-smi", very_quiet=True)
     if "t-rex" in output:
