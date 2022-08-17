@@ -266,9 +266,12 @@ def _run_sandbox(container_name, timeout=0):
         
         return container_ip
 
+    hostname = socket.gethostname()
     gpu_flags = []
     gpu_indexes = RENTAFLOP_CONFIG["available_resources"]["gpu_indexes"]
     for gpu_index in gpu_indexes:
+        if hostname == "rentaflop_two" and gpu_index == 3:
+            continue
         gpu_flags.append(f"--device /dev/nvidia{gpu_index}:/dev/nvidia{gpu_index}")
     
     gpu_flags_str = " ".join(gpu_flags)
