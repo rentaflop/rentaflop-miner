@@ -231,6 +231,7 @@ def _handle_startup():
     run_shell_cmd("./nvidia_uvm_init.sh", quiet=True)
     global RENTAFLOP_CONFIG
     RENTAFLOP_CONFIG["available_resources"] = _get_available_resources()
+    RENTAFLOP_CONFIG["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")
     RENTAFLOP_CONFIG["rentaflop_id"], RENTAFLOP_CONFIG["sandbox_id"], RENTAFLOP_CONFIG["crypto_config"] = \
         _get_registration(is_checkin=False)
     # must do installation check before anything required by it is used
@@ -426,7 +427,8 @@ def status(params):
     """
     return the state of this host
     """
-    return {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], quiet=True)}
+    return {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], quiet=True, \
+                               version=RENTAFLOP_CONFIG["version"], algo=RENTAFLOP_CONFIG["crypto_config"]["hash_algorithm"])}
 
 
 def benchmark(params):
@@ -546,9 +548,9 @@ CMD_TO_FUNC = {
 }
 # rentaflop config looks like {"rentaflop_id": ..., "sandbox_id": ..., \
 # "available_resources": {"gpu_indexes": [...], "gpu_names": [...]}, "crypto_config": {"wallet_address": ..., \
-# "email": ..., "disable_crypto": ..., "pool_url": ..., "hash_algorithm": ..., "pass": ...}}
+# "email": ..., "disable_crypto": ..., "pool_url": ..., "hash_algorithm": ..., "pass": ...}, "version": ...}
 RENTAFLOP_CONFIG = {"rentaflop_id": None, "sandbox_id": None, "available_resources": {}, \
-                    "crypto_config": {}}
+                    "crypto_config": {}, "version": None}
 
 
 def main():

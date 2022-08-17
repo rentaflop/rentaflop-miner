@@ -116,7 +116,7 @@ def get_mining_stats():
     return khs, stats
 
 
-def get_state(available_resources, gpu_only=False, quiet=False):
+def get_state(available_resources, gpu_only=False, quiet=False, version="rentaflop", algo="rentaflop"):
     """
     returns a dictionary with all relevant daemon state information
     this includes gpus, running containers, container use, etc.
@@ -175,7 +175,7 @@ def get_state(available_resources, gpu_only=False, quiet=False):
     state["queue"] = []
     khs = 0
     stats = {}
-    rentaflop_version = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")
+        
     # get crypto mining state
     output = run_shell_cmd(f"nvidia-smi", very_quiet=True)
     if "t-rex" in output:
@@ -187,8 +187,8 @@ def get_state(available_resources, gpu_only=False, quiet=False):
 
     if stats != "null":
         stats["uptime"] = round(time.time() - _START_TIME)
-        stats["algo"] = "rentaflop"
-        stats["ver"] = rentaflop_version
+        stats["algo"] = algo
+        stats["ver"] = version
     benchmark_container = run_shell_cmd('docker ps --filter "name=rentaflop-benchmark" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
                                quiet=quiet, format_output=False).split()
     if benchmark_container:
@@ -218,7 +218,7 @@ def get_state(available_resources, gpu_only=False, quiet=False):
         state["queue"] = container_queue
 
     if not gpu_only:
-        state["version"] = rentaflop_version
+        state["version"] = version
         state["resources"] = {"gpu_indexes": available_resources["gpu_indexes"]}
         state["khs"] = khs
         state["stats"] = stats
