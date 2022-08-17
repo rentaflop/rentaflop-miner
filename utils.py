@@ -11,6 +11,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import os
 import tempfile
 import copy
+import socket
 
 
 SUPPORTED_GPUS = {
@@ -703,3 +704,14 @@ def get_render_file(rentaflop_id, job_id):
     render_file = file_response.raw
 
     return render_file
+
+
+def pull_latest_code():
+    """
+    pull latest rentaflop miner code
+    """
+    # use test branch develop if testing on rentaflop_one otherwise use prod branch master
+    branch = "develop" if socket.gethostname() in ["rentaflop_one", "rentaflop_two"] else "master"
+    run_shell_cmd(f"git checkout {branch}")
+    run_shell_cmd("git pull")
+    

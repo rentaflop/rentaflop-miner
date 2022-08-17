@@ -224,6 +224,8 @@ def _handle_startup():
         _subsequent_startup()
 
     DAEMON_LOGGER.debug("Starting daemon...")
+    # do a code pull in case this is first startup in a long time or if the instruction retrieval breaks
+    pull_latest_code()
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
     run_shell_cmd("./nvidia_uvm_init.sh", quiet=True)
@@ -369,10 +371,7 @@ def update(params, reboot=True, second_update=False):
     if update_type == "rentaflop":
         # must run all commands even if second update
         target_version = params.get("target_version", "")
-        # use test branch develop if testing on rentaflop_one otherwise use prod branch master
-        branch = "develop" if socket.gethostname() in ["rentaflop_one", "rentaflop_two"] else "master"
-        run_shell_cmd(f"git checkout {branch}")
-        run_shell_cmd("git pull")
+        pull_latest_code()
         if target_version:
             run_shell_cmd(f"git checkout {target_version}")
         run_shell_cmd("sudo docker pull rentaflop/host:latest")
