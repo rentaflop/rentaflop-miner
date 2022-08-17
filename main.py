@@ -272,7 +272,7 @@ def _run_sandbox(container_name, timeout=0):
     gpu_flags = []
     gpu_indexes = RENTAFLOP_CONFIG["available_resources"]["gpu_indexes"]
     for gpu_index in gpu_indexes:
-        if hostname == "rentaflop_two" and gpu_index == 3:
+        if hostname == "rentaflop_two" and int(gpu_index) == 3:
             continue
         gpu_flags.append(f"--device /dev/nvidia{gpu_index}:/dev/nvidia{gpu_index}")
     
