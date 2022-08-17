@@ -231,7 +231,7 @@ def _handle_startup():
     run_shell_cmd("./nvidia_uvm_init.sh", quiet=True)
     global RENTAFLOP_CONFIG
     RENTAFLOP_CONFIG["available_resources"] = _get_available_resources()
-    RENTAFLOP_CONFIG["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=quiet, format_output=False).replace("\n", "")
+    RENTAFLOP_CONFIG["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=True, format_output=False).replace("\n", "")
     RENTAFLOP_CONFIG["rentaflop_id"], RENTAFLOP_CONFIG["sandbox_id"], RENTAFLOP_CONFIG["crypto_config"] = \
         _get_registration(is_checkin=False)
     # must do installation check before anything required by it is used
