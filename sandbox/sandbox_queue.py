@@ -288,6 +288,9 @@ class Config(object):
     SECRET_KEY = uuid.uuid4().hex
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+os.system("sudo service mysql stop")
+os.system("sudo usermod -d /var/lib/mysql/ mysql")
+os.system("sudo service mysql start")
 os.system("/etc/init.d/mysql start")
 os.system("mkdir /var/log/mysql")
 os.system("sudo chown -R mysql:mysql /var/log/mysql")
