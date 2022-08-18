@@ -466,7 +466,7 @@ def wait_for_sandbox_server(container_ip):
 
 def get_oc_settings():
     """
-    read and return currently-set overclock settings and associated hash
+    read and return currently-set overclock settings and associated hash from nvidia_oc_conf file
     """
     oc_file = os.getenv("NVIDIA_OC_CONF")
     current_oc_settings = {}
@@ -551,6 +551,7 @@ def disable_oc(gpu_indexes):
     new_values = ["0"]*len(gpu_indexes)
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "CLOCK", new_values)
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "MEM", new_values)
+    new_oc_settings["OHGODAPILL_ENABLED"] = ""
     _write_settings(new_oc_settings)
     _, new_oc_hash = get_oc_settings()
     # releases lock
@@ -585,8 +586,10 @@ def enable_oc(gpu_indexes):
     original_clock_values = [original_clock_values[idx] for idx in gpu_indexes]
     original_mem_values = _get_setting_from_key(original_oc_settings, "MEM", n_gpus)
     original_mem_values = [original_mem_values[idx] for idx in gpu_indexes]
+    original_pill_value = original_oc_settings["OHGODAPILL_ENABLED"]
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "CLOCK", original_clock_values)
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "MEM", original_mem_values)
+    new_oc_settings["OHGODAPILL_ENABLED"] = original_pill_value
     _write_settings(new_oc_settings)
     # original oc settings not overwritten, but we just overwrote oc file so need to update to new hash
     _, new_oc_hash = get_oc_settings()
