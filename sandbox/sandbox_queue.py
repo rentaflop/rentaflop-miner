@@ -289,6 +289,9 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 os.system("/etc/init.d/mysql start")
+os.system("mkdir /var/log/mysql")
+os.system("sudo chown -R mysql:mysql /var/log/mysql")
+os.system("sudo systemctl start mysql")
 os.system('''mysql -u root -e "ALTER USER 'root'@'127.0.0.1' IDENTIFIED WITH mysql_native_password BY 'sandbox';"''')
 os.system('mysql -u root -psandbox -e "create database sandbox;"')
 
