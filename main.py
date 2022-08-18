@@ -318,7 +318,7 @@ def mine(params):
             end_frame = start_frame + n_frames - 1
             data = {"cmd": "push", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame}}
             files = {'render_file': render_file, 'json': json.dumps(data)}
-            post_to_sandbox(url, files, timeout=10)
+            post_to_sandbox(url, files, timeout=20)
         else:
             if RENTAFLOP_CONFIG["crypto_config"]["disable_crypto"]:
                 return
@@ -445,7 +445,7 @@ def benchmark(params):
     # sending empty post request for now, at some point will issue challenges to prove benchmark results
     data = {}
     files = {'json': json.dumps(data)}
-    post_to_sandbox(url, files, timeout=10)
+    post_to_sandbox(url, files, timeout=20)
 
 
 def prep_daemon_shutdown(server):
