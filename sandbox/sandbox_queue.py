@@ -107,7 +107,7 @@ def _delete_task_with_id(task_id):
     return tsp_id iff deleted, None otherwise
     """
     # not using ORM because this is run in separate thread where app/db are not defined
-    conn = pymysql.connect(host='127.0.0.1', user='root', password = "sandbox", db='sandbox')
+    conn = pymysql.connect(host='localhost', user='root', password = "sandbox", db='sandbox')
     cur = conn.cursor()
     cur.execute(f"SELECT tsp_id FROM task WHERE task_id='{task_id}';")
     task = cur.fetchone()
@@ -284,7 +284,7 @@ SANDBOX_LOGGER = _get_logger(LOG_FILE)
 
 
 class Config(object):
-    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:sandbox@127.0.0.1/sandbox"
+    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:sandbox@localhost/sandbox"
     SECRET_KEY = uuid.uuid4().hex
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -295,7 +295,7 @@ os.system("/etc/init.d/mysql start")
 os.system("mkdir /var/log/mysql")
 os.system("sudo chown -R mysql:mysql /var/log/mysql")
 os.system("sudo systemctl start mysql")
-os.system('''mysql -u root -e "ALTER USER 'root'@'127.0.0.1' IDENTIFIED WITH mysql_native_password BY 'sandbox';"''')
+os.system('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'sandbox';"''')
 os.system('mysql -u root -psandbox -e "create database sandbox;"')
 
 app = Flask(__name__)
