@@ -291,10 +291,8 @@ class Config(object):
 os.system("sudo service mysql stop")
 os.system("sudo usermod -d /var/lib/mysql/ mysql")
 os.system("sudo service mysql start")
-os.system("/etc/init.d/mysql start")
 os.system("mkdir /var/log/mysql")
 os.system("sudo chown -R mysql:mysql /var/log/mysql")
-os.system("sudo systemctl start mysql")
 os.system('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'sandbox';"''')
 os.system('mysql -u root -psandbox -e "create database sandbox;"')
 

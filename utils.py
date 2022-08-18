@@ -450,11 +450,12 @@ def check_correct_driver(reboot=True):
 
 def wait_for_sandbox_server(container_ip):
     """
-    wait up to 30 seconds for sandbox server to start
-    if still not up after 30 seconds, return and hope for the best
+    wait up to 60 seconds for sandbox server to start
+    if still not up after 60 seconds, return and hope for the best
     """
     sandbox_url = f"https://{container_ip}/health"
-    tries = 30
+    tries = 6
+    timeout = 10
     for _ in range(tries):
         try:
             response = requests.get(sandbox_url, verify=False)
@@ -463,7 +464,7 @@ def wait_for_sandbox_server(container_ip):
         except (requests.exceptions.ConnectionError, json.decoder.JSONDecodeError) as e:
             pass
 
-        time.sleep(1)
+        time.sleep(timeout)
 
 
 def get_oc_settings():
