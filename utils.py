@@ -311,7 +311,7 @@ def post_to_rentaflop(data, endpoint, quiet=False):
     return response_json
 
 
-def post_to_sandbox(sandbox_url, data, quiet=False, very_quiet=False):
+def post_to_sandbox(sandbox_url, data, quiet=False, very_quiet=False, timeout=None):
     """
     make post request to docker sandbox servers; do retries since container may have just been started
     catch exceptions resulting from request
@@ -319,6 +319,8 @@ def post_to_sandbox(sandbox_url, data, quiet=False, very_quiet=False):
     if not quiet:
         DAEMON_LOGGER.debug(f"Sent to sandbox {sandbox_url}: {data}")
     tries = 3
+    if not timeout:
+        timeout = 3
     for _ in range(tries):
         try:
             response = requests.post(sandbox_url, files=data, verify=False)
@@ -332,7 +334,7 @@ def post_to_sandbox(sandbox_url, data, quiet=False, very_quiet=False):
             # must return file to beginning of stream if post failed
             if "render_file" in data:
                 data["render_file"].seek(0)
-            time.sleep(3)
+            time.sleep(timeout)
 
     if not quiet:
         DAEMON_LOGGER.debug(f"Received from sandbox {sandbox_url}: {response_json}")
