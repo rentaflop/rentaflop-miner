@@ -288,30 +288,30 @@ class Config(object):
     SECRET_KEY = uuid.uuid4().hex
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-os.system("sudo service mysql stop")
-os.system("sudo usermod -d /var/lib/mysql/ mysql")
-os.system("sudo service mysql start")
-os.system("/etc/init.d/mysql start")
-os.system("mkdir /var/log/mysql")
-os.system("sudo chown -R mysql:mysql /var/log/mysql")
-os.system("sudo systemctl start mysql")
-os.system('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'sandbox';"''')
-os.system('mysql -u root -psandbox -e "create database sandbox;"')
+# os.system("sudo service mysql stop")
+# os.system("sudo usermod -d /var/lib/mysql/ mysql")
+# os.system("sudo service mysql start")
+# os.system("/etc/init.d/mysql start")
+# os.system("mkdir /var/log/mysql")
+# os.system("sudo chown -R mysql:mysql /var/log/mysql")
+# os.system("sudo systemctl start mysql")
+# os.system('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'sandbox';"''')
+# os.system('mysql -u root -psandbox -e "create database sandbox;"')
 
 app = Flask(__name__)
 app.config.from_object(Config)
-db = SQLAlchemy(app)
+# db = SQLAlchemy(app)
 
-class Task(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.Integer)
-    tsp_id = db.Column(db.Integer)
-    task_dir = db.Column(db.String(64))
+# class Task(db.Model):
+#     id = db.Column(db.Integer, primary_key=True)
+#     task_id = db.Column(db.Integer)
+#     tsp_id = db.Column(db.Integer)
+#     task_dir = db.Column(db.String(64))
 
-    def __repr__(self):
-        return f"<Task {self.task_id} {self.tsp_id} {self.task_dir}>"
+#     def __repr__(self):
+#         return f"<Task {self.task_id} {self.tsp_id} {self.task_dir}>"
 
-db.create_all(app=app)
+# db.create_all(app=app)
 
 
 def main():
