@@ -166,6 +166,7 @@ def get_state(available_resources, gpu_only=False, quiet=False, version=None, al
       }
     }
     """
+    global CRYPTO_STATS
     state = {}
     gpu_indexes = available_resources["gpu_indexes"]
     gpu_names = available_resources["gpu_names"]
@@ -195,7 +196,6 @@ def get_state(available_resources, gpu_only=False, quiet=False, version=None, al
         stats["ver"] = version
         # currently mining crypto and found higher stats so we save these to be displayed to hive during non-crypto mining tasks
         if float(stats["total_khs"]) > float(CRYPTO_STATS["total_khs"]):
-            global CRYPTO_STATS
             CRYPTO_STATS = stats
             
     benchmark_container = run_shell_cmd('docker ps --filter "name=rentaflop-benchmark" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
