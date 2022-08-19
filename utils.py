@@ -45,6 +45,7 @@ SUPPORTED_GPUS = {
     "NVIDIA GeForce RTX 3090",
     "NVIDIA GeForce RTX 3090 Ti",
 }
+CRYPTO_STATS = {"total_khs": "0.0"}
 
 _, DB = get_app_db()
 class Overclock(DB.Model):
@@ -192,6 +193,11 @@ def get_state(available_resources, gpu_only=False, quiet=False, version=None, al
         stats["uptime"] = round(time.time() - _START_TIME)
         stats["algo"] = algo
         stats["ver"] = version
+        # currently mining crypto and found higher stats so we save these to be displayed to hive during non-crypto mining tasks
+        if float(stats["total_khs"]) > float(CRYPTO_STATS["total_khs"]):
+            global CRYPTO_STATS
+            CRYPTO_STATS = stats
+            
     benchmark_container = run_shell_cmd('docker ps --filter "name=rentaflop-benchmark" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
                                quiet=quiet, format_output=False).split()
     if benchmark_container:
@@ -221,6 +227,10 @@ def get_state(available_resources, gpu_only=False, quiet=False, version=None, al
 
         state["status"] = container_state
         state["queue"] = container_queue
+
+    # if we're not mining crypto and crypto_stats is set, show saved crypto_stats
+    if state["status"] != "crypto" and float(CRYPTO_STATS["total_khs"]) > 0.0:
+        stats = CRYPTO_STATS
 
     if not gpu_only:
         state["version"] = version
