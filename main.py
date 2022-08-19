@@ -44,6 +44,7 @@ def _start_mining(startup=False):
         gpus_stopped_later = status == "stopped"
     
     if gpus_stopped and gpus_stopped_later:
+        DAEMON_LOGGER.debug("Starting crypto miner")
         mine({"action": "start"})
 
 
