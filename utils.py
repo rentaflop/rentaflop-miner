@@ -213,8 +213,10 @@ def get_state(available_resources, gpu_only=False, quiet=False, version=None, al
             result = {"queue": []}
 
         container_queue = result.get("queue")
+        uptime = result.get("uptime")
         container_state = "stopped"
-        if container_queue:
+        # check for existing queue items or give container a couple minutes to start
+        if container_queue or (uptime is not None and uptime < 120):
             container_state = "gpc"
 
         state["status"] = container_state

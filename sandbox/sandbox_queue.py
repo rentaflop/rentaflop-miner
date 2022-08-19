@@ -152,8 +152,9 @@ def status(params):
     """
     tasks = Task.query.all()
     tasks = [task.task_id for task in tasks]
+    uptime = round(time.time() - _START_TIME)
     
-    return {"queue": tasks}
+    return {"queue": tasks, "uptime": uptime}
 
 
 def _remove_results(task_id):
@@ -277,6 +278,7 @@ CMD_TO_FUNC = {
     "pop": pop_task,
     "status": status,
 }
+_START_TIME = time.time()
 FILE_DIR = "/root/tasks"
 os.makedirs(FILE_DIR, exist_ok=True)
 LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sandbox.log")
