@@ -289,7 +289,12 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 os.system("sudo usermod -d /var/lib/mysql/ mysql")
-os.system("sudo service mysql start")
+# make sure mysql starts properly
+tries = 10
+for _ in range(tries):
+    status_code = os.system("sudo service mysql start")
+    if status_code == 0:
+        break
 os.system('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'sandbox';"''')
 os.system('mysql -u root -psandbox -e "create database sandbox;"')
 

@@ -318,10 +318,10 @@ def post_to_sandbox(sandbox_url, data, quiet=False, very_quiet=False, timeout=No
     """
     if not quiet:
         DAEMON_LOGGER.debug(f"Sent to sandbox {sandbox_url}: {data}")
-    tries = 3
+    retries = 3
     if not timeout:
         timeout = 3
-    for _ in range(tries):
+    for _ in range(retries+1):
         try:
             response = requests.post(sandbox_url, files=data, verify=False)
             response_json = response.json()
@@ -450,11 +450,11 @@ def check_correct_driver(reboot=True):
 
 def wait_for_sandbox_server(container_ip):
     """
-    wait up to 60 seconds for sandbox server to start
-    if still not up after 60 seconds, return and hope for the best
+    wait up to 90 seconds for sandbox server to start
+    if still not up after 90 seconds, return and hope for the best
     """
     sandbox_url = f"https://{container_ip}/health"
-    tries = 6
+    tries = 9
     timeout = 10
     for _ in range(tries):
         try:
