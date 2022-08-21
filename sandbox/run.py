@@ -18,8 +18,8 @@ def main():
         output_path = os.path.join(task_dir, "output/")
         os.mkdir(output_path)
         os.system(f"touch {task_dir}/started.txt")
-        # render results for specified frames to output path; disables scripting
-        cmd = f"blender/blender -b {task_dir}/render_file.blend -o {output_path} -s {start_frame} -e {end_frame} --disable-autoexec -a -- --cycles-device OPTIX"
+        # render results for specified frames to output path; disables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
+        cmd = f"DISPLAY=:0.0 blender/blender -b {task_dir}/render_file.blend -o {output_path} -s {start_frame} -e {end_frame} --disable-autoexec -a -- --cycles-device OPTIX"
         return_code = os.system(cmd)
         # successful render, so send result to servers
         if return_code == 0:
