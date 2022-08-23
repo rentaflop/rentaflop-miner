@@ -649,8 +649,8 @@ def check_installation():
     run_shell_cmd("sudo systemctl start mysql", quiet=True)
     run_shell_cmd('''mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'daemon';"''', quiet=True)
     run_shell_cmd('mysql -u root -pdaemon -e "create database daemon;"', quiet=True)
-    run_shell_cmd('mysql -u root -pdaemon -e "mysql -u root -pdaemon -e "SET session wait_timeout=10;"', quiet=True)
-    run_shell_cmd('mysql -u root -pdaemon -e "mysql -u root -pdaemon -e "SET interactive_timeout=10;"', quiet=True)
+    run_shell_cmd('mysql -u root -pdaemon -e "SET session wait_timeout=10;"', quiet=True)
+    run_shell_cmd('mysql -u root -pdaemon -e "SET interactive_timeout=10;"', quiet=True)
     app, _ = get_app_db()
     # use db object tables initialized with
     DB.init_app(app)

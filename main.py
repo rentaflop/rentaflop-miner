@@ -472,10 +472,7 @@ def run_flask_server(q):
             try:
                 if cmd != "status":
                     func_log = log_before_after(func, params)
-                    if cmd == "benchmark":
-                        Thread(target=func_log).start()
-                    else:
-                        finished = func_log()
+                    finished = func_log()
                 else:
                     # avoid logging on status since this is called every 10 seconds by hive stats checker
                     finished = func(params)
