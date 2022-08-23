@@ -209,18 +209,12 @@ def get_state(available_resources, queue_status, gpu_only=False, quiet=False, ve
             CRYPTO_STATS = stats
         
     # get task queue status
-    result = queue_status({}) if stats.get("uptime", 0) > 10 else None
-    if not result:
-        result = {"queue": []}
-
+    result = queue_status({}) if stats.get("uptime", 0) > 10 else {}
     task_queue = result.get("queue")
-    task_state = "stopped"
     # check for existing queue items
     if task_queue:
-        task_state = "gpc"
-
-    state["status"] = task_state
-    state["queue"] = task_queue
+        state["status"] = "gpc"
+        state["queue"] = task_queue
 
     # if we're not mining crypto and crypto_stats is set, show saved crypto_stats
     if state["status"] != "crypto" and float(CRYPTO_STATS["total_khs"]) > 0.0:
