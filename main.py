@@ -32,14 +32,14 @@ def _start_mining(startup=False):
     # if just started, wait for gpus to "wake up" on boot
     if startup:
         time.sleep(10)
-    state = get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], queue_status, gpu_only=True, quiet=True)
+    state = get_state(RENTAFLOP_CONFIG["available_resources"], queue_status, gpu_only=True, quiet=True)
     status = state["status"]
     gpus_stopped = status == "stopped"
     gpus_stopped_later = gpus_stopped
     # we want to make sure we're not starting miner back up right before a task is about to be run so we try again before restarting
     if gpus_stopped and not startup:
         time.sleep(10)
-        state = get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], queue_status, gpu_only=True, quiet=True)
+        state = get_state(RENTAFLOP_CONFIG["available_resources"], queue_status, gpu_only=True, quiet=True)
         status = state["status"]
         gpus_stopped_later = status == "stopped"
     
@@ -97,7 +97,7 @@ def _get_registration(is_checkin=True):
     except requests.exceptions.ConnectionError:
         ip = None
     # register host with rentaflop or perform checkin if already registered
-    data = {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], queue_status, quiet=is_checkin, version=RENTAFLOP_CONFIG["version"]), \
+    data = {"state": get_state(RENTAFLOP_CONFIG["available_resources"], queue_status, quiet=is_checkin, version=RENTAFLOP_CONFIG["version"]), \
             "ip": ip, "rentaflop_id": rentaflop_id, "email": crypto_config["email"], "wallet_address": crypto_config["wallet_address"]}
     if not is_checkin:
         data["ignore_instruction"] = True
@@ -387,7 +387,7 @@ def status(params):
     """
     return the state of this host
     """
-    return {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], queue_status, quiet=True, \
+    return {"state": get_state(RENTAFLOP_CONFIG["available_resources"], queue_status, quiet=True, \
                                version=RENTAFLOP_CONFIG["version"], algo=RENTAFLOP_CONFIG["crypto_config"].get("hash_algorithm"))}
 
 
