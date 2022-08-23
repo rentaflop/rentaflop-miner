@@ -27,20 +27,19 @@ app, db = get_app_db()
 def _start_mining(startup=False):
     """
     starts mining during GPU downtime
-    startup will sleep for several seconds before attempting to start mining, as if this is a miner restart the old containers
-    about to die may still be running
+    startup will sleep for several seconds before attempting to start mining
     """
     # if just started, wait for gpus to "wake up" on boot
     if startup:
         time.sleep(10)
-    state = get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], gpu_only=True, quiet=True)
+    state = get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], queue_status, gpu_only=True, quiet=True)
     status = state["status"]
     gpus_stopped = status == "stopped"
     gpus_stopped_later = gpus_stopped
     # we want to make sure we're not starting miner back up right before a task is about to be run so we try again before restarting
     if gpus_stopped and not startup:
         time.sleep(10)
-        state = get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], gpu_only=True, quiet=True)
+        state = get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], queue_status, gpu_only=True, quiet=True)
         status = state["status"]
         gpus_stopped_later = status == "stopped"
     
@@ -98,8 +97,8 @@ def _get_registration(is_checkin=True):
     except requests.exceptions.ConnectionError:
         ip = None
     # register host with rentaflop or perform checkin if already registered
-    data = {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], quiet=is_checkin, version=RENTAFLOP_CONFIG["version"]), "ip": ip, \
-            "rentaflop_id": rentaflop_id, "email": crypto_config["email"], "wallet_address": crypto_config["wallet_address"]}
+    data = {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], queue_status, quiet=is_checkin, version=RENTAFLOP_CONFIG["version"]), \
+            "ip": ip, "rentaflop_id": rentaflop_id, "email": crypto_config["email"], "wallet_address": crypto_config["wallet_address"]}
     if not is_checkin:
         data["ignore_instruction"] = True
     response_json = post_to_rentaflop(data, "daemon", quiet=is_checkin)
@@ -236,60 +235,16 @@ def _handle_startup():
     RENTAFLOP_CONFIG["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=True, format_output=False).replace("\n", "")
     RENTAFLOP_CONFIG["rentaflop_id"], RENTAFLOP_CONFIG["sandbox_id"], RENTAFLOP_CONFIG["crypto_config"] = \
         _get_registration(is_checkin=False)
+    # setting env var for task queue to use
+    os.environ["SANDBOX_ID"] = RENTAFLOP_CONFIG["sandbox_id"]
     # must do installation check before anything required by it is used
     check_installation()
     oc_settings, oc_hash = get_oc_settings()
     # db table contains original (set by user in hive) oc settings and hash of current (not necessarily original) oc settings
     write_oc_settings(oc_settings, oc_hash, db)
     DAEMON_LOGGER.debug(f"Found OC settings: {oc_settings}")
-    # prevent guests from connecting to LAN, run every startup since rules don't seem to stay at top of /etc/iptables/rules.v4
-    # TODO this is breaking internet connection for some reason, ensure docker img can't connect to host
-    # run_shell_cmd("iptables -I FORWARD -i docker0 -d 192.168.0.0/16 -j DROP")
-    run_shell_cmd("iptables -I FORWARD -i docker0 -d 10.0.0.0/8 -j DROP")
-    run_shell_cmd("iptables -I FORWARD -i docker0 -d 172.16.0.0/12 -j DROP")
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("8.8.8.8", 80))
-    local_lan_ip = s.getsockname()[0]
-    s.close()
-    run_shell_cmd(f"iptables -A INPUT -i docker0 -d {local_lan_ip} -j DROP")
-    run_shell_cmd("sudo iptables-save > /etc/iptables/rules.v4")
     if not RENTAFLOP_CONFIG["crypto_config"]["disable_crypto"]:
         _start_mining(startup=True)
-
-
-def _run_sandbox(container_name, timeout=0):
-    """
-    runs docker sandbox based on parameters; does nothing if container_name already running
-    checks run command output; if None, it means docker threw an exception caught by run_shell_cmd and we should retry since it sometimes fails on first try
-    if timeout is set, kill docker after timeout seconds (duration of 0 disables timeout)
-    """
-    # check for existing container running, avoid grep because of substring issues; $ after container name prevents substring issues
-    output = run_shell_cmd(f'docker ps --filter "name={container_name}$" --format "{{.Names}}"', quiet=True)
-    if output:
-        # already running so just return ip
-        container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
-        
-        return container_ip
-
-    hostname = socket.gethostname()
-    gpu_flags = []
-    gpu_indexes = RENTAFLOP_CONFIG["available_resources"]["gpu_indexes"]
-    for gpu_index in gpu_indexes:
-        if hostname == "rentaflop_two" and int(gpu_index) == 3:
-            continue
-        gpu_flags.append(f"--device /dev/nvidia{gpu_index}:/dev/nvidia{gpu_index}")
-    
-    gpu_flags_str = " ".join(gpu_flags)
-    tries = 2
-    for _ in range(tries):
-        output = run_shell_cmd(f'''sudo docker run --gpus all {gpu_flags_str} --device /dev/nvidiactl:/dev/nvidiactl \
-        --device /dev/nvidia-modeset:/dev/nvidia-modeset --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
-        --rm --name {container_name} --env SANDBOX_ID={RENTAFLOP_CONFIG['sandbox_id']} --env TIMEOUT={timeout} --shm-size=256m -h rentaflop -dt rentaflop/sandbox''')
-        if output:
-            container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
-            wait_for_sandbox_server(container_ip)
-
-            return container_ip
 
 
 def send_to_task_queue(data):
@@ -302,7 +257,7 @@ def send_to_task_queue(data):
     if render_file:
         params["render_file"] = render_file
 
-    TASK_QUEUE_CMD_TO_FUNC[cmd](params)
+    return TASK_QUEUE_CMD_TO_FUNC[cmd](params)
 
 
 def mine(params):
@@ -316,7 +271,6 @@ def mine(params):
     start_frame = params.get("start_frame")
     n_frames = params.get("n_frames")
     job_id = params.get("job_id")
-    container_name = f"rentaflop-sandbox"
     gpu_indexes = RENTAFLOP_CONFIG["available_resources"]["gpu_indexes"]
     is_render = False
     if task_id:
@@ -327,9 +281,6 @@ def mine(params):
             render_file = get_render_file(RENTAFLOP_CONFIG["rentaflop_id"], job_id)
             stop_crypto_miner()
             disable_oc(gpu_indexes)
-            # ensure sandbox for gpu is running, does nothing if already running
-            container_ip = _run_sandbox(container_name)
-            url = f"https://{container_ip}"
             end_frame = start_frame + n_frames - 1
             data = {"cmd": "push_task", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame}, \
                     "render_file": render_file}
@@ -337,7 +288,7 @@ def mine(params):
         else:
             if RENTAFLOP_CONFIG["crypto_config"]["disable_crypto"]:
                 return
-            run_shell_cmd(f"docker stop {container_name}", very_quiet=True)
+            _stop_all()
             # 4059 is default port from hive
             crypto_port = 4059
             hostname = socket.gethostname()
@@ -346,8 +297,6 @@ def mine(params):
             start_crypto_miner(crypto_port, hostname, RENTAFLOP_CONFIG["crypto_config"])
     elif action == "stop":
         if is_render:
-            container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
-            url = f"https://{container_ip}"
             data = {"cmd": "pop_task", "params": {"task_id": task_id}}
             send_to_task_queue(data)
         else:
@@ -356,19 +305,20 @@ def mine(params):
 
 def _stop_all():
     """
-    stop all rentaflop docker containers and crypto mining processes
+    stop all tasks and crypto mining processes
     """
-    DAEMON_LOGGER.debug("Stopping containers...")
-    # stops both sandbox and benchmark containers
-    containers = run_shell_cmd('docker ps --filter "name=rentaflop*" -q', format_output=False).replace("\n", " ")
-    if containers:
-        # have to use subprocess here to properly run in bg; run in bg because this command takes over 10 seconds
-        arg_list = ["docker", "stop"]
-        arg_list.extend(containers.split())
-        subprocess.Popen(arg_list)    
+    DAEMON_LOGGER.debug("Stopping tasks...")
+    # stops all tasks and benchmarking
+    data = {"cmd": "queue_status", "params": {}}
+    result = send_to_task_queue(data)
+    for task_id in result["queue"]:
+        data = {"cmd": "pop_task", "params": {"task_id": task_id}}
+        send_to_task_queue(data)
+    
     run_shell_cmd('killall t-rex')
     run_shell_cmd('killall octane')
-    DAEMON_LOGGER.debug("Containers stopped.")
+    run_shell_cmd('killall blender')
+    DAEMON_LOGGER.debug("Tasks stopped.")
             
             
 def update(params, reboot=True, second_update=False):
@@ -389,9 +339,7 @@ def update(params, reboot=True, second_update=False):
         pull_latest_code()
         if target_version:
             run_shell_cmd(f"git checkout {target_version}")
-        run_shell_cmd("sudo docker pull rentaflop/host:latest")
-        run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
-        # ensure all old containers are stopped so we can run new ones with latest code
+        # ensure everything stopped so we can run new stuff with latest code
         _stop_all()
         update_param = "" if second_update else f" update {target_version}"
         # ensure a daemon is still running during an update; prevents hive from trying to restart it itself
@@ -414,9 +362,7 @@ def uninstall(params):
     """
     uninstall rentaflop from this machine
     """
-    # stop and remove all rentaflop docker containers and images
     _stop_all()
-    run_shell_cmd('docker rmi $(docker images -a -q "rentaflop/sandbox") $(docker images | grep none | awk "{ print $3; }") $(docker images "nvidia/cuda" -a -q)')
     # clean up rentaflop host software
     daemon_py = os.path.realpath(__file__)
     rentaflop_miner_dir = os.path.dirname(daemon_py)
@@ -441,7 +387,7 @@ def status(params):
     """
     return the state of this host
     """
-    return {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], quiet=True, \
+    return {"state": get_state(available_resources=RENTAFLOP_CONFIG["available_resources"], queue_status, quiet=True, \
                                version=RENTAFLOP_CONFIG["version"], algo=RENTAFLOP_CONFIG["crypto_config"].get("hash_algorithm"))}
 
 
@@ -452,9 +398,6 @@ def benchmark(params):
     _stop_all()
     gpu_indexes = RENTAFLOP_CONFIG["available_resources"]["gpu_indexes"]
     disable_oc(gpu_indexes)
-    container_name = f"rentaflop-benchmark"
-    # start container for benchmarking; 15 minute timeout (900 seconds)
-    container_ip = _run_sandbox(container_name, timeout=900)
     data = {"cmd": "push_task", "params": {"task_id": -1}}
     send_to_task_queue(data)
 

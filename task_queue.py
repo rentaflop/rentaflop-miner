@@ -75,8 +75,8 @@ def queue_status(params):
     params is empty dict
     """
     tasks = Task.query.all()
-    # show running tasks except benchmark
-    tasks = [task.task_id for task in tasks if task.task_id != -1]
+    # must include benchmark so we can set status to gpc
+    tasks = [task.task_id for task in tasks]
     
     return {"queue": tasks}
 

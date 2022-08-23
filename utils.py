@@ -130,7 +130,7 @@ def get_mining_stats():
 def get_state(available_resources, queue_status, gpu_only=False, quiet=False, version=None, algo=None):
     """
     returns a dictionary with all relevant daemon state information
-    this includes gpus, running containers, container use, etc.
+    this includes gpus, running tasks, etc.
     gpu_only will determine whether to only get gpu-related info
     state looks like this:
     {
@@ -207,30 +207,20 @@ def get_state(available_resources, queue_status, gpu_only=False, quiet=False, ve
         # currently mining crypto and found higher stats so we save these to be displayed to hive during non-crypto mining tasks
         if "total_khs" in stats and float(stats["total_khs"]) > float(CRYPTO_STATS["total_khs"]):
             CRYPTO_STATS = stats
-            
-    benchmark_container = run_shell_cmd('docker ps --filter "name=rentaflop-benchmark" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
-                               quiet=quiet, format_output=False).split()
-    if benchmark_container:
-        # treat benchmark jobs as gpc
-        state["status"] = "gpc"
-    
-    # get all sandbox container names
-    container_name = "rentaflop-sandbox"
-    sandbox_container = run_shell_cmd(f'docker ps --filter "name={container_name}" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
-                               quiet=quiet, format_output=False).split()
-    if sandbox_container:
-        result = queue_status({})
-        if not result:
-            result = {"queue": []}
+        
+    # get task queue status
+    result = queue_status({})
+    if not result:
+        result = {"queue": []}
 
-        container_queue = result.get("queue")
-        container_state = "stopped"
-        # check for existing queue items
-        if container_queue:
-            container_state = "gpc"
+    task_queue = result.get("queue")
+    task_state = "stopped"
+    # check for existing queue items
+    if task_queue:
+        task_state = "gpc"
 
-        state["status"] = container_state
-        state["queue"] = container_queue
+    state["status"] = task_state
+    state["queue"] = task_queue
 
     # if we're not mining crypto and crypto_stats is set, show saved crypto_stats
     if state["status"] != "crypto" and float(CRYPTO_STATS["total_khs"]) > 0.0:
@@ -431,25 +421,6 @@ def check_correct_driver(reboot=True):
     run_shell_cmd(f"nvidia-driver-update {target_version}")
     if reboot:
         run_shell_cmd("sudo reboot")
-
-
-def wait_for_sandbox_server(container_ip):
-    """
-    wait up to 90 seconds for sandbox server to start
-    if still not up after 90 seconds, return and hope for the best
-    """
-    sandbox_url = f"https://{container_ip}/health"
-    tries = 9
-    timeout = 10
-    for _ in range(tries):
-        try:
-            response = requests.get(sandbox_url, verify=False)
-            if response.status_code == 200:
-                return
-        except (requests.exceptions.ConnectionError, json.decoder.JSONDecodeError) as e:
-            pass
-
-        time.sleep(timeout)
 
 
 def get_oc_settings():
@@ -705,24 +676,9 @@ def install_all_requirements():
     run_shell_cmd("disk-expand")
     # install dependencies
     run_shell_cmd("sudo apt-get install ca-certificates curl gnupg lsb-release -y")
-    run_shell_cmd("curl -fsSL https://download.docker.com/linux/debian/gpg \
-    | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg --batch --yes")
-    run_shell_cmd('echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] \
-    https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null')
-    run_shell_cmd("distribution=$(. /etc/os-release; echo $ID$VERSION_ID) \
-    && curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add - \
-    && curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list")
     run_shell_cmd("sudo apt-get update -y")
-    run_shell_cmd("sudo apt-get install docker-ce docker-ce-cli containerd.io nvidia-docker2 -y")
-    # docker setup
-    run_shell_cmd("sudo sed -i 's/#no-cgroups = false/no-cgroups = true/' /etc/nvidia-container-runtime/config.toml")
-    run_shell_cmd(r'''sudo sed -i '$s/}/,\n"userns-remap":"default"}/' /etc/docker/daemon.json''')
-    run_shell_cmd("sudo systemctl restart docker")
-    run_shell_cmd("echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections")
-    run_shell_cmd("echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections")
-    run_shell_cmd("sudo apt-get install iptables-persistent mysql-server -y")
+    run_shell_cmd("sudo apt-get install mysql-server -y")
     run_shell_cmd("sudo apt-get install python3-pip -y && pip3 install speedtest-cli")
-    run_shell_cmd("sudo docker build -f Dockerfile -t rentaflop/sandbox .")
 
 
 def get_render_file(rentaflop_id, job_id):
