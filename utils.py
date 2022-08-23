@@ -56,6 +56,16 @@ class Overclock(DB.Model):
     def __repr__(self):
         return f"<Overclock {self.oc_settings}>"
 
+class Task(DB.Model):
+    id = DB.Column(DB.Integer, primary_key=True)
+    task_id = DB.Column(DB.Integer)
+    task_dir = DB.Column(DB.String(128))
+    start_frame = DB.Column(DB.Integer)
+    end_frame = DB.Column(DB.Integer)
+
+    def __repr__(self):
+        return f"<Task {self.task_id} {self.task_dir}>"
+
 
 def run_shell_cmd(cmd, quiet=False, very_quiet=False, format_output=True):
     """
@@ -117,7 +127,7 @@ def get_mining_stats():
     return khs, stats
 
 
-def get_state(available_resources, gpu_only=False, quiet=False, version=None, algo=None):
+def get_state(available_resources, queue_status, gpu_only=False, quiet=False, version=None, algo=None):
     """
     returns a dictionary with all relevant daemon state information
     this includes gpus, running containers, container use, etc.
@@ -209,20 +219,14 @@ def get_state(available_resources, gpu_only=False, quiet=False, version=None, al
     sandbox_container = run_shell_cmd(f'docker ps --filter "name={container_name}" --filter "ancestor=rentaflop/sandbox" --format {{.Names}}',
                                quiet=quiet, format_output=False).split()
     if sandbox_container:
-        # request queued tasks from docker
-        container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False, quiet=quiet).strip()
-        url = f"https://{container_ip}"
-        data = {"cmd": "status", "params": {}}
-        files = {'json': json.dumps(data)}
-        result = post_to_sandbox(url, files, quiet=True, very_quiet=True)
+        result = queue_status({})
         if not result:
             result = {"queue": []}
 
         container_queue = result.get("queue")
-        uptime = result.get("uptime")
         container_state = "stopped"
-        # check for existing queue items or give container a couple minutes to start
-        if container_queue or (uptime is not None and uptime < 120):
+        # check for existing queue items
+        if container_queue:
             container_state = "gpc"
 
         state["status"] = container_state
@@ -319,38 +323,6 @@ def post_to_rentaflop(data, endpoint, quiet=False):
 
     if not quiet:
         DAEMON_LOGGER.debug(f"Received from /api/host/{endpoint}: {response.status_code} {response_json}")
-
-    return response_json
-
-
-def post_to_sandbox(sandbox_url, data, quiet=False, very_quiet=False, timeout=None):
-    """
-    make post request to docker sandbox servers; do retries since container may have just been started
-    catch exceptions resulting from request
-    """
-    if not quiet:
-        DAEMON_LOGGER.debug(f"Sent to sandbox {sandbox_url}: {data}")
-    retries = 3
-    if not timeout:
-        timeout = 3
-    for _ in range(retries+1):
-        try:
-            response = requests.post(sandbox_url, files=data, verify=False)
-            response_json = response.json()
-            if response_json:
-                break
-        except (requests.exceptions.ConnectionError, requests.exceptions.InvalidURL, json.decoder.JSONDecodeError,
-                ConnectionResetError) as e:
-            if not very_quiet:
-                DAEMON_LOGGER.error(f"Exception during post request: {e}")
-            response_json = {}
-            # must return file to beginning of stream if post failed
-            if "render_file" in data:
-                data["render_file"].seek(0)
-            time.sleep(timeout)
-
-    if not quiet:
-        DAEMON_LOGGER.debug(f"Received from sandbox {sandbox_url}: {response_json}")
 
     return response_json
 
@@ -662,6 +634,41 @@ def _check_hash_difference(new_oc_settings, original_oc_hash, new_oc_hash, db):
     return False
 
 
+def install_or_update_benchmark():
+    """
+    install benchmark software if not already installed
+    """
+    if os.path.exists("octane"):
+        return
+    
+    DAEMON_LOGGER.info("Installing benchmarking software...")
+    run_shell_cmd("pip3 install gdown")
+    run_shell_cmd("gdown https://drive.google.com/uc?id=1vjdirgtoW_mFP7kmeFGtwk5u-XYHPNfa")
+    run_shell_cmd("mkdir octane && tar -xzf octane.tar.gz -C octane && rm octane.tar.gz")
+
+
+def install_or_update_blender():
+    """
+    check for blender installation and install if not found
+    update version if installed and not up to date; does nothing if installed and up to date
+    """
+    target_version = "3.2.2"
+    if os.path.exists("blender"):
+        current_version = run_shell_cmd('blender/blender --version | head -n 1 | cut -d " " -f 2', format_output=False).strip()
+        # already up to date so do nothing
+        if current_version == target_version:
+            return
+
+        # need to reinstall with target version, so remove current installation
+        run_shell_cmd("rm -rf blender")
+
+    DAEMON_LOGGER.debug(f"Installing blender version {target_version}...")
+    short_version = target_version[:3]
+    # go to https://download.blender.org/release/ to check blender version updates
+    run_shell_cmd(f"wget https://download.blender.org/release/Blender{short_version}/blender-{target_version}-linux-x64.tar.xz -O blender.tar.xz")
+    run_shell_cmd("mkdir blender && tar -xf blender.tar.xz -C blender --strip-components 1 && rm blender.tar.xz")
+
+
 def check_installation():
     """
     check installation for requirements not necessarily installed during first startup
@@ -669,6 +676,8 @@ def check_installation():
     """
     check_correct_driver()
     install_or_update_crypto_miner()
+    install_or_update_benchmark()
+    install_or_update_blender()
     run_shell_cmd("/etc/init.d/mysql start", quiet=True)
     run_shell_cmd("mkdir /var/log/mysql", quiet=True)
     run_shell_cmd("sudo chown -R mysql:mysql /var/log/mysql", quiet=True)
@@ -738,4 +747,3 @@ def pull_latest_code():
     branch = "develop" if socket.gethostname() in ["rentaflop_one", "rentaflop_two"] else "master"
     run_shell_cmd(f"git checkout {branch}")
     run_shell_cmd("git pull")
-    

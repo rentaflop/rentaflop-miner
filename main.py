@@ -9,6 +9,7 @@ from flask import jsonify, request, abort, redirect
 from flask_apscheduler import APScheduler
 from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, REGISTRATION_FILE, DAEMON_PORT, get_app_db
 from utils import *
+from task_queue import push_task, pop_task, update_queue, queue_status
 import sys
 import requests
 from requirement_checks import perform_host_requirement_checks
@@ -291,6 +292,19 @@ def _run_sandbox(container_name, timeout=0):
             return container_ip
 
 
+def send_to_task_queue(data):
+    """
+    send commands, files, and params to job queue functions
+    """
+    cmd = data.get("cmd")
+    params = data.get("params")
+    render_file = data.get("render_file")
+    if render_file:
+        params["render_file"] = render_file
+
+    TASK_QUEUE_CMD_TO_FUNC[cmd](params)
+
+
 def mine(params):
     """
     handle commands related to mining, whether crypto mining or guest "mining"
@@ -317,9 +331,9 @@ def mine(params):
             container_ip = _run_sandbox(container_name)
             url = f"https://{container_ip}"
             end_frame = start_frame + n_frames - 1
-            data = {"cmd": "push", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame}}
-            files = {'render_file': render_file, 'json': json.dumps(data)}
-            post_to_sandbox(url, files, timeout=20)
+            data = {"cmd": "push_task", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame}, \
+                    "render_file": render_file}
+            send_to_task_queue(data)
         else:
             if RENTAFLOP_CONFIG["crypto_config"]["disable_crypto"]:
                 return
@@ -334,9 +348,8 @@ def mine(params):
         if is_render:
             container_ip = run_shell_cmd("docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "+container_name, format_output=False).strip()
             url = f"https://{container_ip}"
-            data = {"cmd": "pop", "params": {"task_id": task_id}}
-            files = {'json': json.dumps(data)}
-            post_to_sandbox(url, files)
+            data = {"cmd": "pop_task", "params": {"task_id": task_id}}
+            send_to_task_queue(data)
         else:
             stop_crypto_miner()
 
@@ -442,11 +455,8 @@ def benchmark(params):
     container_name = f"rentaflop-benchmark"
     # start container for benchmarking; 15 minute timeout (900 seconds)
     container_ip = _run_sandbox(container_name, timeout=900)
-    url = f"https://{container_ip}/benchmark"
-    # sending empty post request for now, at some point will issue challenges to prove benchmark results
-    data = {}
-    files = {'json': json.dumps(data)}
-    post_to_sandbox(url, files, timeout=20)
+    data = {"cmd": "push_task", "params": {"task_id": -1}}
+    send_to_task_queue(data)
 
 
 def prep_daemon_shutdown(server):
@@ -547,6 +557,12 @@ CMD_TO_FUNC = {
     "status": status,
     "benchmark": benchmark
 }
+TASK_QUEUE_CMD_TO_FUNC = {
+    "push_task": push_task,
+    "pop_task": pop_task,
+    "update_queue": update_queue,
+    "queue_status": queue_status
+}
 # rentaflop config looks like {"rentaflop_id": ..., "sandbox_id": ..., \
 # "available_resources": {"gpu_indexes": [...], "gpu_names": [...]}, "crypto_config": {"wallet_address": ..., \
 # "email": ..., "disable_crypto": ..., "pool_url": ..., "hash_algorithm": ..., "pass": ...}, "version": ...}
@@ -565,6 +581,7 @@ def main():
             scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=60)
         scheduler.add_job(id='Rentaflop Checkin', func=_handle_checkin, trigger="interval", seconds=60)
         scheduler.add_job(id='Clean Logs', func=clean_logs, trigger="interval", minutes=60*24*7)
+        scheduler.add_job(id='Handle Finished Tasks', func=update_queue, trigger="interval", seconds=10)
         scheduler.start()
         # run server, allowing it to shut itself down
         q = multiprocessing.Queue()
