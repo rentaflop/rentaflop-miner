@@ -16,14 +16,11 @@ def push_task(params):
     """
     add a task to the queue; could be benchmark or render
     """
-    if params:
-        task_id = params["task_id"]
-        render_file = params["render_file"]
-        start_frame = params["start_frame"]
-        end_frame = params["end_frame"]
-    else:
-        # -1 is for benchmark tasks
-        task_id = -1
+    task_id = params.get("task_id")
+    render_file = params.get("render_file")
+    start_frame = params.get("start_frame")
+    end_frame = params.get("end_frame")
+    is_render = render_file is not None
     # prevent duplicate tasks from being created in case of network delays or failures
     existing_task = Task.query.filter_by(task_id=task_id).first()
     if existing_task:
@@ -32,7 +29,7 @@ def push_task(params):
     # create directory for task and write render file there
     task_dir = os.path.join(FILE_DIR, str(task_id))
     os.makedirs(task_dir)
-    if render_file:
+    if is_render:
         render_file.save(f"{task_dir}/render_file.blend")
         task = Task(task_dir=task_dir, task_id=task_id, start_frame=start_frame, end_frame=end_frame)        
     else:
