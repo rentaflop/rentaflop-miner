@@ -107,7 +107,7 @@ def _handle_benchmark():
     # check if benchmark still running
     if not os.path.exists("octane/benchmark.txt"):
         # set timeout on queued task and kill if exceeded time limit
-        start_time = os.path.getmtime("octane/started.txt"))
+        start_time = os.path.getmtime("octane/started.txt")
         start_time = dt.datetime.fromtimestamp(start_time)
         current_time = dt.datetime.utcnow()
         # timeout for benchmark is less than normal tasks
