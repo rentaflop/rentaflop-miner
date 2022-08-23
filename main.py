@@ -429,7 +429,7 @@ def clean_logs(clear_contents=True, error=None):
         logs["error"] = error
     if RENTAFLOP_CONFIG["rentaflop_id"]:
         logs["rentaflop_id"] = RENTAFLOP_CONFIG["rentaflop_id"]
-    post_to_rentaflop(logs, "logs")
+    post_to_rentaflop(logs, "logs", quiet=True)
     if clear_contents:
         with open(LOG_FILE, "w") as f:
             # must write this because of check in _get_registration

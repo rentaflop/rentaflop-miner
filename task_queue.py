@@ -1,5 +1,5 @@
 """
-queues compute tasks
+manages queue for compute tasks
 """
 from config import DAEMON_LOGGER, get_app_db
 from utils import Task, run_shell_cmd
