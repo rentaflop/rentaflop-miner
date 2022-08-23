@@ -6,6 +6,7 @@ from utils import Task, run_shell_cmd
 import os
 import datetime as dt
 import requests
+import tempfile
 
 
 _, DB = get_app_db()
