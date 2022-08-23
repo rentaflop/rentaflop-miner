@@ -76,7 +76,7 @@ def queue_status(params):
     # must include benchmark so we can set status to gpc
     tasks = [task.task_id for task in tasks]
     # need this because connection pool not getting cleared for some reason
-    DB.session.close()
+    DB.close_all_sessions()
     
     return {"queue": tasks}
 
