@@ -78,6 +78,7 @@ def queue_status(params):
     tasks = Task.query.all()
     # must include benchmark so we can set status to gpc
     tasks = [task.task_id for task in tasks]
+    DB.session.remove()
     
     return {"queue": tasks}
 
