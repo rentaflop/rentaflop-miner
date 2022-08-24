@@ -174,6 +174,8 @@ def update_queue(params={}):
             
             return update_queue()
 
+        return
+
     # task_id will be -1 iff benchmark task
     if task_id == -1:
         is_finished = _handle_benchmark()
