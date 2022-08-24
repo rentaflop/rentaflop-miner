@@ -86,7 +86,7 @@ def _read_benchmark():
     parse benchmark.txt file for benchmark info
     return obh value
     """
-    benchmark = run_shell_cmd("awk '/Total score:/{getline; print}' octane/benchmark.txt", quiet=True).strip()
+    benchmark = run_shell_cmd("awk '/Total score:/{getline; print}' octane/benchmark.txt", quiet=True, format_output=False).strip()
 
     return benchmark
 
@@ -137,10 +137,8 @@ def update_queue():
     cleans up and removes files afterwards
     starts the next task, if available
     """
-    DAEMON_LOGGER.debug("Entering update_queue...")
     # get first queued task
     task = Task.query.first()
-    DAEMON_LOGGER.debug(f"Found task {task}")
     if not task:
         return
     
