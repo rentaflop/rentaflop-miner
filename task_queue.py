@@ -139,7 +139,7 @@ def _handle_benchmark():
     return True
 
 
-def update_queue():
+def update_queue(params={}):
     """
     checks for any finished tasks and sends results back to servers
     cleans up and removes files afterwards
@@ -153,7 +153,7 @@ def update_queue():
     task_id = task.task_id
     # check if task finished
     if os.path.exists(os.path.join(FILE_DIR, str(task_id), "finished.txt")):
-        pop_task(task_id)
+        pop_task({"task_id": task_id})
         DAEMON_LOGGER.debug(f"Finished task {task_id}")
         
         # make another call to update_queue to start the next task immediately
@@ -169,7 +169,7 @@ def update_queue():
         timeout = dt.timedelta(hours=2)
         if timeout < (current_time-start_time):
             DAEMON_LOGGER.info(f"Task timed out! Exiting...")
-            pop_task(task_id)
+            pop_task({"task_id": task_id})
             
             return update_queue()
 
@@ -177,7 +177,7 @@ def update_queue():
     if task_id == -1:
         is_finished = _handle_benchmark()
         if is_finished:
-            pop_task(task_id)
+            pop_task({"task_id": task_id})
             # delete these after removing from db so we don't start it again
             run_shell_cmd('rm octane/started.txt', quiet=True)
             run_shell_cmd('rm octane/benchmark.txt', quiet=True)
