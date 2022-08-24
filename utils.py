@@ -686,7 +686,7 @@ def get_render_file(rentaflop_id, job_id):
     api_response = requests.post(server_url, json=data)
     file_url = api_response.json()["url"]
     file_response = requests.get(file_url, stream=True)
-    render_file = file_response.raw
+    render_file = file_response.content
 
     return render_file
 
