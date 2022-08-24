@@ -209,7 +209,7 @@ def get_state(available_resources, queue_status, gpu_only=False, quiet=False, ve
             CRYPTO_STATS = stats
         
     # get task queue status
-    result = queue_status({}) if stats.get("uptime", 0) > 10 else {}
+    result = queue_status({}) if (isinstance(stats, dict) and stats.get("uptime", 0) > 10) else {}
     task_queue = result.get("queue")
     # check for existing queue items
     if task_queue:

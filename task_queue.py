@@ -137,8 +137,10 @@ def update_queue():
     cleans up and removes files afterwards
     starts the next task, if available
     """
+    DAEMON_LOGGER.debug("Entering update_queue...")
     # get first queued task
     task = Task.query.first()
+    DAEMON_LOGGER.debug(f"Found task {task}")
     if not task:
         return
     
