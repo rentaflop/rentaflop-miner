@@ -609,7 +609,7 @@ def install_or_update_benchmark():
     DAEMON_LOGGER.info("Installing benchmarking software...")
     run_shell_cmd("pip3 install gdown")
     run_shell_cmd("gdown https://drive.google.com/uc?id=1vjdirgtoW_mFP7kmeFGtwk5u-XYHPNfa")
-    run_shell_cmd("mkdir octane && tar -xzf octane.tar.gz -C octane && rm octane.tar.gz")
+    run_shell_cmd("mkdir octane && tar -xzf octane.tar.gz -C octane --strip-components 1 && rm octane.tar.gz")
 
 
 def install_or_update_blender():
