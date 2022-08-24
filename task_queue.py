@@ -117,7 +117,8 @@ def _handle_benchmark():
         # set timeout on queued task and kill if exceeded time limit
         start_time = os.path.getmtime("octane/started.txt")
         start_time = dt.datetime.fromtimestamp(start_time)
-        current_time = dt.datetime.utcnow()
+        # must use now instead of utcnow since getmtime is local timestamp on local filesystem timezone
+        current_time = dt.datetime.now()
         # timeout for benchmark is less than normal tasks
         timeout = dt.timedelta(minutes=20)
         if timeout < (current_time-start_time):
@@ -165,7 +166,8 @@ def update_queue(params={}):
         # set timeout on queued task and kill if exceeded time limit
         start_time = os.path.getmtime(os.path.join(task.task_dir, "started.txt"))
         start_time = dt.datetime.fromtimestamp(start_time)
-        current_time = dt.datetime.utcnow()
+        # must use now instead of utcnow since getmtime is local timestamp on local filesystem timezone
+        current_time = dt.datetime.now()
         # if timeout updated, make sure to also update in retask_task lambda
         timeout = dt.timedelta(hours=2)
         if timeout < (current_time-start_time):
