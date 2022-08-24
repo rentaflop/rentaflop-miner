@@ -70,6 +70,7 @@ def pop_task(params):
     # kill task if running and clean up files
     run_shell_cmd(f'pkill -f "task_{task_id}"', very_quiet=True)
     run_shell_cmd('kill octane', very_quiet=True)
+    run_shell_cmd('kill blender', very_quiet=True)
     run_shell_cmd(f"rm -rf {task_dir}", very_quiet=True)
     DAEMON_LOGGER.debug(f"Removed task {task_id}...")
 
