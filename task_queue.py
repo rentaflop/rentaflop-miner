@@ -32,7 +32,8 @@ def push_task(params):
     task_dir = os.path.join(FILE_DIR, str(task_id))
     os.makedirs(task_dir)
     if is_render:
-        render_file.save(f"{task_dir}/render_file.blend")
+        with open(f"{task_dir}/render_file.blend", "wb") as f:
+            f.write(render_file)
         task = Task(task_dir=task_dir, task_id=task_id, start_frame=start_frame, end_frame=end_frame)        
     else:
         task = Task(task_dir=task_dir, task_id=task_id)
