@@ -21,9 +21,11 @@ def push_task(params):
     start_frame = params.get("start_frame")
     end_frame = params.get("end_frame")
     is_render = render_file is not None
+    DAEMON_LOGGER.debug(f"Pushing task {task_id}...")
     # prevent duplicate tasks from being created in case of network delays or failures
     existing_task = Task.query.filter_by(task_id=task_id).first()
     if existing_task:
+        DAEMON_LOGGER.info(f"Task {task_id} already in queue! Exiting...")
         return
     
     # create directory for task and write render file there
@@ -37,6 +39,7 @@ def push_task(params):
     
     DB.session.add(task)
     DB.session.commit()
+    DAEMON_LOGGER.debug(f"Added task {task_id}")
 
 
 def _delete_task_with_id(task_id):
@@ -60,11 +63,13 @@ def pop_task(params):
     does nothing if already removed from queue
     """
     task_id = params["task_id"]
+    DAEMON_LOGGER.debug(f"Popping task {task_id}...")
     task_dir = _delete_task_with_id(task_id)
     # kill task if running and clean up files
     run_shell_cmd(f'pkill -f "task_{task_id}"', very_quiet=True)
     run_shell_cmd('kill octane', very_quiet=True)
     run_shell_cmd(f"rm -rf {task_dir}", very_quiet=True)
+    DAEMON_LOGGER.debug(f"Removed task {task_id}...")
 
 
 def queue_status(params):
@@ -100,6 +105,7 @@ def _handle_benchmark():
     # check if benchmark started and start if necessary
     if not os.path.exists("octane/started.txt"):
         run_shell_cmd("touch octane/started.txt", quiet=True)
+        DAEMON_LOGGER.debug(f"Starting benchmark...")
         os.system("./octane/octane --benchmark -a octane/benchmark.txt --no-gui &")
 
         return False
@@ -115,6 +121,7 @@ def _handle_benchmark():
         if timeout < (current_time-start_time):
             # end benchmark task and let pop_task handle killing octane process
             run_shell_cmd('rm octane/started.txt', quiet=True)
+            DAEMON_LOGGER.info("Benchmark timed out! Exiting...")
             
             return True
         
@@ -129,6 +136,7 @@ def _handle_benchmark():
     requests.post(server_url, json=data)
     run_shell_cmd('rm octane/started.txt', quiet=True)
     run_shell_cmd('rm octane/benchmark.txt', quiet=True)
+    DAEMON_LOGGER.debug("Finished benchmark")
 
     return True
 
@@ -148,6 +156,7 @@ def update_queue():
     # check if task finished
     if os.path.exists(os.path.join(FILE_DIR, str(task_id), "finished.txt")):
         pop_task(task_id)
+        DAEMON_LOGGER.debug(f"Finished task {task_id}")
         
         # make another call to update_queue to start the next task immediately
         return update_queue()
@@ -161,6 +170,7 @@ def update_queue():
         # if timeout updated, make sure to also update in retask_task lambda
         timeout = dt.timedelta(hours=2)
         if timeout < (current_time-start_time):
+            DAEMON_LOGGER.info(f"Task timed out! Exiting...")
             pop_task(task_id)
             
             return update_queue()
@@ -176,6 +186,7 @@ def update_queue():
         return
     
     # start task in bg
+    DAEMON_LOGGER.debug(f"Starting task {task_id}...")
     os.system(f"python3 run.py {task.task_dir} {task.start_frame} {task.end_frame} task_{task_id} &")
 
 
