@@ -122,7 +122,6 @@ def _handle_benchmark():
         timeout = dt.timedelta(minutes=20)
         if timeout < (current_time-start_time):
             # end benchmark task and let pop_task handle killing octane process
-            run_shell_cmd('rm octane/started.txt', quiet=True)
             DAEMON_LOGGER.info("Benchmark timed out! Exiting...")
             
             return True
