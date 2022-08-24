@@ -52,6 +52,7 @@ def _delete_task_with_id(task_id):
     task_dir = None
     if task:
         task_dir = task.task_dir
+        task = DB.session.merge(task)
         DB.session.delete(task)
         DB.session.commit()
 
