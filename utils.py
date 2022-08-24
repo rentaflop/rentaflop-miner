@@ -643,6 +643,8 @@ def check_installation():
     install_or_update_crypto_miner()
     install_or_update_benchmark()
     install_or_update_blender()
+    run_shell_cmd('rm octane/started.txt', quiet=True)
+    run_shell_cmd('rm octane/benchmark.txt', quiet=True)
     run_shell_cmd("/etc/init.d/mysql start", quiet=True)
     run_shell_cmd("mkdir /var/log/mysql", quiet=True)
     run_shell_cmd("sudo chown -R mysql:mysql /var/log/mysql", quiet=True)
