@@ -134,8 +134,6 @@ def _handle_benchmark():
     data = {"benchmark": str(benchmark), "sandbox_id": str(sandbox_id)}
     DAEMON_LOGGER.debug(f"Sending benchmark score {benchmark} to servers")
     requests.post(server_url, json=data)
-    run_shell_cmd('rm octane/started.txt', quiet=True)
-    run_shell_cmd('rm octane/benchmark.txt', quiet=True)
     DAEMON_LOGGER.debug("Finished benchmark")
 
     return True
@@ -180,6 +178,9 @@ def update_queue():
         is_finished = _handle_benchmark()
         if is_finished:
             pop_task(task_id)
+            # delete these after removing from db so we don't start it again
+            run_shell_cmd('rm octane/started.txt', quiet=True)
+            run_shell_cmd('rm octane/benchmark.txt', quiet=True)
             
             return update_queue()
 
