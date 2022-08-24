@@ -130,6 +130,8 @@ def _handle_benchmark():
     run_shell_cmd('rm octane/started.txt', quiet=True)
     run_shell_cmd('rm octane/benchmark.txt', quiet=True)
 
+    return True
+
 
 def update_queue():
     """
