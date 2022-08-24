@@ -48,7 +48,7 @@ def _delete_task_with_id(task_id):
     delete task from db if it exists
     return task_dir if deleted, None otherwise
     """
-    task = Task.query.filter_by(id=task_id).first()
+    task = Task.query.filter_by(task_id=task_id).first()
     task_dir = None
     if task:
         task_dir = task.task_dir
@@ -153,7 +153,7 @@ def update_queue(params={}):
     
     task_id = task.task_id
     # check if task finished
-    if os.path.exists(os.path.join(FILE_DIR, str(task_id), "finished.txt")):
+    if os.path.exists(os.path.join(task.task_dir, "finished.txt")):
         pop_task({"task_id": task_id})
         DAEMON_LOGGER.debug(f"Finished task {task_id}")
         
@@ -161,9 +161,9 @@ def update_queue(params={}):
         return update_queue()
 
     # check if task started
-    if os.path.exists(os.path.join(FILE_DIR, str(task_id), "started.txt")):
+    if os.path.exists(os.path.join(task.task_dir, "started.txt")):
         # set timeout on queued task and kill if exceeded time limit
-        start_time = os.path.getmtime(os.path.join(FILE_DIR, str(task_id), "started.txt"))
+        start_time = os.path.getmtime(os.path.join(task.task_dir, "started.txt"))
         start_time = dt.datetime.fromtimestamp(start_time)
         current_time = dt.datetime.utcnow()
         # if timeout updated, make sure to also update in retask_task lambda
