@@ -8,6 +8,7 @@ import sys
 import os
 import requests
 import json
+from config import DAEMON_LOGGER
 
 
 def main():
@@ -44,9 +45,10 @@ def main():
             data["confirm"] = True
             requests.post(server_url, json=data)
     except:
-        pass
+        error = traceback.format_exc()
+        DAEMON_LOGGER.error(f"Exception during task execution: {error}")
     finally:
-        # lets the sandbox queue know when the run is finished
+        # lets the task queue know when the run is finished
         os.system(f"touch {task_dir}/finished.txt")
 
     
