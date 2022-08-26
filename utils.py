@@ -408,6 +408,7 @@ def check_correct_driver():
     target_version = "510.73.05"
     # check if installed
     nvidia_output = run_shell_cmd(f'cat /proc/driver/nvidia/version | grep "{target_version}"')
+    run_shell_cmd("sudo apt-get install mesa-utils")
     opengl_output = run_shell_cmd(f'DISPLAY=:0.0 glxinfo | grep "OpenGL version" | grep "NVIDIA {target_version}"')
     if nvidia_output and opengl_output:
         return
