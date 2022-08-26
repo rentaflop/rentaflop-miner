@@ -148,8 +148,7 @@ def _first_startup():
     run rentaflop installation steps
     """
     install_all_requirements()
-    # disable reboot during driver check/installation because nvidia-driver-update doesn't require it
-    check_correct_driver(reboot=False)
+    check_correct_driver()
 
 
 def _subsequent_startup():

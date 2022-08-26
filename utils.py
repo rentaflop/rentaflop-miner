@@ -399,7 +399,7 @@ def start_crypto_miner(crypto_port, hostname, crypto_config):
     run_shell_cmd(f'echo "sleep 60; rm {config_file}" | at now', quiet=True)
 
 
-def check_correct_driver(reboot=True):
+def check_correct_driver():
     """
     check for correct driver version
     install if not found, otherwise do nothing
@@ -416,8 +416,6 @@ def check_correct_driver(reboot=True):
     run_shell_cmd("sed -e s/--no-opengl-files//g -i /hive/sbin/nvidia-driver-update")
     # not installed so uninstall existing and install target, running in bg because this command will kill the miner
     os.system(f"nvidia-driver-update {target_version} --force &")
-    if reboot:
-        run_shell_cmd("sudo reboot")
 
 
 def get_oc_settings():
@@ -642,7 +640,7 @@ def check_installation():
     check installation for requirements not necessarily installed during first startup
     install anything missing
     """
-    check_correct_driver(reboot=False)
+    check_correct_driver()
     install_or_update_crypto_miner()
     install_or_update_benchmark()
     install_or_update_blender()
