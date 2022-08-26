@@ -409,7 +409,7 @@ def check_correct_driver(reboot=True):
     # check if installed
     nvidia_output = run_shell_cmd(f'cat /proc/driver/nvidia/version | grep "{target_version}"')
     opengl_output = run_shell_cmd(f'DISPLAY=:0.0 glxinfo | grep "OpenGL version" | grep "NVIDIA {target_version}"')
-    if output and opengl_output:
+    if nvidia_output and opengl_output:
         return
 
     # ensure opengl files get downloaded for rendering tasks
