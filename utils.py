@@ -642,7 +642,7 @@ def check_installation():
     check installation for requirements not necessarily installed during first startup
     install anything missing
     """
-    check_correct_driver()
+    check_correct_driver(reboot=False)
     install_or_update_crypto_miner()
     install_or_update_benchmark()
     install_or_update_blender()
