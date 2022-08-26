@@ -44,6 +44,8 @@ def main():
             # confirm upload
             data["confirm"] = True
             requests.post(server_url, json=data)
+        else:
+            DAEMON_LOGGER.error(f"Task execution command failed with code {return_code}!")
     except:
         error = traceback.format_exc()
         DAEMON_LOGGER.error(f"Exception during task execution: {error}")

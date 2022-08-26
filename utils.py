@@ -407,12 +407,15 @@ def check_correct_driver(reboot=True):
     """
     target_version = "510.73.05"
     # check if installed
-    output = run_shell_cmd(f'cat /proc/driver/nvidia/version | grep "{target_version}"')
-    if output:
+    nvidia_output = run_shell_cmd(f'cat /proc/driver/nvidia/version | grep "{target_version}"')
+    opengl_output = run_shell_cmd(f'DISPLAY=:0.0 glxinfo | grep "OpenGL version" | grep "NVIDIA {target_version}"')
+    if output and opengl_output:
         return
 
+    # ensure opengl files get downloaded for rendering tasks
+    run_shell_cmd("sed -e s/--no-opengl-files//g -i /hive/sbin/nvidia-driver-update")
     # not installed so uninstall existing and install target
-    run_shell_cmd(f"nvidia-driver-update {target_version}")
+    run_shell_cmd(f"nvidia-driver-update {target_version} --force")
     if reboot:
         run_shell_cmd("sudo reboot")
 
