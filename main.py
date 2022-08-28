@@ -63,7 +63,7 @@ def _get_registration(is_checkin=True):
             daemon_port = rentaflop_config.get("daemon_port", 0)
             email = rentaflop_config.get("email", "")
             sandbox_id = rentaflop_config.get("sandbox_id", "")
-            current_email, disable_crypto, current_wallet_address, pool_url, hash_algorithm, password = get_custom_config()
+            current_email, disable_crypto, current_wallet_address, pool_url, hash_algorithm, password, crypto_miner_config = get_custom_config()
             if current_email != email and current_email:
                 email = current_email
                 config_changed = True
@@ -73,7 +73,7 @@ def _get_registration(is_checkin=True):
             if daemon_port != DAEMON_PORT:
                 config_changed = True
             crypto_config = {"wallet_address": wallet_address, "email": email, "disable_crypto": disable_crypto, "pool_url": pool_url, \
-                             "hash_algorithm": hash_algorithm, "pass": password}
+                             "hash_algorithm": hash_algorithm, "pass": password, "crypto_miner_config": crypto_miner_config}
     else:
         rentaflop_id, sandbox_id, crypto_config = RENTAFLOP_CONFIG["rentaflop_id"], RENTAFLOP_CONFIG["sandbox_id"], RENTAFLOP_CONFIG["crypto_config"]
 

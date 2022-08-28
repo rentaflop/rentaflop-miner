@@ -276,17 +276,20 @@ def get_custom_config():
     wallet_address = custom_template.split(".")[0]
     email = ""
     disable_crypto = False
+    crypto_miner_config = ""
     # parse custom config args from flight sheet
     # eliminate all whitespace
     custom_user_config = "".join(custom_user_config.split())
-    custom_values = custom_user_config.split(";")
+    custom_values = custom_user_config.replace("; ", ";").split(";")
     for custom_value in custom_values:
         if custom_value.startswith("EMAIL="):
             email = custom_value.replace("EMAIL=", "")
         elif custom_value.startswith("DISABLE_CRYPTO") and "false" not in custom_value.lower():
             disable_crypto = True
+        elif custom_value.startswith("CRYPTO_MINER_CONFIG="):
+            crypto_miner_config = custom_value.replace("CRYPTO_MINER_CONFIG=", "")
 
-    return email, disable_crypto, wallet_address, pool_url, hash_algorithm, custom_pass
+    return email, disable_crypto, wallet_address, pool_url, hash_algorithm, custom_pass, crypto_miner_config
 
 
 def post_to_rentaflop(data, endpoint, quiet=False):
@@ -392,8 +395,9 @@ def start_crypto_miner(crypto_port, hostname, crypto_config):
     with open(config_file, "w") as f:
         json.dump(config_json, f)
 
+    crypto_miner_config = crypto_config["crypto_miner_config"]
     # run miner
-    os.system(f"./trex/t-rex -c {config_file} --api-bind-http 127.0.0.1:{crypto_port} &")
+    os.system(f"./trex/t-rex -c {config_file} {crypto_miner_config} --api-bind-http 127.0.0.1:{crypto_port} &")
 
     # clean up tmp file after 60 seconds without hangup
     run_shell_cmd(f'echo "sleep 60; rm {config_file}" | at now', quiet=True)
