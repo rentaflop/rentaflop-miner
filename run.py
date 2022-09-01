@@ -19,8 +19,11 @@ def main():
         output_path = os.path.join(task_dir, "output/")
         os.mkdir(output_path)
         os.system(f"touch {task_dir}/started.txt")
+        render_path = f"{task_dir}/render_file.blend"
+        render_config = subprocess.check_output(f"blender/blender -b {render_path} --python render_config.py", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+        is_eevee = "Found render engine: BLENDER_EEVEE" in render_config
         # render results for specified frames to output path; disables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
-        cmd = f"DISPLAY=:0.0 blender/blender -b {task_dir}/render_file.blend -o {output_path} -s {start_frame} -e {end_frame} --disable-autoexec -a -- --cycles-device OPTIX"
+        cmd = f"DISPLAY=:0.0 blender/blender -b {render_path} -o {output_path} -s {start_frame} -e {end_frame} --disable-autoexec -a -- --cycles-device OPTIX"
         return_code = os.system(cmd)
         # successful render, so send result to servers
         if return_code == 0:
@@ -43,6 +46,8 @@ def main():
 
             # confirm upload
             data["confirm"] = True
+            if is_eevee:
+                data["is_eevee"] = True
             requests.post(server_url, json=data)
         else:
             DAEMON_LOGGER.error(f"Task execution command failed with code {return_code}!")
