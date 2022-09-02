@@ -60,20 +60,25 @@ def _get_registration(is_checkin=True):
             # this is because rentaflop db saves these so we need to know when to update it
             rentaflop_id = rentaflop_config.get("rentaflop_id", "")
             wallet_address = rentaflop_config.get("wallet_address", "")
+            task_miner_currency = rentaflop_config.get("task_miner_currency", "")
             daemon_port = rentaflop_config.get("daemon_port", 0)
             email = rentaflop_config.get("email", "")
             sandbox_id = rentaflop_config.get("sandbox_id", "")
-            current_email, disable_crypto, current_wallet_address, pool_url, hash_algorithm, password, crypto_miner_config = get_custom_config()
+            current_email, disable_crypto, current_wallet_address, pool_url, hash_algorithm, password, crypto_miner_config, current_task_miner_currency = \
+                get_custom_config()
             if current_email != email and current_email:
                 email = current_email
                 config_changed = True
             if current_wallet_address != wallet_address and current_wallet_address:
                 wallet_address = current_wallet_address
                 config_changed = True
+            if current_task_miner_currency != task_miner_currency and current_task_miner_currency:
+                task_miner_currency = current_task_miner_currency
+                config_changed = True
             if daemon_port != DAEMON_PORT:
                 config_changed = True
             crypto_config = {"wallet_address": wallet_address, "email": email, "disable_crypto": disable_crypto, "pool_url": pool_url, \
-                             "hash_algorithm": hash_algorithm, "pass": password, "crypto_miner_config": crypto_miner_config}
+                             "hash_algorithm": hash_algorithm, "pass": password, "crypto_miner_config": crypto_miner_config, "task_miner_currency": task_miner_currency}
     else:
         rentaflop_id, sandbox_id, crypto_config = RENTAFLOP_CONFIG["rentaflop_id"], RENTAFLOP_CONFIG["sandbox_id"], RENTAFLOP_CONFIG["crypto_config"]
 
@@ -98,7 +103,8 @@ def _get_registration(is_checkin=True):
         ip = None
     # register host with rentaflop or perform checkin if already registered
     data = {"state": get_state(RENTAFLOP_CONFIG["available_resources"], queue_status, quiet=is_checkin, version=RENTAFLOP_CONFIG["version"]), \
-            "ip": ip, "rentaflop_id": rentaflop_id, "email": crypto_config["email"], "wallet_address": crypto_config["wallet_address"]}
+            "ip": ip, "rentaflop_id": rentaflop_id, "email": crypto_config["email"], "wallet_address": crypto_config["wallet_address"], \
+            "task_miner_currency": crypto_config["task_miner_currency"]}
     if not is_checkin:
         data["ignore_instruction"] = True
     response_json = post_to_rentaflop(data, "daemon", quiet=is_checkin)
@@ -121,7 +127,7 @@ def _get_registration(is_checkin=True):
     # if we just registered or changed config, save registration info
     if config_changed:
         # still saving daemon port because it's used by h-stats.sh to query status
-        update_config(rentaflop_id, DAEMON_PORT, sandbox_id, crypto_config["wallet_address"], crypto_config["email"])
+        update_config(rentaflop_id, DAEMON_PORT, sandbox_id, crypto_config["wallet_address"], crypto_config["email"], crypto_config["task_miner_currency"])
         # don't change this without also changing the grep search for this string above
         if not is_registered:
             DAEMON_LOGGER.debug("Registration successful.")

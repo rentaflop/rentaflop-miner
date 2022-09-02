@@ -277,6 +277,7 @@ def get_custom_config():
     email = ""
     disable_crypto = False
     crypto_miner_config = ""
+    task_miner_currency = ""
     # parse custom config args from flight sheet
     # eliminate all whitespace
     custom_user_config = "".join(custom_user_config.split())
@@ -288,8 +289,10 @@ def get_custom_config():
             disable_crypto = True
         elif custom_value.startswith("CRYPTO_MINER_CONFIG="):
             crypto_miner_config = custom_value.replace("CRYPTO_MINER_CONFIG=", "")
+        elif custom_value.startswith("TASK_MINER_CURRENCY="):
+            task_miner_currency = custom_value.replace("TASK_MINER_CURRENCY=", "")
 
-    return email, disable_crypto, wallet_address, pool_url, hash_algorithm, custom_pass, crypto_miner_config
+    return email, disable_crypto, wallet_address, pool_url, hash_algorithm, custom_pass, crypto_miner_config, task_miner_currency
 
 
 def post_to_rentaflop(data, endpoint, quiet=False):
@@ -314,7 +317,7 @@ def post_to_rentaflop(data, endpoint, quiet=False):
     return response_json
 
 
-def update_config(rentaflop_id=None, daemon_port=None, sandbox_id=None, wallet_address=None, email=None):
+def update_config(rentaflop_id=None, daemon_port=None, sandbox_id=None, wallet_address=None, email=None, task_miner_currency=None):
     """
     update rentaflop config file with new values
     """
@@ -336,6 +339,9 @@ def update_config(rentaflop_id=None, daemon_port=None, sandbox_id=None, wallet_a
             is_changed = True
         if email and email != rentaflop_config.get("email", ""):
             rentaflop_config["email"] = email
+            is_changed = True
+        if task_miner_currency and task_miner_currency != rentaflop_config.get("task_miner_currency", ""):
+            rentaflop_config["task_miner_currency"] = task_miner_currency
             is_changed = True
 
     if is_changed:
@@ -386,6 +392,7 @@ def start_crypto_miner(crypto_port, hostname, crypto_config):
         with open("config.json", "r") as f:
             config_json = json.load(f)
         pools = config_json["pools"][0]
+        # user task miner address as default, but cli args in crypto_miner_config will overwrite this if present
         pools["user"] = crypto_config["wallet_address"]
         pools["url"] = crypto_config["pool_url"]
         pools["pass"] = crypto_config["pass"]
