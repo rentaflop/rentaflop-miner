@@ -431,7 +431,7 @@ def check_correct_driver():
 def _add_swap(desired_swap):
     """
     add desired swap GB of swap to system
-    requires that there's at least desired_swap GB of free storage
+    requires that there's at least desired_swap+2 GB of free storage
     """
     DAEMON_LOGGER.info(f"Adding {desired_swap}GB of swap")
     # each batch is 128MB which is 1/8 of a GB
@@ -455,6 +455,17 @@ def check_memory():
     must_configure_swap = (total_swap == 0.0) and (total_ram + total_swap < desired_total)
     if must_configure_swap:
         desired_swap = desired_total - total_ram
+        drive_info = run_shell_cmd("""df / | grep "/dev" | awk -v N=4 '{print $N}'""", format_output=False, quiet=True)
+        # free drive space in GB
+        free_drive_size = float(drive_info)/1000000
+        # ensure there's at least this many GB in storage left after configuring swap
+        min_space_remaining = 2.0
+        if free_drive_size < min_space_remaining:
+            return
+        
+        if desired_swap + min_space_remaining > free_drive_size:
+            desired_swap = free_drive_size - min_space_remaining
+            
         _add_swap(desired_swap)
 
 
