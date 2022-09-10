@@ -12,6 +12,7 @@ import os
 import tempfile
 import copy
 import socket
+import math
 
 
 SUPPORTED_GPUS = {
@@ -412,7 +413,6 @@ def check_correct_driver():
     """
     check for correct driver version
     install if not found, otherwise do nothing
-    reboot is required after changing drivers; reboot option toggles this action within this function
     """
     target_version = "510.73.05"
     # check if installed
@@ -426,6 +426,36 @@ def check_correct_driver():
     run_shell_cmd("sed -e s/--no-opengl-files//g -i /hive/sbin/nvidia-driver-update")
     # not installed so uninstall existing and install target, running in bg because this command will kill the miner
     os.system(f"nvidia-driver-update {target_version} --force &")
+
+
+def _add_swap(desired_swap):
+    """
+    add desired swap GB of swap to system
+    requires that there's at least desired_swap GB of free storage
+    """
+    DAEMON_LOGGER.info(f"Adding {desired_swap}GB of swap")
+    # each batch is 128MB which is 1/8 of a GB
+    n_batches = math.ceil(desired_swap * 8)
+    run_shell_cmd(f"sudo dd if=/dev/zero of=/swapfile bs=128M count={n_batches}")
+    run_shell_cmd("sudo chmod 600 /swapfile")
+    run_shell_cmd("sudo mkswap /swapfile")
+    run_shell_cmd("sudo swapon /swapfile")
+
+
+def check_memory():
+    """
+    check to make sure system has enough memory and configure swap if not
+    """
+    command_output = run_shell_cmd("free --giga", format_output=False, quiet=True)
+    command_output = command_output.splitlines()
+    total_ram = float(command_output[1].split()[1])
+    total_swap = float(command_output[2].split()[1])
+    # want to have at least this many GB of memory for the more resource intensive renders
+    desired_total = 16.0
+    must_configure_swap = (total_swap == 0.0) and (total_ram + total_swap < desired_total)
+    if must_configure_swap:
+        desired_swap = desired_total - total_ram
+        _add_swap(desired_swap)
 
 
 def get_oc_settings():
@@ -651,6 +681,7 @@ def check_installation():
     install anything missing
     """
     check_correct_driver()
+    check_memory()
     install_or_update_crypto_miner()
     install_or_update_benchmark()
     install_or_update_blender()
