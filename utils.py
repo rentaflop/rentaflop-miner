@@ -440,6 +440,7 @@ def _add_swap(desired_swap):
     run_shell_cmd("sudo chmod 600 /swapfile")
     run_shell_cmd("sudo mkswap /swapfile")
     run_shell_cmd("sudo swapon /swapfile")
+    run_shell_cmd("echo /swapfile swap swap defaults 0 0 >> /etc/fstab")
 
 
 def check_memory():
