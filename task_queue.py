@@ -2,7 +2,7 @@
 manages queue for compute tasks
 """
 from config import DAEMON_LOGGER, app, db, Task
-from utils import Task, run_shell_cmd
+from utils import run_shell_cmd
 import os
 import datetime as dt
 import requests
