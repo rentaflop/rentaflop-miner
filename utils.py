@@ -422,10 +422,8 @@ def check_correct_driver():
     if nvidia_output and opengl_output:
         return
 
-    # ensure opengl files get downloaded for rendering tasks
-    run_shell_cmd("sed -e s/--no-opengl-files//g -i /hive/sbin/nvidia-driver-update")
-    # not installed so uninstall existing and install target, running in bg because this command will kill the miner
-    os.system(f"./nvidia_driver_update.sh {target_version} --force &")
+    # not installed so uninstall existing and install target
+    run_shell_cmd(f"./nvidia_driver_update.sh {target_version} --force")
 
 
 def _add_swap(desired_swap):

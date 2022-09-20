@@ -506,7 +506,7 @@ function install_driver() { # @url or @file, @force_install
 	./nvstop.sh
 	exitcode=$?
 	if [[ $exitcode -eq 0 ]]; then
-		local cmdline="--accept-license --no-questions --ui=none --dkms --no-opengl-files --no-install-compat32-libs" #--tmpdir=/hive-drivers-pack
+		local cmdline="--accept-license --no-questions --ui=none --dkms --no-install-compat32-libs" #--tmpdir=/hive-drivers-pack
 		# ignore GCC version mismatch
 		[[ $2 -eq 1 ]] && cmdline="$cmdline --no-cc-version-check" && local mode=" (forced mode)"
 		echo -e ""
