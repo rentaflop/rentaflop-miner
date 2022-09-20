@@ -607,7 +607,6 @@ def read_oc_settings():
     requires overclock settings to already exist in db
     requires calling function to free the overclock table lock by calling db.session.commit()
     """
-    _, db = get_app_db()
     # with_for_update acquires lock on the overclock table, which is necessary to avoid multiple concurrent threads from messing up the settings
     # if a concurrent thread tries to read or write the table when another thread has the lock, it will wait until the lock is released
     existing_oc_settings = db.session.query(Overclock.oc_settings).with_for_update().first()
