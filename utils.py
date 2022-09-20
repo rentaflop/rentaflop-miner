@@ -709,7 +709,10 @@ def check_installation():
     # use db object tables initialized with
     DB.init_app(app)
     DB.drop_all(app=app)
-    DB.create_all(app=app)
+    try:
+        DB.create_all(app=app)
+    except:
+        pass
 
 
 def install_all_requirements():
