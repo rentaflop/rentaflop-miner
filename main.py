@@ -32,6 +32,10 @@ def _start_mining(startup=False):
     # if just started, wait for gpus to "wake up" on boot
     if startup:
         time.sleep(10)
+        DAEMON_LOGGER.debug("Starting crypto miner")
+
+        return mine({"action": "start"})
+
     state = get_state(RENTAFLOP_CONFIG["available_resources"], queue_status, gpu_only=True, quiet=True)
     status = state["status"]
     gpus_stopped = status == "stopped"
