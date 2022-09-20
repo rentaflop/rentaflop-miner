@@ -234,6 +234,8 @@ def _handle_startup():
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
     run_shell_cmd("sudo nvidia-smi -pm 1", quiet=True)
     run_shell_cmd("./nvidia_uvm_init.sh", quiet=True)
+    # must do installation check before anything required by it is used
+    check_installation()
     global RENTAFLOP_CONFIG
     RENTAFLOP_CONFIG["available_resources"] = _get_available_resources()
     RENTAFLOP_CONFIG["version"] = run_shell_cmd("git rev-parse --short HEAD", quiet=True, format_output=False).replace("\n", "")
@@ -241,8 +243,6 @@ def _handle_startup():
         _get_registration(is_checkin=False)
     # setting env var for task queue to use
     os.environ["SANDBOX_ID"] = RENTAFLOP_CONFIG["sandbox_id"]
-    # must do installation check before anything required by it is used
-    check_installation()
     oc_settings, oc_hash = get_oc_settings()
     # db table contains original (set by user in hive) oc settings and hash of current (not necessarily original) oc settings
     write_oc_settings(oc_settings, oc_hash, db)
