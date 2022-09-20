@@ -37,13 +37,24 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MAX_CONTENT_LENGTH = 500 * 1024 * 1024
 
+app = Flask(__name__)
+app.config.from_object(Config)
+db = SQLAlchemy(app)
 
-def get_app_db():
-    """
-    returns app and db objects and does necessary setup
-    """
-    app = Flask(__name__)
-    app.config.from_object(Config)
-    db = SQLAlchemy(app)
+class Overclock(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    # looks like '{"oc_settings": ..., "oc_hash": ...}'
+    oc_settings = db.Column(db.String(2048))
 
-    return app, db
+    def __repr__(self):
+        return f"<Overclock {self.oc_settings}>"
+
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer)
+    task_dir = db.Column(db.String(128))
+    start_frame = db.Column(db.Integer)
+    end_frame = db.Column(db.Integer)
+
+    def __repr__(self):
+        return f"<Task {self.task_id} {self.task_dir}>"

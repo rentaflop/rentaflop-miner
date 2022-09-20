@@ -2,7 +2,7 @@
 utility functions to be used in various parts of host software
 """
 import subprocess
-from config import DAEMON_LOGGER, REGISTRATION_FILE, get_app_db
+from config import DAEMON_LOGGER, REGISTRATION_FILE, app, db, Overclock
 import time
 import json
 import requests
@@ -47,25 +47,6 @@ SUPPORTED_GPUS = {
     "NVIDIA GeForce RTX 3090 Ti",
 }
 CRYPTO_STATS = {"total_khs": "0.0"}
-
-_, DB = get_app_db()
-class Overclock(DB.Model):
-    id = DB.Column(DB.Integer, primary_key=True)
-    # looks like '{"oc_settings": ..., "oc_hash": ...}'
-    oc_settings = DB.Column(DB.String(2048))
-
-    def __repr__(self):
-        return f"<Overclock {self.oc_settings}>"
-
-class Task(DB.Model):
-    id = DB.Column(DB.Integer, primary_key=True)
-    task_id = DB.Column(DB.Integer)
-    task_dir = DB.Column(DB.String(128))
-    start_frame = DB.Column(DB.Integer)
-    end_frame = DB.Column(DB.Integer)
-
-    def __repr__(self):
-        return f"<Task {self.task_id} {self.task_dir}>"
 
 
 def run_shell_cmd(cmd, quiet=False, very_quiet=False, format_output=True):
@@ -705,14 +686,9 @@ def check_installation():
     run_shell_cmd('mysql -u root -pdaemon -e "create database daemon;"', quiet=True)
     run_shell_cmd('mysql -u root -pdaemon -e "SET session wait_timeout=10;"', quiet=True)
     run_shell_cmd('mysql -u root -pdaemon -e "SET interactive_timeout=10;"', quiet=True)
-    app, _ = get_app_db()
-    # use db object tables initialized with
-    DB.init_app(app)
-    DB.drop_all(app=app)
-    try:
-        DB.create_all(app=app)
-    except:
-        pass
+    db.init_app(app)
+    db.drop_all(app=app)
+    db.create_all(app=app)
 
 
 def install_all_requirements():

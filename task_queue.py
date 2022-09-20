@@ -1,15 +1,12 @@
 """
 manages queue for compute tasks
 """
-from config import DAEMON_LOGGER, get_app_db
+from config import DAEMON_LOGGER, app, db, Task
 from utils import Task, run_shell_cmd
 import os
 import datetime as dt
 import requests
 import tempfile
-
-
-_, DB = get_app_db()
 
 
 def push_task(params):
@@ -38,8 +35,8 @@ def push_task(params):
     else:
         task = Task(task_dir=task_dir, task_id=task_id)
     
-    DB.session.add(task)
-    DB.session.commit()
+    db.session.add(task)
+    db.session.commit()
     DAEMON_LOGGER.debug(f"Added task {task_id}")
 
 
@@ -52,9 +49,9 @@ def _delete_task_with_id(task_id):
     task_dir = None
     if task:
         task_dir = task.task_dir
-        task = DB.session.merge(task)
-        DB.session.delete(task)
-        DB.session.commit()
+        task = db.session.merge(task)
+        db.session.delete(task)
+        db.session.commit()
 
     return task_dir
 
@@ -83,7 +80,7 @@ def queue_status(params):
     # must include benchmark so we can set status to gpc
     tasks = [task.task_id for task in tasks]
     # need this because connection pool not getting cleared for some reason
-    DB.close_all_sessions()
+    db.close_all_sessions()
     
     return {"queue": tasks}
 
