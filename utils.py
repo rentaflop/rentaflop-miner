@@ -261,7 +261,7 @@ def get_custom_config():
     crypto_miner_config = ""
     task_miner_currency = ""
     # parse custom config args from flight sheet
-    custom_values = custom_user_config.replace("; ", ";").split(";")
+    custom_values = custom_user_config.replace("; ", ";").replace("<", "").replace(">", "").split(";")
     for custom_value in custom_values:
         if custom_value.startswith("EMAIL="):
             email = custom_value.replace("EMAIL=", "")
