@@ -2,7 +2,7 @@
 runs render task
 usage:
     # task_dir is directory containing render file for task
-    python3 run.py task_dir start_frame end_frame
+    python3 run.py task_dir start_frame end_frame uuid_str
 """
 import sys
 import os
@@ -17,14 +17,20 @@ def main():
         task_dir = sys.argv[1]
         start_frame = sys.argv[2]
         end_frame = sys.argv[3]
+        uuid_str = sys.argv[4]
         output_path = os.path.join(task_dir, "output/")
         os.mkdir(output_path)
         os.system(f"touch {task_dir}/started.txt")
         render_path = f"{task_dir}/render_file.blend"
-        render_config = subprocess.check_output(f"blender/blender -b {render_path} --python render_config.py", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+        render_path2 = f"{task_dir}/render_file2.blend"
+        script1 = f"import os; os.system('gpg --passphrase {uuid_str} --batch --no-tty -d {render_path} > {render_path2} && mv {render_path2} {render_path}')"
+        script2 = f"import os; os.remove('{render_path}')"
+        render_config = subprocess.check_output(f"blender/blender --python-expr {script1} -b {render_path} --python render_config.py", shell=True,
+                                                encoding="utf8", stderr=subprocess.STDOUT)
         is_eevee = "Found render engine: BLENDER_EEVEE" in render_config
+
         # render results for specified frames to output path; disables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
-        cmd = f"DISPLAY=:0.0 blender/blender -b {render_path} -o {output_path} -s {start_frame} -e {end_frame} --disable-autoexec -a -- --cycles-device OPTIX"
+        cmd = f"DISPLAY=:0.0 blender/blender -b {render_path} --python-expr {script2} -o {output_path} -s {start_frame} -e {end_frame} --disable-autoexec -a -- --cycles-device OPTIX"
         return_code = os.system(cmd)
         # successful render, so send result to servers
         if return_code == 0:

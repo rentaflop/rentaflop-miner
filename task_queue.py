@@ -7,6 +7,7 @@ import os
 import datetime as dt
 import requests
 import tempfile
+import uuid
 
 
 def push_task(params):
@@ -28,10 +29,14 @@ def push_task(params):
     # create directory for task and write render file there
     task_dir = os.path.join(FILE_DIR, str(task_id))
     os.makedirs(task_dir)
-    if is_render:
-        with open(f"{task_dir}/render_file.blend", "wb") as f:
+    if is_render: 
+        render_path = f"{task_dir}/render_file.blend"
+        with open(render_path, "wb") as f:
             f.write(render_file)
-        task = Task(task_dir=task_dir, task_id=task_id, start_frame=start_frame, end_frame=end_frame)        
+            
+        uuid_str = uuid.uuid4().hex
+        os.system(f"gpg --passphrase {uuid_str} --batch --no-tty -c {render_path} && mv {render_path}.gpg {render_path}")
+        task = Task(task_dir=task_dir, task_id=task_id, start_frame=start_frame, end_frame=end_frame, uuid_str=uuid_str)
     else:
         task = Task(task_dir=task_dir, task_id=task_id)
     
@@ -190,7 +195,7 @@ def update_queue(params={}):
     
     # start task in bg
     DAEMON_LOGGER.debug(f"Starting task {task_id}...")
-    os.system(f"python3 run.py {task.task_dir} {task.start_frame} {task.end_frame} task_{task_id} &")
+    os.system(f"python3 run.py {task.task_dir} {task.start_frame} {task.end_frame} task_{task_id} {task.uuid_str} &")
 
 
 # create tmp dir that's cleaned up when TEMP_DIR is destroyed
