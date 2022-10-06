@@ -195,7 +195,7 @@ def update_queue(params={}):
     
     # start task in bg
     DAEMON_LOGGER.debug(f"Starting task {task_id}...")
-    os.system(f"python3 run.py {task.task_dir} {task.start_frame} {task.end_frame} task_{task_id} {task.uuid_str} &")
+    os.system(f"python3 run.py {task.task_dir} {task.start_frame} {task.end_frame} {task.uuid_str} &")
 
 
 # create tmp dir that's cleaned up when TEMP_DIR is destroyed
