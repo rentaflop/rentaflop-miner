@@ -23,8 +23,8 @@ def main():
         os.system(f"touch {task_dir}/started.txt")
         render_path = f"{task_dir}/render_file.blend"
         render_path2 = f"{task_dir}/render_file2.blend"
-        script1 = f"import os; os.system('gpg --passphrase {uuid_str} --batch --no-tty -d {render_path} > {render_path2} && mv {render_path2} {render_path}')"
-        script2 = f"import os; os.remove('{render_path}')"
+        script1 = f'''"import os; os.system('gpg --passphrase {uuid_str} --batch --no-tty -d {render_path} > {render_path2} && mv {render_path2} {render_path}')"'''
+        script2 = f'''"import os; os.remove('{render_path}')"'''
         render_config = subprocess.check_output(f"blender/blender --python-expr {script1} -b {render_path} --python render_config.py", shell=True,
                                                 encoding="utf8", stderr=subprocess.STDOUT)
         is_eevee = "Found render engine: BLENDER_EEVEE" in render_config
