@@ -643,28 +643,6 @@ def install_or_update_benchmark():
     run_shell_cmd("mkdir octane && tar -xzf octane.tar.gz -C octane --strip-components 1 && rm octane.tar.gz")
 
 
-def install_or_update_blender():
-    """
-    check for blender installation and install if not found
-    update version if installed and not up to date; does nothing if installed and up to date
-    """
-    target_version = "3.2.2"
-    if os.path.exists("blender"):
-        current_version = run_shell_cmd('blender/blender --version | head -n 1 | cut -d " " -f 2', format_output=False).strip()
-        # already up to date so do nothing
-        if current_version == target_version:
-            return
-
-        # need to reinstall with target version, so remove current installation
-        run_shell_cmd("rm -rf blender")
-
-    DAEMON_LOGGER.debug(f"Installing blender version {target_version}...")
-    short_version = target_version[:3]
-    # go to https://download.blender.org/release/ to check blender version updates
-    run_shell_cmd(f"wget https://download.blender.org/release/Blender{short_version}/blender-{target_version}-linux-x64.tar.xz -O blender.tar.xz")
-    run_shell_cmd("mkdir blender && tar -xf blender.tar.xz -C blender --strip-components 1 && rm blender.tar.xz")
-
-
 def check_installation():
     """
     check installation for requirements not necessarily installed during first startup
@@ -674,7 +652,6 @@ def check_installation():
     check_memory()
     install_or_update_crypto_miner()
     install_or_update_benchmark()
-    install_or_update_blender()
     run_shell_cmd('rm octane/started.txt', quiet=True)
     run_shell_cmd('rm octane/benchmark.txt', quiet=True)
     run_shell_cmd("/etc/init.d/mysql start", quiet=True)

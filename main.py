@@ -278,6 +278,7 @@ def mine(params):
     start_frame = params.get("start_frame")
     n_frames = params.get("n_frames")
     job_id = params.get("job_id")
+    blender_version = params.get("blender_version")
     gpu_indexes = RENTAFLOP_CONFIG["available_resources"]["gpu_indexes"]
     is_render = False
     if task_id:
@@ -289,7 +290,7 @@ def mine(params):
             stop_crypto_miner()
             disable_oc(gpu_indexes)
             end_frame = start_frame + n_frames - 1
-            data = {"cmd": "push_task", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame}, \
+            data = {"cmd": "push_task", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame, "blender_version": blender_version}, \
                     "render_file": render_file}
             send_to_task_queue(data)
         else:

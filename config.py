@@ -56,6 +56,7 @@ class Task(db.Model):
     start_frame = db.Column(db.Integer)
     end_frame = db.Column(db.Integer)
     uuid_str = db.Column(db.String(128))
+    blender_version = db.Column(db.String(128))
 
     def __repr__(self):
         return f"<Task {self.task_id} {self.task_dir}>"

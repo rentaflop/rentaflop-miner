@@ -2,7 +2,7 @@
 runs render task
 usage:
     # task_dir is directory containing render file for task
-    python3 run.py task_dir start_frame end_frame uuid_str
+    python3 run.py task_dir start_frame end_frame uuid_str blender_version
 """
 import sys
 import os
@@ -12,15 +12,32 @@ from config import DAEMON_LOGGER
 import subprocess
 
 
+def check_blender(target_version):
+    """
+    check for blender target_version installation and install if not found
+    does nothing if target_version installed
+    """
+    if os.path.exists(f"blender-{target_version}.tar.xz"):
+        return
+
+    DAEMON_LOGGER.debug(f"Installing blender version {target_version}...")
+    short_version = target_version[:3]
+    # go to https://download.blender.org/release/ to check blender version updates
+    os.system(f"wget https://download.blender.org/release/Blender{short_version}/blender-{target_version}-linux-x64.tar.xz -O blender-{target_version}.tar.xz")
+
+
 def main():
     try:
         task_dir = sys.argv[1]
         start_frame = sys.argv[2]
         end_frame = sys.argv[3]
         uuid_str = sys.argv[4]
+        blender_version = sys.argv[5]
         output_path = os.path.join(task_dir, "output/")
         os.mkdir(output_path)
         os.system(f"touch {task_dir}/started.txt")
+        check_blender(blender_version)
+        os.system(f"rm -r blender; mkdir blender && tar -xf blender-{blender_version}.tar.xz -C blender --strip-components 1")
         render_path = f"{task_dir}/render_file.blend"
         render_path2 = f"{task_dir}/render_file2.blend"
         script1 = f'''"import os; os.system('gpg --passphrase {uuid_str} --batch --no-tty -d {render_path} > {render_path2} && mv {render_path2} {render_path}')"'''

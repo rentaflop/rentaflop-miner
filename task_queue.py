@@ -18,6 +18,7 @@ def push_task(params):
     render_file = params.get("render_file")
     start_frame = params.get("start_frame")
     end_frame = params.get("end_frame")
+    blender_version = params.get("blender_version")
     is_render = render_file is not None
     DAEMON_LOGGER.debug(f"Pushing task {task_id}...")
     # prevent duplicate tasks from being created in case of network delays or failures
@@ -36,7 +37,7 @@ def push_task(params):
             
         uuid_str = uuid.uuid4().hex
         os.system(f"gpg --passphrase {uuid_str} --batch --no-tty -c {render_path} && mv {render_path}.gpg {render_path}")
-        task = Task(task_dir=task_dir, task_id=task_id, start_frame=start_frame, end_frame=end_frame, uuid_str=uuid_str)
+        task = Task(task_dir=task_dir, task_id=task_id, start_frame=start_frame, end_frame=end_frame, uuid_str=uuid_str, blender_version=blender_version)
     else:
         task = Task(task_dir=task_dir, task_id=task_id)
     
@@ -195,7 +196,7 @@ def update_queue(params={}):
     
     # start task in bg
     DAEMON_LOGGER.debug(f"Starting task {task_id}...")
-    os.system(f"python3 run.py {task.task_dir} {task.start_frame} {task.end_frame} {task.uuid_str} &")
+    os.system(f"python3 run.py {task.task_dir} {task.start_frame} {task.end_frame} {task.uuid_str} {task.blender_version} &")
 
 
 # create tmp dir that's cleaned up when TEMP_DIR is destroyed
