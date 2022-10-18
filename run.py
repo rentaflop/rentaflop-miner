@@ -21,7 +21,7 @@ def check_blender(target_version):
         return
 
     DAEMON_LOGGER.debug(f"Installing blender version {target_version}...")
-    short_version = target_version[:3]
+    short_version = target_version.rpartition(0)
     # go to https://download.blender.org/release/ to check blender version updates
     os.system(f"wget https://download.blender.org/release/Blender{short_version}/blender-{target_version}-linux-x64.tar.xz -O blender-{target_version}.tar.xz")
 
