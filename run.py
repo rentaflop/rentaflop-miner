@@ -40,14 +40,16 @@ def main():
         os.system(f"rm -r blender; mkdir blender && tar -xf blender-{blender_version}.tar.xz -C blender --strip-components 1")
         render_path = f"{task_dir}/render_file.blend"
         render_path2 = f"{task_dir}/render_file2.blend"
-        script1 = f'''"import os; os.system('gpg --passphrase {uuid_str} --batch --no-tty -d {render_path} > {render_path2} && mv {render_path2} {render_path}')"'''
-        script2 = f'''"import os; os.remove('{render_path}')"'''
-        render_config = subprocess.check_output(f"blender/blender --python-expr {script1} -b {render_path} --python render_config.py", shell=True,
+        de_script = f'''"import os; os.system('gpg --passphrase {uuid_str} --batch --no-tty -d {render_path} > {render_path2} && mv {render_path2} {render_path}')"'''
+        # reformats videos to PNG
+        fmt_script = f'''"import bpy; file_format = bpy.context.scene.render.image_settings.file_format; bpy.context.scene.render.image_settings.file_format = 'PNG' if file_format in ['FFMPEG', 'AVI_RAW', 'AVI_JPEG'] else file_format"'''
+        rm_script = f'''"import os; os.remove('{render_path}')"'''
+        render_config = subprocess.check_output(f"blender/blender --python-expr {de_script} -b {render_path} --python render_config.py", shell=True,
                                                 encoding="utf8", stderr=subprocess.STDOUT)
         is_eevee = "Found render engine: BLENDER_EEVEE" in render_config
 
         # render results for specified frames to output path; disables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
-        cmd = f"DISPLAY=:0.0 blender/blender -b {render_path} --python-expr {script2} -o {output_path} -s {start_frame} -e {end_frame} --disable-autoexec -a -- --cycles-device OPTIX"
+        cmd = f"DISPLAY=:0.0 blender/blender -b {render_path} --python-expr {fmt_script} --python-expr {rm_script} -o {output_path} -s {start_frame} -e {end_frame} --disable-autoexec -a -- --cycles-device OPTIX"
         return_code = os.system(cmd)
         # successful render, so send result to servers
         if return_code == 0:
