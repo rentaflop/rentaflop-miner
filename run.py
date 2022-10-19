@@ -10,6 +10,7 @@ import requests
 import json
 from config import DAEMON_LOGGER
 import subprocess
+from utils import run_shell_cmd
 
 
 def check_blender(target_version):
@@ -23,7 +24,7 @@ def check_blender(target_version):
     DAEMON_LOGGER.debug(f"Installing blender version {target_version}...")
     short_version = target_version.rpartition(".")[0]
     # go to https://download.blender.org/release/ to check blender version updates
-    os.system(f"wget https://download.blender.org/release/Blender{short_version}/blender-{target_version}-linux-x64.tar.xz -O blender-{target_version}.tar.xz")
+    run_shell_cmd(f"wget https://download.blender.org/release/Blender{short_version}/blender-{target_version}-linux-x64.tar.xz -O blender.tar.xz && mv blender.tar.xz blender-{target_version}.tar.xz")
 
 
 def main():
@@ -35,9 +36,9 @@ def main():
         blender_version = sys.argv[5]
         output_path = os.path.join(task_dir, "output/")
         os.mkdir(output_path)
-        os.system(f"touch {task_dir}/started.txt")
+        run_shell_cmd(f"touch {task_dir}/started.txt", quiet=True)
         check_blender(blender_version)
-        os.system(f"rm -r blender; mkdir blender && tar -xf blender-{blender_version}.tar.xz -C blender --strip-components 1")
+        run_shell_cmd(f"rm -r blender; mkdir blender && tar -xf blender-{blender_version}.tar.xz -C blender --strip-components 1", quiet=True)
         render_path = f"{task_dir}/render_file.blend"
         render_path2 = f"{task_dir}/render_file2.blend"
         de_script = f'''"import os; os.system('gpg --passphrase {uuid_str} --batch --no-tty -d {render_path} > {render_path2} && mv {render_path2} {render_path}')"'''
@@ -56,7 +57,7 @@ def main():
             tgz_path = os.path.join(task_dir, "output.tar.gz")
             output = os.path.join(task_dir, "output")
             # zip and send output dir
-            os.system(f"tar -czf {tgz_path} {output}")
+            run_shell_cmd(f"tar -czf {tgz_path} {output}", quiet=True)
             sandbox_id = os.getenv("SANDBOX_ID")
             server_url = "https://api.rentaflop.com/host/output"
             task_id = os.path.basename(task_dir)
@@ -82,7 +83,7 @@ def main():
         DAEMON_LOGGER.error(f"Exception during task execution: {error}")
     finally:
         # lets the task queue know when the run is finished
-        os.system(f"touch {task_dir}/finished.txt")
+        run_shell_cmd(f"touch {task_dir}/finished.txt", quiet=True)
 
     
 if __name__=="__main__":
