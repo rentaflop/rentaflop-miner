@@ -439,7 +439,7 @@ def check_memory():
         # free drive space in GB
         free_drive_size = float(drive_info)/1000000
         # ensure there's at least this many GB in storage left after configuring swap
-        min_space_remaining = 2.0
+        min_space_remaining = 3.0
         if free_drive_size < min_space_remaining:
             return
         
