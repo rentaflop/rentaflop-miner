@@ -652,6 +652,8 @@ def check_installation():
     check_memory()
     install_or_update_crypto_miner()
     install_or_update_benchmark()
+    run_shell_cmd("sudo add-apt-repository ppa:deki/firejail -y", quiet=True)
+    run_shell_cmd("sudo apt-get install firejail firejail-profiles -y", quiet=True)
     run_shell_cmd('rm octane/started.txt', quiet=True)
     run_shell_cmd('rm octane/benchmark.txt', quiet=True)
     run_shell_cmd("/etc/init.d/mysql start", quiet=True)
