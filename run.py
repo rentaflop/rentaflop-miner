@@ -11,6 +11,8 @@ import json
 from config import DAEMON_LOGGER
 import subprocess
 from utils import run_shell_cmd
+import datetime as dt
+import glob
 
 
 def check_blender(target_version):
@@ -25,6 +27,33 @@ def check_blender(target_version):
     short_version = target_version.rpartition(".")[0]
     # go to https://download.blender.org/release/ to check blender version updates
     run_shell_cmd(f"wget https://download.blender.org/release/Blender{short_version}/blender-{target_version}-linux-x64.tar.xz -O blender.tar.xz && mv blender.tar.xz blender-{target_version}.tar.xz")
+
+
+def calculate_frame_times(n_frames, task_dir):
+    """
+    calculate total time in minutes spent rendering frames, not including preprocessing
+    requires render is completely finished and started_render.txt plus frames are still present
+    return first_frame_time, subsequent_frames_avg
+    """
+    output_files = os.path.join(task_dir, "output/*")
+    list_of_files = glob.glob(output_files)
+    first_file = min(list_of_files, key=os.path.getmtime)
+    last_file = max(list_of_files, key=os.path.getmtime)
+
+    render_start_time = os.path.getmtime(os.path.join(task_dir, "started_render.txt"))
+    render_start_time = dt.datetime.fromtimestamp(render_start_time)
+    first_frame_finish = os.path.getmtime(first_file)
+    first_frame_finish = dt.datetime.fromtimestamp(first_frame_finish)
+    last_frame_finish = os.path.getmtime(last_file)
+    last_frame_finish = dt.datetime.fromtimestamp(last_frame_finish)
+
+    first_frame_duration = first_frame_finish-render_start_time
+    first_frame_time = first_frame_duration.total_seconds()/60.0
+    subsequent_frames_duration = last_frame_finish-first_frame_finish
+    subsequent_frames_time = subsequent_frames_duration.total_seconds()/60.0
+    subsequent_frames_avg = subsequent_frames_time / (n_frames - 1)
+
+    return first_frame_time, subsequent_frames_avg
 
 
 def main():
@@ -51,12 +80,14 @@ def main():
                                                 encoding="utf8", stderr=subprocess.STDOUT)
         is_eevee = "Found render engine: BLENDER_EEVEE" in render_config
 
+        run_shell_cmd(f"touch {task_dir}/started_render.txt", quiet=True)
         sandbox_options = f"firejail --noprofile --net=none --caps.drop=all --private={task_dir} --blacklist=/"
         # render results for specified frames to output path; enables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
         cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -b {render_path} --python-expr {fmt_script} --python-expr {rm_script} -o {output_path} -s {start_frame} -e {end_frame} -a -- --cycles-device OPTIX"
         return_code = os.system(cmd)
         # successful render, so send result to servers
         if return_code == 0:
+            first_frame_time, subsequent_frames_avg = calculate_frame_times(n_frames, task_dir)
             tgz_path = os.path.join(task_dir, "output.tar.gz")
             output = os.path.join(task_dir, "output")
             # zip and send output dir
@@ -76,6 +107,8 @@ def main():
 
             # confirm upload
             data["confirm"] = True
+            data["first_frame_time"] = first_frame_time
+            data["subsequent_frames_avg"] = subsequent_frames_avg
             if is_eevee:
                 data["is_eevee"] = True
             requests.post(server_url, json=data)
