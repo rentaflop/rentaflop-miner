@@ -13,6 +13,7 @@ import subprocess
 from utils import run_shell_cmd
 import datetime as dt
 import glob
+import traceback
 
 
 def check_blender(target_version):
