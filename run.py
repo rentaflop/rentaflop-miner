@@ -87,6 +87,7 @@ def main():
         return_code = os.system(cmd)
         # successful render, so send result to servers
         if return_code == 0:
+            n_frames = end_frame - start_frame + 1
             first_frame_time, subsequent_frames_avg = calculate_frame_times(n_frames, task_dir)
             tgz_path = os.path.join(task_dir, "output.tar.gz")
             output = os.path.join(task_dir, "output")
