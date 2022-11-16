@@ -60,8 +60,8 @@ def calculate_frame_times(n_frames, task_dir):
 def main():
     try:
         task_dir = sys.argv[1]
-        start_frame = sys.argv[2]
-        end_frame = sys.argv[3]
+        start_frame = int(sys.argv[2])
+        end_frame = int(sys.argv[3])
         uuid_str = sys.argv[4]
         blender_version = sys.argv[5]
         output_path = os.path.join(task_dir, "output/")
