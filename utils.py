@@ -565,8 +565,9 @@ def enable_oc(gpu_indexes):
 
         return
     new_oc_settings = copy.deepcopy(current_oc_settings)
-    # find n_gpus this way because there might be unsupported gpus present that hive supports
-    n_gpus = max([len(new_oc_settings[k].split()) for k in new_oc_settings])
+    # TODO: find n_gpus this way because there might be unsupported gpus present that hive supports? doesn't work when no oc settings set
+    # n_gpus = max([len(new_oc_settings[k].split()) for k in new_oc_settings])
+    n_gpus = len(gpu_indexes)
     original_clock_values = _get_setting_from_key(original_oc_settings, "CLOCK", n_gpus)
     original_clock_values = [original_clock_values[idx] for idx in gpu_indexes]
     original_mem_values = _get_setting_from_key(original_oc_settings, "MEM", n_gpus)
