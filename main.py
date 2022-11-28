@@ -323,9 +323,9 @@ def _stop_all():
         data = {"cmd": "pop_task", "params": {"task_id": task_id}}
         send_to_task_queue(data)
     
-    run_shell_cmd('killall t-rex')
-    run_shell_cmd('killall octane')
-    run_shell_cmd('killall blender')
+    run_shell_cmd('pkill -f t-rex')
+    run_shell_cmd('pkill -f octane')
+    run_shell_cmd('pkill -f blender')
     DAEMON_LOGGER.debug("Tasks stopped.")
             
             

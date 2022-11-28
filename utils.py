@@ -354,7 +354,7 @@ def stop_crypto_miner():
     stop crypto miner
     """
     # don't use signal 9 to kill because it causes GPU errors (defaults to signal 15)
-    run_shell_cmd('killall t-rex')
+    run_shell_cmd('pkill -f t-rex')
 
 
 def start_crypto_miner(crypto_port, hostname, crypto_config):
