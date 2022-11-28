@@ -523,8 +523,9 @@ def disable_oc(gpu_indexes):
         return
     
     new_oc_settings = copy.deepcopy(current_oc_settings)
-    # find n_gpus this way because there might be unsupported gpus present that hive supports
-    n_gpus = max([len(new_oc_settings[k].split()) for k in new_oc_settings])
+    # TODO: find n_gpus this way because there might be unsupported gpus present that hive supports? doesn't work when no oc settings set
+    # n_gpus = max([len(new_oc_settings[k].split()) for k in new_oc_settings])
+    n_gpus = len(gpu_indexes)
     # do nothing if 0 because it means none of the supported gpus are overclocked anyways
     if n_gpus == 0:
         # release Overclock table lock
