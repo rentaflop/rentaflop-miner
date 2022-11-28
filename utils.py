@@ -686,6 +686,7 @@ def install_all_requirements():
     run_shell_cmd("sudo apt-get update -y")
     run_shell_cmd("sudo apt-get install mysql-server -y")
     run_shell_cmd("sudo apt-get install python3-pip -y && pip3 install speedtest-cli")
+    run_shell_cmd("git config --global --add safe.directory /hive/miners/custom/rentaflop/rentaflop-miner")
 
 
 def get_render_file(rentaflop_id, job_id):
