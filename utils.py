@@ -334,7 +334,7 @@ def install_or_update_crypto_miner():
     check for crypto miner installation and install if not found
     update version if installed and not up to date; does nothing if installed and up to date
     """
-    target_version = "0.26.5"
+    target_version = "0.26.8"
     if os.path.exists("trex"):
         current_version = run_shell_cmd('trex/t-rex --version | cut -d " " -f 5', format_output=False).strip()
         # already up to date so do nothing
