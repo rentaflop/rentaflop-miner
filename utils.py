@@ -473,7 +473,10 @@ def _get_setting_from_key(oc_settings, key, n_gpus):
     setting = oc_settings[key].split()
     if not setting:
         setting = ["0"]*n_gpus
-
+    # for when only 1 value is specified for all gpus
+    if len(setting) == 1 and n_gpus > 1:
+        setting = [setting[0]]*n_gpus
+    
     return setting
 
 
