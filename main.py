@@ -141,15 +141,20 @@ def _get_registration(is_checkin=True):
 def _handle_checkin():
     """
     handles checkins with rentaflop servers and executes instructions returned
+    continues reading instructions until queue is empty
     """
-    # instruction looks like {"cmd": ..., "params": ..., "rentaflop_id": ...}
-    instruction_json = _get_registration()
-    # if no instruction, do nothing
-    if not instruction_json:
-        return
-    # hand off instruction to localhost web server
-    files = {"json": json.dumps(instruction_json)}
-    requests.post(f"https://localhost:{DAEMON_PORT}", files=files, verify=False)
+    finished = False
+    while not finished:
+        # instruction looks like {"cmd": ..., "params": ..., "rentaflop_id": ...}
+        # {} if instruction queue empty
+        instruction_json = _get_registration()
+        # if no instruction, do nothing otherwise execute instruction
+        if not instruction_json:
+            finished = True
+        else:
+            # hand off instruction to localhost web server
+            files = {"json": json.dumps(instruction_json)}
+            requests.post(f"https://localhost:{DAEMON_PORT}", files=files, verify=False)
 
 
 def _first_startup():
