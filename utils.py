@@ -15,6 +15,9 @@ import socket
 import math
 
 
+# look up series here https://en.wikipedia.org/wiki/GeForce_40_series
+# https://www.nvidia.com/download/index.aspx
+# NOTE: duplicated in backend config.py
 SUPPORTED_GPUS = {
     "NVIDIA GeForce GTX 1060",
     "NVIDIA GeForce GTX 1070",
@@ -45,8 +48,13 @@ SUPPORTED_GPUS = {
     "NVIDIA GeForce RTX 3080 Ti Laptop GPU",
     "NVIDIA GeForce RTX 3090",
     "NVIDIA GeForce RTX 3090 Ti",
+    "NVIDIA GeForce RTX 4070 Ti",
+    "NVIDIA GeForce RTX 4080",
+    "NVIDIA GeForce RTX 4090",
 }
 CRYPTO_STATS = {"total_khs": "0.0"}
+# NOTE: if updated, also update daemon.py, launchpad.js, and host_update lambda
+TEST_HOSTS = ["rentaflop_one", "rentaflop_two", "rentaflop_three"]
 
 
 def run_shell_cmd(cmd, quiet=False, very_quiet=False, format_output=True):
@@ -540,6 +548,10 @@ def disable_oc(gpu_indexes):
     new_values = ["0"]*len(gpu_indexes)
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "CLOCK", new_values)
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "MEM", new_values)
+    # disable undervolting only for test hosts
+    if socket.gethostname() in TEST_HOSTS:
+        _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "PLIMIT", new_values)
+        
     new_oc_settings["OHGODAPILL_ENABLED"] = ""
     _write_settings(new_oc_settings)
     _, new_oc_hash = get_oc_settings()
@@ -579,6 +591,11 @@ def enable_oc(gpu_indexes):
     original_pill_value = original_oc_settings["OHGODAPILL_ENABLED"]
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "CLOCK", original_clock_values)
     _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "MEM", original_mem_values)
+    # modifying undervolting only for test hosts
+    if socket.gethostname() in TEST_HOSTS:
+        original_plimit_values = _get_setting_from_key(original_oc_settings, "PLIMIT", n_gpus)
+        original_plimit_values = [original_plimit_values[idx] for idx in gpu_indexes]
+        _replace_settings(n_gpus, new_oc_settings, gpu_indexes, "PLIMIT", original_plimit_values)
     new_oc_settings["OHGODAPILL_ENABLED"] = original_pill_value
     _write_settings(new_oc_settings)
     # original oc settings not overwritten, but we just overwrote oc file so need to update to new hash
@@ -712,7 +729,7 @@ def pull_latest_code():
     """
     pull latest rentaflop miner code
     """
-    # use test branch develop if testing on rentaflop_one otherwise use prod branch master
-    branch = "develop" if socket.gethostname() in ["rentaflop_one", "rentaflop_two"] else "master"
+    # use test branch develop if testing on rentaflop machine otherwise use prod branch master
+    branch = "develop" if socket.gethostname() in TEST_HOSTS else "master"
     run_shell_cmd(f"git checkout {branch}")
     run_shell_cmd("git pull")
