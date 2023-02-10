@@ -50,9 +50,13 @@ def calculate_frame_times(n_frames, task_dir):
 
     first_frame_duration = first_frame_finish-render_start_time
     first_frame_time = first_frame_duration.total_seconds()/60.0
-    subsequent_frames_duration = last_frame_finish-first_frame_finish
-    subsequent_frames_time = subsequent_frames_duration.total_seconds()/60.0
-    subsequent_frames_avg = subsequent_frames_time / (n_frames - 1)
+    # handle 1-frame task edge case
+    if n_frames == 1:
+        subsequent_frames_avg = first_frame_time
+    else:
+        subsequent_frames_duration = last_frame_finish-first_frame_finish
+        subsequent_frames_time = subsequent_frames_duration.total_seconds()/60.0
+        subsequent_frames_avg = subsequent_frames_time / (n_frames - 1)
 
     return first_frame_time, subsequent_frames_avg
 
