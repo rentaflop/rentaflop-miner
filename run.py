@@ -108,7 +108,7 @@ def main():
             storage_url, fields = response_json["url"], response_json["fields"]
             # upload output to upload location
             # using curl instead of python requests because large files get overflowError: string longer than 2147483647 bytes
-            fields_flags = f"-F acl={fields['acl']} -F key={fields['key']} -F AWSAccessKeyId={fields['AWSAccessKeyId']} -F policy={fields['policy']} -F signature={fields['signature']}"
+            fields_flags = " ".join([f"-F {k}={fields[k]}" for k in fields])
             run_shell_cmd(f"curl -X POST {fields_flags} -F file=@{tgz_path} {storage_url}")
 
             # confirm upload
