@@ -107,9 +107,9 @@ def main():
             response_json = response.json()
             storage_url, fields = response_json["url"], response_json["fields"]
             # upload output to upload location
-            with open(tgz_path, 'rb') as f:
-                files = {'file': f}
-                storage_response = requests.post(storage_url, data=fields, files=files)
+            # using curl instead of python requests because large files get overflowError: string longer than 2147483647 bytes
+            fields_flags = f"-F acl={fields['acl']} -F key={fields['key']} -F AWSAccessKeyId={fields['AWSAccessKeyId']} -F policy={fields['policy']} -F signature={fields['signature']}"
+            run_shell_cmd(f"curl -X POST {fields_flags} -F file=@{tgz_path} {storage_url}")
 
             # confirm upload
             data["confirm"] = True
