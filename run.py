@@ -109,7 +109,7 @@ def main():
             # upload output to upload location
             # using curl instead of python requests because large files get overflowError: string longer than 2147483647 bytes
             fields_flags = " ".join([f"-F {k}={fields[k]}" for k in fields])
-            run_shell_cmd(f"curl -X POST {fields_flags} -F file=@{tgz_path} {storage_url}")
+            run_shell_cmd(f"curl -X POST {fields_flags} -F file=@{tgz_path} {storage_url}", quiet=True)
 
             # confirm upload
             data["confirm"] = True
