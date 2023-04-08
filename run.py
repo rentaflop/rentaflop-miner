@@ -98,6 +98,14 @@ def main():
             output = os.path.join(task_dir, "output")
             # zip and send output dir
             run_shell_cmd(f"tar -czf {tgz_path} {output}", quiet=True)
+            # check to ensure we're sending a correctly-zipped output to rentaflop servers
+            old_dir = os.getcwd()
+            os.chdir(task_dir)
+            incorrect_tar_output = run_shell_cmd("tar --compare --file=output.tar.gz", quiet=True)
+            os.chdir(old_dir)
+            if incorrect_tar_output:
+                raise Exception("Output tarball doesn't match output frames!")
+            
             sandbox_id = os.getenv("SANDBOX_ID")
             server_url = "https://api.rentaflop.com/host/output"
             task_id = os.path.basename(task_dir)
