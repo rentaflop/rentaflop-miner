@@ -89,9 +89,9 @@ def main():
         sandbox_options = f"firejail --noprofile --net=none --caps.drop=all --private={task_dir} --blacklist=/"
         # render results for specified frames to output path; enables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
         cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -b {render_path} --python-expr {fmt_script} --python-expr {rm_script} -o {output_path} -s {start_frame} -e {end_frame} -a -- --cycles-device OPTIX"
-        return_code = os.system(cmd)
-        # successful render, so send result to servers
-        if return_code == 0:
+        try:
+            cmd_output = subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+            # successful render if no CalledProcessError, so send result to servers
             n_frames = end_frame - start_frame + 1
             first_frame_time, subsequent_frames_avg = calculate_frame_times(n_frames, task_dir)
             tgz_path = os.path.join(task_dir, "output.tar.gz")
@@ -126,8 +126,8 @@ def main():
             if is_eevee:
                 data["is_eevee"] = True
             requests.post(server_url, json=data)
-        else:
-            DAEMON_LOGGER.error(f"Task execution command failed with code {return_code}!")
+        except subprocess.CalledProcessError as e:
+            DAEMON_LOGGER.error(f"Task execution command failed: {e}")
     except:
         error = traceback.format_exc()
         DAEMON_LOGGER.error(f"Exception during task execution: {error}")
