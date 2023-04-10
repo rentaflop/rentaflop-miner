@@ -128,6 +128,7 @@ def main():
             requests.post(server_url, json=data)
         except subprocess.CalledProcessError as e:
             DAEMON_LOGGER.error(f"Task execution command failed: {e}")
+            DAEMON_LOGGER.error(f"Task execution command output: {e.output}")
     except:
         error = traceback.format_exc()
         DAEMON_LOGGER.error(f"Exception during task execution: {error}")
