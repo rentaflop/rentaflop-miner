@@ -96,11 +96,11 @@ def main():
             first_frame_time, subsequent_frames_avg = calculate_frame_times(n_frames, task_dir)
             tgz_path = os.path.join(task_dir, "output.tar.gz")
             output = os.path.join(task_dir, "output")
-            # zip and send output dir
-            run_shell_cmd(f"tar -czf {tgz_path} {output}", quiet=True)
-            # check to ensure we're sending a correctly-zipped output to rentaflop servers
             old_dir = os.getcwd()
             os.chdir(task_dir)
+            # zip and send output dir
+            run_shell_cmd(f"tar -czf output.tar.gz output", quiet=True)
+            # check to ensure we're sending a correctly-zipped output to rentaflop servers
             incorrect_tar_output = run_shell_cmd("tar --compare --file=output.tar.gz", quiet=True)
             os.chdir(old_dir)
             if incorrect_tar_output:
