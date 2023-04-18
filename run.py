@@ -2,7 +2,7 @@
 runs render task
 usage:
     # task_dir is directory containing render file for task
-    python3 run.py task_dir start_frame end_frame uuid_str blender_version
+    python3 run.py task_dir main_file_path start_frame end_frame uuid_str blender_version
 """
 import sys
 import os
@@ -64,10 +64,11 @@ def calculate_frame_times(n_frames, task_dir):
 def main():
     try:
         task_dir = sys.argv[1]
-        start_frame = int(sys.argv[2])
-        end_frame = int(sys.argv[3])
-        uuid_str = sys.argv[4]
-        blender_version = sys.argv[5]
+        render_path = sys.argv[2]
+        start_frame = int(sys.argv[3])
+        end_frame = int(sys.argv[4])
+        uuid_str = sys.argv[5]
+        blender_version = sys.argv[6]
         output_path = os.path.join(task_dir, "output/")
         blender_path = os.path.join(task_dir, "blender/")
         os.mkdir(output_path)
@@ -75,8 +76,8 @@ def main():
         run_shell_cmd(f"touch {task_dir}/started.txt", quiet=True)
         check_blender(blender_version)
         run_shell_cmd(f"tar -xf blender-{blender_version}.tar.xz -C {blender_path} --strip-components 1", quiet=True)
-        render_path = f"{task_dir}/render_file.blend"
-        render_path2 = f"{task_dir}/render_file2.blend"
+        render_name, render_extension = os.path.splitext(render_path)
+        render_path2 = render_name + "2" + render_extension
         de_script = f'''"import os; os.system('gpg --passphrase {uuid_str} --batch --no-tty -d {render_path} > {render_path2} && mv {render_path2} {render_path}')"'''
         # reformats videos to PNG
         fmt_script = f'''"import bpy; file_format = bpy.context.scene.render.image_settings.file_format; bpy.context.scene.render.image_settings.file_format = 'PNG' if file_format in ['FFMPEG', 'AVI_RAW', 'AVI_JPEG'] else file_format"'''

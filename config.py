@@ -53,6 +53,7 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer)
     task_dir = db.Column(db.String(128))
+    main_file_path = db.Column(db.String(1024))
     start_frame = db.Column(db.Integer)
     end_frame = db.Column(db.Integer)
     uuid_str = db.Column(db.String(128))

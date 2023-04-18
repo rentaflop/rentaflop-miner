@@ -291,12 +291,14 @@ def mine(params):
     
     if action == "start":
         if is_render:
-            render_file = get_render_file(RENTAFLOP_CONFIG["rentaflop_id"], job_id)
+            render_file, filename = get_render_file(RENTAFLOP_CONFIG["rentaflop_id"], job_id)
+            extension = os.path.splitext(filename)[1]
+            is_zip = True if extension in [".zip"] else False
             stop_crypto_miner()
             disable_oc(gpu_indexes)
             end_frame = start_frame + n_frames - 1
-            data = {"cmd": "push_task", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame, "blender_version": blender_version}, \
-                    "render_file": render_file}
+            data = {"cmd": "push_task", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame, "blender_version": blender_version, \
+                                                   "is_zip": is_zip}, "render_file": render_file}
             send_to_task_queue(data)
         else:
             if RENTAFLOP_CONFIG["crypto_config"]["disable_crypto"]:

@@ -717,6 +717,7 @@ def install_all_requirements():
 def get_render_file(rentaflop_id, job_id):
     """
     fetch render file from rentaflop servers
+    return file, filename
     """
     server_url = "https://api.rentaflop.com/host/input"
     data = {"rentaflop_id": str(rentaflop_id), "job_id": str(job_id)}
@@ -724,8 +725,11 @@ def get_render_file(rentaflop_id, job_id):
     file_url = api_response.json()["url"]
     file_response = requests.get(file_url, stream=True)
     render_file = file_response.content
+    # parse out filename from download URL
+    # NOTE: if s3 upload dir changes, then this must also change
+    filename = file_url.split("https://rentaflop-render-uploads.s3.amazonaws.com/")[1].split("?AWSAccessKeyId=")[0]
 
-    return render_file
+    return render_file, filename
 
 
 def pull_latest_code():

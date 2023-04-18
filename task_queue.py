@@ -8,6 +8,8 @@ import datetime as dt
 import requests
 import tempfile
 import uuid
+import io
+import zipfile
 
 
 def push_task(params):
@@ -19,6 +21,7 @@ def push_task(params):
     start_frame = params.get("start_frame")
     end_frame = params.get("end_frame")
     blender_version = params.get("blender_version")
+    is_zip = params.get("is_zip")
     is_render = render_file is not None
     DAEMON_LOGGER.debug(f"Pushing task {task_id}...")
     # prevent duplicate tasks from being created in case of network delays or failures
@@ -30,14 +33,33 @@ def push_task(params):
     # create directory for task and write render file there
     task_dir = os.path.join(FILE_DIR, str(task_id))
     os.makedirs(task_dir)
-    if is_render: 
-        render_path = f"{task_dir}/render_file.blend"
-        with open(render_path, "wb") as f:
-            f.write(render_file)
+    if is_render:
+        if is_zip:
+            # NOTE: partially duplicated in job_queue.py
+            with io.BytesIO(render_file) as archive:
+                archive.seek(0)
+                with zipfile.ZipFile(archive, mode='r') as zipf:
+                    main_subfile = None
+                    for subfile in zipf.namelist():
+                        # parse zip file and look for the main animation file to identify which software is used
+                        # guaranteed to exist since rentaflop servers already found it
+                        sub_extension = os.path.splitext(subfile)[1]
+                        if sub_extension in [".blend"]:
+                            main_subfile = subfile
+                            break
+                    
+                    zipf.extractall(task_dir)
+
+            render_path = f"{task_dir}/{main_subfile}"
+        else:
+            render_path = f"{task_dir}/render_file.blend"
+            with open(render_path, "wb") as f:
+                f.write(render_file)
             
         uuid_str = uuid.uuid4().hex
         os.system(f"gpg --passphrase {uuid_str} --batch --no-tty -c {render_path} && mv {render_path}.gpg {render_path}")
-        task = Task(task_dir=task_dir, task_id=task_id, start_frame=start_frame, end_frame=end_frame, uuid_str=uuid_str, blender_version=blender_version)
+        task = Task(task_dir=task_dir, task_id=task_id, main_file_path=render_path, start_frame=start_frame, end_frame=end_frame, uuid_str=uuid_str, \
+                    blender_version=blender_version)
     else:
         task = Task(task_dir=task_dir, task_id=task_id)
     
@@ -197,7 +219,7 @@ def update_queue(params={}):
     
     # start task in bg
     DAEMON_LOGGER.debug(f"Starting task {task_id}...")
-    os.system(f"python3 run.py {task.task_dir} {task.start_frame} {task.end_frame} {task.uuid_str} {task.blender_version} &")
+    os.system(f"python3 run.py {task.task_dir} {task.main_file_path} {task.start_frame} {task.end_frame} {task.uuid_str} {task.blender_version} &")
 
 
 # create tmp dir that's cleaned up when TEMP_DIR is destroyed
