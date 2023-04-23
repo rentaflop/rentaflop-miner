@@ -51,6 +51,12 @@ def push_task(params):
                     zipf.extractall(task_dir)
 
             render_path = f"{task_dir}/{main_subfile}"
+            # handle filename spaces (passed to command line so this will break) by replacing with underscores
+            if " " in main_subfile:
+                main_subfile = main_subfile.replace(" ", "_")
+                new_render_path = f"{task_dir}/{main_subfile}"
+                os.rename(render_path, new_render_path)
+                render_path = new_render_path
         else:
             render_path = f"{task_dir}/render_file.blend"
             with open(render_path, "wb") as f:
@@ -219,7 +225,7 @@ def update_queue(params={}):
     
     # start task in bg
     DAEMON_LOGGER.debug(f"Starting task {task_id}...")
-    os.system(f"python3 run.py {task.task_dir} '{task.main_file_path}' {task.start_frame} {task.end_frame} {task.uuid_str} {task.blender_version} &")
+    os.system(f"python3 run.py {task.task_dir} {task.main_file_path} {task.start_frame} {task.end_frame} {task.uuid_str} {task.blender_version} &")
 
 
 # create tmp dir that's cleaned up when TEMP_DIR is destroyed
