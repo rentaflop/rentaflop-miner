@@ -226,10 +226,12 @@ def update_queue(params={}):
             return update_queue()
 
         return
-    
-    # start task in bg
-    DAEMON_LOGGER.debug(f"Starting task {task_id}...")
-    os.system(f"python3 run.py {task.task_dir} {task.main_file_path} {task.start_frame} {task.end_frame} {task.uuid_str} {task.blender_version} &")
+
+    # task exists in db, but now we check to see if fields are set and it's ready to be started
+    if task.uuid_str:
+        # start task in bg
+        DAEMON_LOGGER.debug(f"Starting task {task_id}...")
+        os.system(f"python3 run.py {task.task_dir} {task.main_file_path} {task.start_frame} {task.end_frame} {task.uuid_str} {task.blender_version} &")
 
 
 # create tmp dir that's cleaned up when TEMP_DIR is destroyed
