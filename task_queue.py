@@ -37,6 +37,8 @@ def push_task(params):
     task = Task(task_dir=task_dir, task_id=task_id)
     db.session.add(task)
     db.session.commit()
+    # need this because connection pool not getting cleared for some reason
+    db.close_all_sessions()
     if is_render:
         if is_zip:
             # NOTE: partially duplicated in job_queue.py
