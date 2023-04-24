@@ -21,6 +21,7 @@ import time
 import traceback
 import subprocess
 from threading import Thread
+import datetime as dt
 
 
 def _start_mining(startup=False):
@@ -41,7 +42,7 @@ def _start_mining(startup=False):
     gpus_stopped_later = gpus_stopped
     # we want to make sure we're not starting miner back up right before a task is about to be run so we try again before restarting
     if gpus_stopped and not startup:
-        time.sleep(10)
+        time.sleep(60)
         state = get_state(RENTAFLOP_CONFIG["available_resources"], queue_status, gpu_only=True, quiet=True)
         status = state["status"]
         gpus_stopped_later = status == "stopped"
@@ -532,11 +533,12 @@ def main():
         app.secret_key = uuid.uuid4().hex
         # create a scheduler that periodically checks for stopped GPUs and starts mining on them; periodic checkin to rentaflop servers
         scheduler = APScheduler()
+        first_run_time = dt.datetime.now() + dt.timedelta(seconds=5)
         if not RENTAFLOP_CONFIG["crypto_config"]["disable_crypto"]:
-            scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=60)
-        scheduler.add_job(id='Rentaflop Checkin', func=_handle_checkin, trigger="interval", seconds=60)
-        scheduler.add_job(id='Clean Logs', func=clean_logs, trigger="interval", minutes=60*24*7)
-        scheduler.add_job(id='Handle Finished Tasks', func=update_queue, trigger="interval", seconds=10)
+            scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=120, max_instances=1, next_run_time=first_run_time)
+        scheduler.add_job(id='Rentaflop Checkin', func=_handle_checkin, trigger="interval", seconds=60, max_instances=1, next_run_time=first_run_time)
+        scheduler.add_job(id='Clean Logs', func=clean_logs, trigger="interval", minutes=60*24*7, max_instances=1, next_run_time=first_run_time)
+        scheduler.add_job(id='Handle Finished Tasks', func=update_queue, trigger="interval", seconds=10, max_instances=1, next_run_time=first_run_time)
         scheduler.start()
         # run server, allowing it to shut itself down
         q = multiprocessing.Queue()
