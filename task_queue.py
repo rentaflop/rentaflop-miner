@@ -33,6 +33,10 @@ def push_task(params):
     # create directory for task and write render file there
     task_dir = os.path.join(FILE_DIR, str(task_id))
     os.makedirs(task_dir)
+    # create task straight away to add it to queue so we don't restart crypto miner if we have to take a few minutes to process a large render file
+    task = Task(task_dir=task_dir, task_id=task_id)
+    db.session.add(task)
+    db.session.commit()
     if is_render:
         if is_zip:
             # NOTE: partially duplicated in job_queue.py
@@ -64,13 +68,13 @@ def push_task(params):
             
         uuid_str = uuid.uuid4().hex
         os.system(f"gpg --passphrase {uuid_str} --batch --no-tty -c {render_path} && mv {render_path}.gpg {render_path}")
-        task = Task(task_dir=task_dir, task_id=task_id, main_file_path=render_path, start_frame=start_frame, end_frame=end_frame, uuid_str=uuid_str, \
-                    blender_version=blender_version)
-    else:
-        task = Task(task_dir=task_dir, task_id=task_id)
+        task.main_file_path = render_path
+        task.start_frame = start_frame
+        task.end_frame = end_frame
+        task.uuid_str = uuid_str
+        task.blender_version = blender_version
+        db.session.commit()
     
-    db.session.add(task)
-    db.session.commit()
     DAEMON_LOGGER.debug(f"Added task {task_id}")
 
 
