@@ -37,8 +37,6 @@ def push_task(params):
     task = Task(task_dir=task_dir, task_id=task_id)
     db.session.add(task)
     db.session.commit()
-    # need this in order to update task below
-    task = db.session.merge(task)
     if is_render:
         if is_zip:
             # NOTE: partially duplicated in job_queue.py
@@ -70,6 +68,8 @@ def push_task(params):
             
         uuid_str = uuid.uuid4().hex
         os.system(f"gpg --passphrase {uuid_str} --batch --no-tty -c {render_path} && mv {render_path}.gpg {render_path}")
+        # need this in order to update task
+        task = db.session.merge(task)
         task.main_file_path = render_path
         task.start_frame = start_frame
         task.end_frame = end_frame
