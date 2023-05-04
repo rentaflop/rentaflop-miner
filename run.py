@@ -73,8 +73,8 @@ def run_task(is_cpu=False):
     blender_version = sys.argv[6]
     output_path = os.path.join(task_dir, "output/")
     blender_path = os.path.join(task_dir, "blender/")
-    os.mkdir(output_path, exist_ok=True)
-    os.mkdir(blender_path, exist_ok=True)
+    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(blender_path, exist_ok=True)
     run_shell_cmd(f"touch {task_dir}/started.txt", quiet=True)
     check_blender(blender_version)
     run_shell_cmd(f"tar -xf blender-{blender_version}.tar.xz -C {blender_path} --strip-components 1", quiet=True)
