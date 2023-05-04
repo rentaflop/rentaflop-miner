@@ -61,83 +61,99 @@ def calculate_frame_times(n_frames, task_dir):
     return first_frame_time, subsequent_frames_avg
 
 
+def run_task(is_cpu=False):
+    """
+    run rendering task
+    """
+    task_dir = sys.argv[1]
+    render_path = sys.argv[2]
+    start_frame = int(sys.argv[3])
+    end_frame = int(sys.argv[4])
+    uuid_str = sys.argv[5]
+    blender_version = sys.argv[6]
+    output_path = os.path.join(task_dir, "output/")
+    blender_path = os.path.join(task_dir, "blender/")
+    os.mkdir(output_path)
+    os.mkdir(blender_path)
+    run_shell_cmd(f"touch {task_dir}/started.txt", quiet=True)
+    check_blender(blender_version)
+    run_shell_cmd(f"tar -xf blender-{blender_version}.tar.xz -C {blender_path} --strip-components 1", quiet=True)
+    render_name, render_extension = os.path.splitext(render_path)
+    render_path2 = render_name + "2" + render_extension
+    de_script = f'''"import os; os.system('gpg --passphrase {uuid_str} --batch --no-tty -d {render_path} > {render_path2}')"'''
+    # reformats videos to PNG
+    fmt_script = f'''"import bpy; file_format = bpy.context.scene.render.image_settings.file_format; bpy.context.scene.render.image_settings.file_format = 'PNG' if file_format in ['FFMPEG', 'AVI_RAW', 'AVI_JPEG'] else file_format"'''
+    rm_script = f'''"import os; os.remove('{render_path2}')"'''
+    render_config = subprocess.check_output(f"{blender_path}/blender --python-expr {de_script} --disable-autoexec -b {render_path2} --python render_config.py", shell=True,
+                                            encoding="utf8", stderr=subprocess.STDOUT)
+    is_eevee = "Found render engine: BLENDER_EEVEE" in render_config
+
+    run_shell_cmd(f"touch {task_dir}/started_render.txt", quiet=True)
+    sandbox_options = f"firejail --noprofile --net=none --caps.drop=all --private={task_dir} --blacklist=/"
+    # render results for specified frames to output path; enables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
+    cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -b {render_path2} --python-expr {fmt_script} --python-expr {rm_script} -o {output_path} -s {start_frame} -e {end_frame} -a --"
+    # most of the time we run on GPU with OPTIX, but sometimes we run on cpu if not enough VRAM or other GPU issue
+    if not is_cpu:
+        cmd += " --cycles-device OPTIX"
+    cmd_output = subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+    # successful render if no CalledProcessError, so send result to servers
+    n_frames = end_frame - start_frame + 1
+    first_frame_time, subsequent_frames_avg = calculate_frame_times(n_frames, task_dir)
+    tgz_path = os.path.join(task_dir, "output.tar.gz")
+    output = os.path.join(task_dir, "output")
+    old_dir = os.getcwd()
+    os.chdir(task_dir)
+    # zip and send output dir
+    run_shell_cmd(f"tar -czf output.tar.gz output", quiet=True)
+    # check to ensure we're sending a correctly-zipped output to rentaflop servers
+    incorrect_tar_output = run_shell_cmd("tar --compare --file=output.tar.gz", quiet=True)
+    os.chdir(old_dir)
+    if incorrect_tar_output:
+        raise Exception("Output tarball doesn't match output frames!")
+
+    sandbox_id = os.getenv("SANDBOX_ID")
+    server_url = "https://api.rentaflop.com/host/output"
+    task_id = os.path.basename(task_dir)
+    # first request to get upload location
+    data = {"task_id": str(task_id), "sandbox_id": str(sandbox_id)}
+    response = requests.post(server_url, json=data)
+    response_json = response.json()
+    storage_url, fields = response_json["url"], response_json["fields"]
+    # upload output to upload location
+    # using curl instead of python requests because large files get overflowError: string longer than 2147483647 bytes
+    fields_flags = " ".join([f"-F {k}={fields[k]}" for k in fields])
+    run_shell_cmd(f"curl -X POST {fields_flags} -F file=@{tgz_path} {storage_url}", quiet=True)
+
+    # confirm upload
+    data["confirm"] = True
+    data["first_frame_time"] = first_frame_time
+    data["subsequent_frames_avg"] = subsequent_frames_avg
+    if is_eevee:
+        data["is_eevee"] = True
+    requests.post(server_url, json=data)
+
+
 def main():
-    try:
-        task_dir = sys.argv[1]
-        render_path = sys.argv[2]
-        start_frame = int(sys.argv[3])
-        end_frame = int(sys.argv[4])
-        uuid_str = sys.argv[5]
-        blender_version = sys.argv[6]
-        output_path = os.path.join(task_dir, "output/")
-        blender_path = os.path.join(task_dir, "blender/")
-        os.mkdir(output_path)
-        os.mkdir(blender_path)
-        run_shell_cmd(f"touch {task_dir}/started.txt", quiet=True)
-        check_blender(blender_version)
-        run_shell_cmd(f"tar -xf blender-{blender_version}.tar.xz -C {blender_path} --strip-components 1", quiet=True)
-        render_name, render_extension = os.path.splitext(render_path)
-        render_path2 = render_name + "2" + render_extension
-        de_script = f'''"import os; os.system('gpg --passphrase {uuid_str} --batch --no-tty -d {render_path} > {render_path2} && mv {render_path2} {render_path}')"'''
-        # reformats videos to PNG
-        fmt_script = f'''"import bpy; file_format = bpy.context.scene.render.image_settings.file_format; bpy.context.scene.render.image_settings.file_format = 'PNG' if file_format in ['FFMPEG', 'AVI_RAW', 'AVI_JPEG'] else file_format"'''
-        rm_script = f'''"import os; os.remove('{render_path}')"'''
-        render_config = subprocess.check_output(f"{blender_path}/blender --python-expr {de_script} --disable-autoexec -b {render_path} --python render_config.py", shell=True,
-                                                encoding="utf8", stderr=subprocess.STDOUT)
-        is_eevee = "Found render engine: BLENDER_EEVEE" in render_config
-
-        run_shell_cmd(f"touch {task_dir}/started_render.txt", quiet=True)
-        sandbox_options = f"firejail --noprofile --net=none --caps.drop=all --private={task_dir} --blacklist=/"
-        # render results for specified frames to output path; enables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
-        cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -b {render_path} --python-expr {fmt_script} --python-expr {rm_script} -o {output_path} -s {start_frame} -e {end_frame} -a -- --cycles-device OPTIX"
-        # TODO Out of memory in CUDA queue enqueue
+    try_with_cpu = False
+    for i in range(2):
         try:
-            cmd_output = subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=subprocess.STDOUT)
-            # successful render if no CalledProcessError, so send result to servers
-            n_frames = end_frame - start_frame + 1
-            first_frame_time, subsequent_frames_avg = calculate_frame_times(n_frames, task_dir)
-            tgz_path = os.path.join(task_dir, "output.tar.gz")
-            output = os.path.join(task_dir, "output")
-            old_dir = os.getcwd()
-            os.chdir(task_dir)
-            # zip and send output dir
-            run_shell_cmd(f"tar -czf output.tar.gz output", quiet=True)
-            # check to ensure we're sending a correctly-zipped output to rentaflop servers
-            incorrect_tar_output = run_shell_cmd("tar --compare --file=output.tar.gz", quiet=True)
-            os.chdir(old_dir)
-            if incorrect_tar_output:
-                raise Exception("Output tarball doesn't match output frames!")
-            
-            sandbox_id = os.getenv("SANDBOX_ID")
-            server_url = "https://api.rentaflop.com/host/output"
-            task_id = os.path.basename(task_dir)
-            # first request to get upload location
-            data = {"task_id": str(task_id), "sandbox_id": str(sandbox_id)}
-            response = requests.post(server_url, json=data)
-            response_json = response.json()
-            storage_url, fields = response_json["url"], response_json["fields"]
-            # upload output to upload location
-            # using curl instead of python requests because large files get overflowError: string longer than 2147483647 bytes
-            fields_flags = " ".join([f"-F {k}={fields[k]}" for k in fields])
-            run_shell_cmd(f"curl -X POST {fields_flags} -F file=@{tgz_path} {storage_url}", quiet=True)
-
-            # confirm upload
-            data["confirm"] = True
-            data["first_frame_time"] = first_frame_time
-            data["subsequent_frames_avg"] = subsequent_frames_avg
-            if is_eevee:
-                data["is_eevee"] = True
-            requests.post(server_url, json=data)
+            run_task(is_cpu=try_with_cpu)
         except subprocess.CalledProcessError as e:
             DAEMON_LOGGER.error(f"Task execution command failed: {e}")
             DAEMON_LOGGER.error(f"Task execution command output: {e.output}")
-    except:
-        error = traceback.format_exc()
-        DAEMON_LOGGER.error(f"Exception during task execution: {error}")
-    finally:
-        # lets the task queue know when the run is finished
-        run_shell_cmd(f"touch {task_dir}/finished.txt", quiet=True)
+            # error indicates we ran out of VRAM so try again with CPU
+            if "Out of memory in CUDA queue enqueue" in e.output:
+                try_with_cpu = True
+        except:
+            error = traceback.format_exc()
+            DAEMON_LOGGER.error(f"Exception during task execution: {error}")
 
-    
+        if not try_with_cpu:
+            break
+
+    # lets the task queue know when the run is finished
+    run_shell_cmd(f"touch {task_dir}/finished.txt", quiet=True)
+
+
 if __name__=="__main__":
     main()
