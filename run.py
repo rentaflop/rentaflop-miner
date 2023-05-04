@@ -152,6 +152,7 @@ def main():
             break
 
     # lets the task queue know when the run is finished
+    task_dir = sys.argv[1]
     run_shell_cmd(f"touch {task_dir}/finished.txt", quiet=True)
 
 
