@@ -447,7 +447,9 @@ def clean_logs(clear_contents=True, error=None):
         logs["error"] = error
     if RENTAFLOP_CONFIG["rentaflop_id"]:
         logs["rentaflop_id"] = RENTAFLOP_CONFIG["rentaflop_id"]
-    post_to_rentaflop(logs, "logs", quiet=True)
+    # if we're not clearing contents then we assume we're sending back to raf servers
+    if not clear_contents:
+        post_to_rentaflop(logs, "logs", quiet=True)
     # clear contents if flag set and log file is over 100 MB
     if clear_contents and os.path.getsize(LOG_FILE) > 100000000:
         with open(LOG_FILE, "w") as f:
