@@ -73,8 +73,8 @@ def run_task(is_cpu=False):
     blender_version = sys.argv[6]
     output_path = os.path.join(task_dir, "output/")
     blender_path = os.path.join(task_dir, "blender/")
-    os.mkdir(output_path)
-    os.mkdir(blender_path)
+    os.mkdir(output_path, exist_ok=True)
+    os.mkdir(blender_path, exist_ok=True)
     run_shell_cmd(f"touch {task_dir}/started.txt", quiet=True)
     check_blender(blender_version)
     run_shell_cmd(f"tar -xf blender-{blender_version}.tar.xz -C {blender_path} --strip-components 1", quiet=True)
@@ -141,9 +141,9 @@ def main():
         except subprocess.CalledProcessError as e:
             DAEMON_LOGGER.error(f"Task execution command failed: {e}")
             DAEMON_LOGGER.error(f"Task execution command output: {e.output}")
-            # error indicates we ran out of VRAM so try again with CPU
             if "Out of memory in CUDA queue enqueue" in e.output:
                 try_with_cpu = True
+                DAEMON_LOGGER.info("Ran out of VRAM so trying task again with CPU!")
         except:
             error = traceback.format_exc()
             DAEMON_LOGGER.error(f"Exception during task execution: {error}")
