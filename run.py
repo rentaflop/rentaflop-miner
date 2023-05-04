@@ -90,6 +90,7 @@ def main():
         sandbox_options = f"firejail --noprofile --net=none --caps.drop=all --private={task_dir} --blacklist=/"
         # render results for specified frames to output path; enables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
         cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -b {render_path} --python-expr {fmt_script} --python-expr {rm_script} -o {output_path} -s {start_frame} -e {end_frame} -a -- --cycles-device OPTIX"
+        # TODO Out of memory in CUDA queue enqueue
         try:
             cmd_output = subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=subprocess.STDOUT)
             # successful render if no CalledProcessError, so send result to servers

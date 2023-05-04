@@ -7,7 +7,7 @@ import uuid
 import multiprocessing
 from flask import jsonify, request, abort, redirect
 from flask_apscheduler import APScheduler
-from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, REGISTRATION_FILE, DAEMON_PORT, app, db
+from config import DAEMON_LOGGER, FIRST_STARTUP, LOG_FILE, REGISTRATION_FILE, DAEMON_PORT, app, db, _get_logger
 from utils import *
 from task_queue import push_task, pop_task, update_queue, queue_status
 import sys
@@ -238,6 +238,8 @@ def _handle_startup():
         _subsequent_startup()
 
     DAEMON_LOGGER.debug("Starting daemon...")
+    # clean logs if they're too large
+    clean_logs(clear_contents=True)
     # do a code pull in case this is first startup in a long time or if the instruction retrieval breaks
     pull_latest_code()
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -446,12 +448,18 @@ def clean_logs(clear_contents=True, error=None):
     if RENTAFLOP_CONFIG["rentaflop_id"]:
         logs["rentaflop_id"] = RENTAFLOP_CONFIG["rentaflop_id"]
     post_to_rentaflop(logs, "logs", quiet=True)
-    if clear_contents:
+    # clear contents if flag set and log file is over 100 MB
+    if clear_contents and os.path.getsize(LOG_FILE) > 100000000:
         with open(LOG_FILE, "w") as f:
             # must write this because of check in _get_registration
             f.write("Registration successful.")
 
-    
+        # daemon logger is corrupted after cleaning so we restart daemon and might as well do an update
+        update({"type": "rentaflop"})
+        time.sleep(5)
+        sys.exit(0)
+
+
 @app.before_request
 def before_request():
     # don't allow anyone who isn't rentaflop to communicate with host daemon
@@ -537,8 +545,7 @@ def main():
         if not RENTAFLOP_CONFIG["crypto_config"]["disable_crypto"]:
             scheduler.add_job(id='Start Miners', func=_start_mining, trigger="interval", seconds=60, max_instances=1, next_run_time=first_run_time)
         scheduler.add_job(id='Rentaflop Checkin', func=_handle_checkin, trigger="interval", seconds=60, max_instances=1, next_run_time=first_run_time)
-        scheduler.add_job(id='Clean Logs', func=clean_logs, trigger="interval", minutes=60*24*7, max_instances=1, next_run_time=first_run_time)
-        scheduler.add_job(id='Handle Finished Tasks', func=update_queue, trigger="interval", seconds=10, max_instances=1, next_run_time=first_run_time)
+        scheduler.add_job(id='Handle Finished Tasks', func=update_queue, trigger="interval", seconds=10, max_instances=1)
         scheduler.start()
         # run server, allowing it to shut itself down
         q = multiprocessing.Queue()
