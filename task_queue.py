@@ -103,11 +103,14 @@ def pop_task(params):
     """
     task_id = params["task_id"]
     DAEMON_LOGGER.debug(f"Popping task {task_id}...")
+    queue = queue_status({})
+    is_currently_running = True if queue and queue[0] == task_id else False
     task_dir = _delete_task_with_id(task_id)
     # kill task if running and clean up files
-    run_shell_cmd(f'pkill -f "task_{task_id}"', very_quiet=True)
-    run_shell_cmd('pkill -f octane', very_quiet=True)
-    run_shell_cmd('pkill -f blender', very_quiet=True)
+    if is_currently_running:
+        run_shell_cmd(f'pkill -f "task_{task_id}"', very_quiet=True)
+        run_shell_cmd('pkill -f octane', very_quiet=True)
+        run_shell_cmd('pkill -f blender', very_quiet=True)
     run_shell_cmd(f"rm -rf {task_dir}", very_quiet=True)
     DAEMON_LOGGER.debug(f"Removed task {task_id}...")
 

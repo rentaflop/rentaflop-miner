@@ -413,7 +413,7 @@ def benchmark(params):
     """
     run performance benchmark for gpus
     """
-    _stop_all()
+    stop_crypto_miner()
     gpu_indexes = RENTAFLOP_CONFIG["available_resources"]["gpu_indexes"]
     disable_oc(gpu_indexes)
     data = {"cmd": "push_task", "params": {"task_id": -1}}
