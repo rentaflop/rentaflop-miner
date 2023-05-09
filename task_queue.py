@@ -207,7 +207,7 @@ def update_queue(params={}):
         # must use now instead of utcnow since getmtime is local timestamp on local filesystem timezone
         current_time = dt.datetime.now()
         # NOTE: if timeout updated, make sure to also update in retask_task lambda
-        timeout = dt.timedelta(hours=3)
+        timeout = dt.timedelta(hours=24)
         if timeout < (current_time-start_time):
             DAEMON_LOGGER.info(f"Task timed out! Exiting...")
             pop_task({"task_id": task_id})
