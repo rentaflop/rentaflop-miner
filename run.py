@@ -84,7 +84,7 @@ def run_task(is_cpu=False):
     # reformats videos to PNG
     fmt_script = f'''"import bpy; file_format = bpy.context.scene.render.image_settings.file_format; bpy.context.scene.render.image_settings.file_format = 'PNG' if file_format in ['FFMPEG', 'AVI_RAW', 'AVI_JPEG'] else file_format"'''
     rm_script = f'''"import os; os.remove('{render_path2}')"'''
-    render_config = subprocess.check_output(f"{blender_path}/blender --python-expr {de_script} --disable-autoexec -b {render_path2} --python render_config.py", shell=True,
+    render_config = subprocess.check_output(f"{blender_path}/blender --python-expr {de_script} --disable-autoexec -noaudio -b {render_path2} --python render_config.py", shell=True,
                                             encoding="utf8", stderr=subprocess.STDOUT)
     is_eevee = "Found render engine: BLENDER_EEVEE" in render_config
 
