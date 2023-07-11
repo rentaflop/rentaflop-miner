@@ -36,6 +36,7 @@ def calculate_frame_times(n_frames, task_dir):
     requires render is completely finished and started_render.txt plus frames are still present
     return first_frame_time, subsequent_frames_avg
     """
+    # TODO handle video output where only one file is created
     output_files = os.path.join(task_dir, "output/*")
     list_of_files = glob.glob(output_files)
     first_file = min(list_of_files, key=os.path.getmtime)
@@ -95,7 +96,10 @@ def run_task(is_cpu=False):
     # most of the time we run on GPU with OPTIX, but sometimes we run on cpu if not enough VRAM or other GPU issue
     if not is_cpu:
         cmd += " --cycles-device OPTIX"
-    cmd_output = subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+    # send output to log file
+    log_path = os.path.join(task_dir, "log.txt")
+    with open(log_path, "w") as f:
+        subprocess.run(cmd, shell=True, encoding="utf8", check=True, stderr=subprocess.STDOUT, stdout=f)
     # successful render if no CalledProcessError, so send result to servers
     n_frames = end_frame - start_frame + 1
     first_frame_time, subsequent_frames_avg = calculate_frame_times(n_frames, task_dir)

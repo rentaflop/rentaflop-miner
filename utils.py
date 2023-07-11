@@ -131,6 +131,7 @@ def get_state(available_resources, queue_status, gpu_only=False, quiet=False, ve
             "name": "NVIDIA GeForce RTX 3080",
             "state": "gpc",
             "queue": [54, 118, 1937],
+            "last_frame_completed": 57,
           },
           {
             "index": "1",
@@ -201,10 +202,13 @@ def get_state(available_resources, queue_status, gpu_only=False, quiet=False, ve
     # get task queue status
     result = queue_status({}) if (isinstance(stats, dict) and stats.get("uptime", 0) > 10) else {}
     task_queue = result.get("queue")
+    last_frame_completed = result.get("last_frame_completed")
     # check for existing queue items
     if task_queue:
         state["status"] = "gpc"
         state["queue"] = task_queue
+    if last_frame_completed:
+        state["last_frame_completed"] = last_frame_completed
 
     # if we're not mining crypto and crypto_stats is set, show saved crypto_stats
     if state["status"] != "crypto" and float(CRYPTO_STATS["total_khs"]) > 0.0:

@@ -115,6 +115,25 @@ def pop_task(params):
     DAEMON_LOGGER.debug(f"Removed task {task_id}...")
 
 
+def _get_last_frame_completed(task):
+    """
+    return last frame number completed, None if 0 frames completed
+    """
+    log_path = os.path.join(task.task_dir, "log.txt")
+    output = run_shell_cmd(f"tail -100 {log_path} | grep -e 'Fra:'", format_output=False)
+    lines = output.splitlines()
+    frame_in_progress = task.start_frame
+    for line in reversed(lines):
+        if line.startswith("Fra:"):
+            frame_in_progress = int(line.split()[0].replace("Fra:", ""))
+            break
+
+    if frame_in_progress == task.start_frame:
+        return None
+
+    return frame_in_progress - 1
+
+
 def queue_status(params):
     """
     return contents of queue
@@ -123,10 +142,13 @@ def queue_status(params):
     tasks = Task.query.all()
     # must include benchmark so we can set status to gpc
     tasks = [task.task_id for task in tasks]
+    last_frame_completed = None
+    if tasks:
+        last_frame_completed = _get_last_frame_completed(tasks[0])
     # need this because connection pool not getting cleared for some reason
     db.close_all_sessions()
     
-    return {"queue": tasks}
+    return {"queue": tasks, "last_frame_completed": last_frame_completed}
 
 
 def _read_benchmark():
