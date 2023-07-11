@@ -120,7 +120,10 @@ def _get_last_frame_completed(task):
     return last frame number completed, None if 0 frames completed
     """
     log_path = os.path.join(task.task_dir, "log.txt")
-    output = run_shell_cmd(f"tail -100 {log_path} | grep -e 'Fra:'", format_output=False)
+    output = run_shell_cmd(f"tail -100 {log_path} | grep -e 'Fra:'", very_quiet=True, format_output=False)
+    if not output:
+        return None
+    
     lines = output.splitlines()
     frame_in_progress = task.start_frame
     for line in reversed(lines):
