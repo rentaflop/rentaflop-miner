@@ -141,14 +141,14 @@ def queue_status(params):
     """
     tasks = Task.query.all()
     # must include benchmark so we can set status to gpc
-    tasks = [task.task_id for task in tasks]
+    task_ids = [task.task_id for task in tasks]
     last_frame_completed = None
     if tasks:
         last_frame_completed = _get_last_frame_completed(tasks[0])
     # need this because connection pool not getting cleared for some reason
     db.close_all_sessions()
     
-    return {"queue": tasks, "last_frame_completed": last_frame_completed}
+    return {"queue": task_ids, "last_frame_completed": last_frame_completed}
 
 
 def _read_benchmark():
