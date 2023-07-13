@@ -33,10 +33,10 @@ def check_blender(target_version):
 def calculate_frame_times(n_frames, task_dir):
     """
     calculate total time in minutes spent rendering frames, not including preprocessing
+    n_frames is number of frames rendered for this task, not total job frame number
     requires render is completely finished and started_render.txt plus frames are still present
     return first_frame_time, subsequent_frames_avg
     """
-    # TODO handle video output where only one file is created
     output_files = os.path.join(task_dir, "output/*")
     list_of_files = glob.glob(output_files)
     first_file = min(list_of_files, key=os.path.getmtime)
@@ -55,9 +55,15 @@ def calculate_frame_times(n_frames, task_dir):
     if n_frames == 1:
         subsequent_frames_avg = first_frame_time
     else:
-        subsequent_frames_duration = last_frame_finish-first_frame_finish
-        subsequent_frames_time = subsequent_frames_duration.total_seconds()/60.0
-        subsequent_frames_avg = subsequent_frames_time / (n_frames - 1)
+        # handle video output where only one file is created
+        if len(list_of_files) == 1:
+            each_frame_time = first_frame_time / n_frames
+            first_frame_time = each_frame_time
+            subsequent_frames_avg = each_frame_time
+        else:
+            subsequent_frames_duration = last_frame_finish-first_frame_finish
+            subsequent_frames_time = subsequent_frames_duration.total_seconds()/60.0
+            subsequent_frames_avg = subsequent_frames_time / (n_frames - 1)
 
     return first_frame_time, subsequent_frames_avg
 
