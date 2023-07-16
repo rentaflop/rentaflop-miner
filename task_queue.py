@@ -146,8 +146,11 @@ def queue_status(params):
     # must include benchmark so we can set status to gpc
     task_ids = [task.task_id for task in tasks]
     last_frame_completed = None
-    if tasks:
-        last_frame_completed = _get_last_frame_completed(tasks[0])
+    try:
+        if tasks:
+            last_frame_completed = _get_last_frame_completed(tasks[0])
+    except Exception as e:
+        DAEMON_LOGGER.exception(f"Caught exception: {e}")
     # need this because connection pool not getting cleared for some reason
     db.close_all_sessions()
     
