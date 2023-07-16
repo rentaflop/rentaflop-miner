@@ -504,6 +504,8 @@ def run_flask_server(q):
                     finished = func(params)
             except Exception as e:
                 DAEMON_LOGGER.exception(f"Caught exception: {e}")
+                error = traceback.format_exc()
+                DAEMON_LOGGER.error(f"Traceback: {error}")
         if finished is True:
             q.put(finished)
         # finished isn't True but it's not Falsey, so return it in response
