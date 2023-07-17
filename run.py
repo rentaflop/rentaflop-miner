@@ -151,7 +151,7 @@ def main():
         except subprocess.CalledProcessError as e:
             DAEMON_LOGGER.error(f"Task execution command failed: {e}")
             DAEMON_LOGGER.error(f"Task execution command output: {e.output}")
-            if "Out of memory in CUDA queue enqueue" in e.output:
+            if e.output and "Out of memory in CUDA queue enqueue" in e.output:
                 try_with_cpu = True
                 DAEMON_LOGGER.info("Ran out of VRAM so trying task again with CPU!")
         except:
