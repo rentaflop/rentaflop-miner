@@ -142,6 +142,8 @@ def queue_status(params):
     return contents of queue
     params is empty dict
     """
+    # need this because of finicky threading issue w db
+    db.session.begin_nested()
     tasks = Task.query.all()
     # must include benchmark so we can set status to gpc
     task_ids = [task.task_id for task in tasks]
