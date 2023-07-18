@@ -142,8 +142,6 @@ def queue_status(params):
     return contents of queue
     params is empty dict
     """
-    # need this because of finicky threading issue w db
-    db.session.begin_nested()
     tasks = Task.query.all()
     # must include benchmark so we can set status to gpc
     task_ids = [task.task_id for task in tasks]
@@ -154,7 +152,7 @@ def queue_status(params):
     except Exception as e:
         DAEMON_LOGGER.exception(f"Caught exception in queue status: {e}")
     # need this because connection pool not getting cleared for some reason
-    db.close_all_sessions()
+    # db.close_all_sessions()
     
     return {"queue": task_ids, "last_frame_completed": last_frame_completed}
 
