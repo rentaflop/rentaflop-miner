@@ -150,7 +150,7 @@ def queue_status(params):
         if tasks:
             last_frame_completed = _get_last_frame_completed(tasks[0])
     except Exception as e:
-        DAEMON_LOGGER.exception(f"Caught exception: {e}")
+        DAEMON_LOGGER.exception(f"Caught exception in queue status: {e}")
     # need this because connection pool not getting cleared for some reason
     db.close_all_sessions()
     
