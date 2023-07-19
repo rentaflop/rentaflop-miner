@@ -43,7 +43,7 @@ def push_task(params):
             with io.BytesIO(render_file) as archive:
                 archive.seek(0)
                 with zipfile.ZipFile(archive, mode='r') as zipf:
-                    main_subfile = None
+                    main_subfile = ""
                     for subfile in zipf.namelist():
                         # parse zip file and look for the main animation file to identify which software is used
                         # guaranteed to exist since rentaflop servers already found it
@@ -54,15 +54,15 @@ def push_task(params):
                     
                     zipf.extractall(task_dir)
 
-            render_path = f"{task_dir}/{main_subfile}"
+            render_path = os.path.join(task_dir, main_subfile)
             # handle filename spaces (passed to command line so this will break) by replacing with underscores
             if " " in main_subfile:
                 main_subfile = main_subfile.replace(" ", "_")
-                new_render_path = f"{task_dir}/{main_subfile}"
+                new_render_path = os.path.join(task_dir, main_subfile)
                 os.rename(render_path, new_render_path)
                 render_path = new_render_path
         else:
-            render_path = f"{task_dir}/render_file.blend"
+            render_path = os.path.join(task_dir, "render_file.blend")
             with open(render_path, "wb") as f:
                 f.write(render_file)
             
