@@ -68,6 +68,8 @@ def push_task(params):
             
         uuid_str = uuid.uuid4().hex
         os.system(f"gpg --passphrase {uuid_str} --batch --no-tty -c {render_path} && mv {render_path}.gpg {render_path}")
+        # need this to prevent weird thread issues
+        db.session.begin_nested()
         # need this in order to update task
         task = db.session.merge(task)
         task.main_file_path = render_path
