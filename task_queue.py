@@ -57,6 +57,7 @@ def push_task(params):
             render_path = os.path.join(task_dir, main_subfile)
             # handle filename spaces (passed to command line so this will break) by replacing with underscores
             if " " in main_subfile:
+                DAEMON_LOGGER.info(f"Main subfile: {main_subfile} and path: {render_path}")
                 main_subfile = main_subfile.replace(" ", "_")
                 new_render_path = os.path.join(task_dir, main_subfile)
                 os.rename(render_path, new_render_path)
