@@ -55,18 +55,12 @@ def push_task(params):
                     
                     zipf.extractall(task_dir)
 
-            render_path = os.path.join(task_dir, main_subfile)
-            # wait for file to unzip fully
-            wait_timeout = 120
-            time_waited = 0
-            if not os.path.exists(render_path) and time_waited < wait_timeout:
-                time.sleep(1)
-                time_waited += 1
-            
+            render_path = os.path.join(task_dir, main_subfile)            
             # handle filename spaces (passed to command line so this will break) by replacing with underscores
             if " " in main_subfile:
                 main_subfile = main_subfile.replace(" ", "_")
                 new_render_path = os.path.join(task_dir, main_subfile)
+                DAEMON_LOGGER.info(f"Exists: {os.path.exists(render_path)}")
                 os.rename(render_path, new_render_path)
                 render_path = new_render_path
         else:
