@@ -87,7 +87,7 @@ def run_task(is_cpu=False):
     run_shell_cmd(f"tar -xf blender-{blender_version}.tar.xz -C {blender_path} --strip-components 1", quiet=True)
     render_name, render_extension = os.path.splitext(render_path)
     render_path2 = render_name + "2" + render_extension
-    de_script = f'''"import os; os.system("""gpg --passphrase {uuid_str} --batch --no-tty -d '{render_path}' > '{render_path2}'""")"'''
+    de_script = f""" "import os; os.system('''gpg --passphrase {uuid_str} --batch --no-tty -d '{render_path}' > '{render_path2}' ''')" """
     # reformats videos to PNG
     # fmt_script = f'''"import bpy; file_format = bpy.context.scene.render.image_settings.file_format; bpy.context.scene.render.image_settings.file_format = 'PNG' if file_format in ['FFMPEG', 'AVI_RAW', 'AVI_JPEG'] else file_format"'''
     rm_script = f'''"import os; os.remove('{render_path2}')"'''
