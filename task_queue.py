@@ -10,7 +10,6 @@ import tempfile
 import uuid
 import io
 import zipfile
-import time
 
 
 def push_task(params):
@@ -56,20 +55,13 @@ def push_task(params):
                     zipf.extractall(task_dir)
 
             render_path = os.path.join(task_dir, main_subfile)            
-            # handle filename spaces (passed to command line so this will break) by replacing with underscores
-            if " " in main_subfile:
-                main_subfile = main_subfile.replace(" ", "_")
-                new_render_path = os.path.join(task_dir, main_subfile)
-                DAEMON_LOGGER.info(f"Exists: {os.path.exists(render_path)}")
-                os.rename(render_path, new_render_path)
-                render_path = new_render_path
         else:
             render_path = os.path.join(task_dir, "render_file.blend")
             with open(render_path, "wb") as f:
                 f.write(render_file)
             
         uuid_str = uuid.uuid4().hex
-        os.system(f"gpg --passphrase {uuid_str} --batch --no-tty -c {render_path} && mv {render_path}.gpg {render_path}")
+        os.system(f"gpg --passphrase {uuid_str} --batch --no-tty -c '{render_path}' && mv '{render_path}.gpg' '{render_path}'")
         # need this to prevent weird thread issues
         db.session.begin_nested()
         # need this in order to update task
@@ -269,7 +261,7 @@ def update_queue(params={}):
     if task.uuid_str:
         # start task in bg
         DAEMON_LOGGER.debug(f"Starting task {task_id}...")
-        os.system(f"python3 run.py {task.task_dir} {task.main_file_path} {task.start_frame} {task.end_frame} {task.uuid_str} {task.blender_version} &")
+        os.system(f"python3 run.py {task.task_dir} '{task.main_file_path}' {task.start_frame} {task.end_frame} {task.uuid_str} {task.blender_version} &")
 
 
 # create tmp dir that's cleaned up when TEMP_DIR is destroyed
