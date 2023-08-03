@@ -62,14 +62,15 @@ def push_task(params):
             
         uuid_str = uuid.uuid4().hex
         os.system(f"gpg --passphrase {uuid_str} --batch --no-tty -c '{render_path}' && mv '{render_path}.gpg' '{render_path}'")
-        # need this in order to update task
-        task = db.session.merge(task)
-        task.main_file_path = render_path
-        task.start_frame = start_frame
-        task.end_frame = end_frame
-        task.uuid_str = uuid_str
-        task.blender_version = blender_version
-        db.session.commit()
+        with db.session.begin():
+            # need this in order to update task
+            task = db.session.merge(task)
+            task.main_file_path = render_path
+            task.start_frame = start_frame
+            task.end_frame = end_frame
+            task.uuid_str = uuid_str
+            task.blender_version = blender_version
+            db.session.commit()
     
     DAEMON_LOGGER.debug(f"Added task {task_id}")
 
