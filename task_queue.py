@@ -75,9 +75,13 @@ def push_task(params):
         with connection:
             with connection.cursor() as cursor:
                 cursor.execute(sql1)
+            with connection.cursor() as cursor:
                 cursor.execute(sql2)
+            with connection.cursor() as cursor:
                 cursor.execute(sql3)
+            with connection.cursor() as cursor:
                 cursor.execute(sql4)
+            with connection.cursor() as cursor:
                 cursor.execute(sql5)
 
             connection.commit()
