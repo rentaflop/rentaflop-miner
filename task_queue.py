@@ -10,6 +10,7 @@ import tempfile
 import uuid
 import io
 import zipfile
+import pymysql
 
 
 def push_task(params):
@@ -62,15 +63,17 @@ def push_task(params):
             
         uuid_str = uuid.uuid4().hex
         os.system(f"gpg --passphrase {uuid_str} --batch --no-tty -c '{render_path}' && mv '{render_path}.gpg' '{render_path}'")
-        with db.session.begin():
-            # need this in order to update task
-            task = db.session.merge(task)
-            task.main_file_path = render_path
-            task.start_frame = start_frame
-            task.end_frame = end_frame
-            task.uuid_str = uuid_str
-            task.blender_version = blender_version
-            db.session.commit()
+        # need this in order to update task
+        task = db.session.merge(task)
+        sql = f"UPDATE task SET main_file_path={render_path}, start_frame={start_frame}, end_frame={end_frame}, uuid_str={uuid_str}, blender_version={blender_version} WHERE id={task.id}"
+        # updating task with pymysql instead of flask sqlalchemy because the initial commit in this function is causing the connection to sometimes close,
+        # and trying to use it again here fails intermittently
+        connection = pymysql.connect(host="localhost", user="root", password="daemon", database="daemon")
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+
+            connection.commit()
     
     DAEMON_LOGGER.debug(f"Added task {task_id}")
 

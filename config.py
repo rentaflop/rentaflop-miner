@@ -5,7 +5,6 @@ import os
 import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-import pymysql
 import uuid
 
 
