@@ -75,15 +75,18 @@ def push_task(params):
         with connection:
             with connection.cursor() as cursor:
                 cursor.execute(sql1)
+            connection.commit()
             with connection.cursor() as cursor:
                 cursor.execute(sql2)
+            connection.commit()
             with connection.cursor() as cursor:
                 cursor.execute(sql3)
+            connection.commit()
             with connection.cursor() as cursor:
                 cursor.execute(sql4)
+            connection.commit()
             with connection.cursor() as cursor:
                 cursor.execute(sql5)
-
             connection.commit()
     
     DAEMON_LOGGER.debug(f"Added task {task_id}")
