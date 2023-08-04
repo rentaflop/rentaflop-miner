@@ -13,6 +13,18 @@ import zipfile
 import pymysql
 
 
+def _execute_sql(sql):
+    """
+    use pymysql to connect to db and run sql statement
+    """
+    connection = pymysql.connect(host="localhost", user="root", password="daemon", database="daemon")
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+
+        connection.commit()
+
+
 def push_task(params):
     """
     add a task to the queue; could be benchmark or render
@@ -64,30 +76,17 @@ def push_task(params):
         uuid_str = uuid.uuid4().hex
         os.system(f"gpg --passphrase {uuid_str} --batch --no-tty -c '{render_path}' && mv '{render_path}.gpg' '{render_path}'")
         task_id = int(task_id)
-        sql1 = f'UPDATE task SET main_file_path="{render_path}" WHERE id={task_id}'
-        sql2 = f'UPDATE task SET start_frame={start_frame} WHERE id={task_id}'
-        sql3 = f'UPDATE task SET end_frame={end_frame} WHERE id={task_id}'
-        sql4 = f'UPDATE task SET uuid_str="{uuid_str}" WHERE id={task_id}'
-        sql5 = f'UPDATE task SET blender_version="{blender_version}" WHERE id={task_id}'
+        statements = [
+            f'UPDATE task SET main_file_path="{render_path}" WHERE id={task_id}',
+            f'UPDATE task SET start_frame={start_frame} WHERE id={task_id}',
+            f'UPDATE task SET end_frame={end_frame} WHERE id={task_id}',
+            f'UPDATE task SET uuid_str="{uuid_str}" WHERE id={task_id}',
+            f'UPDATE task SET blender_version="{blender_version}" WHERE id={task_id}',
+        ]
         # updating task with pymysql instead of flask sqlalchemy because the initial commit in this function is causing the connection to sometimes close,
         # and trying to use it again here fails intermittently
-        connection = pymysql.connect(host="localhost", user="root", password="daemon", database="daemon")
-        with connection:
-            with connection.cursor() as cursor:
-                cursor.execute(sql1)
-            connection.commit()
-            with connection.cursor() as cursor:
-                cursor.execute(sql2)
-            connection.commit()
-            with connection.cursor() as cursor:
-                cursor.execute(sql3)
-            connection.commit()
-            with connection.cursor() as cursor:
-                cursor.execute(sql4)
-            connection.commit()
-            with connection.cursor() as cursor:
-                cursor.execute(sql5)
-            connection.commit()
+        for statement in statements:
+            _execute_sql(statement)
     
     DAEMON_LOGGER.debug(f"Added task {task_id}")
 
