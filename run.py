@@ -104,8 +104,14 @@ def run_task(is_cpu=False):
         cmd += " --cycles-device OPTIX"
     # send output to log file
     log_path = os.path.join(task_dir, "log.txt")
-    with open(log_path, "w") as f:
-        subprocess.run(cmd, shell=True, encoding="utf8", check=True, stderr=subprocess.STDOUT, stdout=f)
+    try:
+        with open(log_path, "w") as f:
+            subprocess.run(cmd, shell=True, encoding="utf8", check=True, stderr=subprocess.STDOUT, stdout=f)
+    except subprocess.CalledProcessError as e:
+        log_tail = run_shell_cmd(f"tail {log_path}", very_quiet=True, format_output=False)
+        # manually setting output to log file tail since everything is output to log file
+        raise subprocess.CalledProcessError(cmd=e.cmd, returncode=e.returncode, output=log_tail)
+    
     # successful render if no CalledProcessError, so send result to servers
     n_frames = end_frame - start_frame + 1
     first_frame_time, subsequent_frames_avg = calculate_frame_times(n_frames, task_dir)
