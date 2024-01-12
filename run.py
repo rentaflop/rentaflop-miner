@@ -20,8 +20,13 @@ def check_blender(target_version):
     """
     check for blender target_version installation and install if not found
     does nothing if target_version installed
+    maintains a LRU cache of downloaded blender versions
     """
-    if os.path.exists(f"blender-{target_version}.tar.xz"):
+    file_path = f"blender-{target_version}.tar.xz"
+    if os.path.exists(file_path):
+        # update last modified time to now
+        os.utime(file_path)
+        
         return
 
     DAEMON_LOGGER.debug(f"Installing blender version {target_version}...")
@@ -29,6 +34,17 @@ def check_blender(target_version):
     # go to https://download.blender.org/release/ to check blender version updates
     run_shell_cmd(f"wget https://download.blender.org/release/Blender{short_version}/blender-{target_version}-linux-x64.tar.xz -O blender.tar.xz && mv blender.tar.xz blender-{target_version}.tar.xz")
 
+    # update cache, if necessary
+    cache_size = 5
+    list_of_files = glob.glob("blender-*.tar.xz")
+    if len(list_of_files) <= cache_size:
+        return
+
+    # cache too large, need to remove LRU version
+    file_modification_times = [os.path.getmtime(f) for f in list_of_files]
+    least_to_most_recent = [f for _, f in sorted(zip(file_modification_times, list_of_files), key=lambda pair: pair[0])]
+    lru_version = least_to_most_recent[0]
+    run_shell_cmd(f"rm -rf {lru_version}")
 
 def calculate_frame_times(n_frames, task_dir):
     """
