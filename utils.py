@@ -54,7 +54,7 @@ SUPPORTED_GPUS = {
 }
 CRYPTO_STATS = {"total_khs": "0.0"}
 # NOTE: if updated, also update daemon.py, launchpad.js, and host_update lambda
-TEST_HOSTS = ["rentaflop_one", "rentaflop_two", "rentaflop_three"]
+TEST_HOSTS = ["rentaflop-one", "rentaflop_two", "rentaflop_three"]
 
 
 def run_shell_cmd(cmd, quiet=False, very_quiet=False, format_output=True):
@@ -409,8 +409,9 @@ def check_correct_driver():
     """
     smi_output = run_shell_cmd("nvidia-smi --query-gpu=gpu_name --format=csv")
     # 40 series gpus require newer drivers
-    has_40_series = "RTX 40" in smi_output
-    target_version = "525.105.17" if has_40_series else "510.73.05"
+    # has_40_series = "RTX 40" in smi_output
+    # target_version = "525.105.17" if has_40_series else "510.73.05"
+    target_version = "535.146.02"
     # check if installed
     nvidia_output = run_shell_cmd(f'cat /proc/driver/nvidia/version | grep "{target_version}"')
     run_shell_cmd("sudo apt-get install mesa-utils -y")
@@ -681,6 +682,7 @@ def check_installation():
     check_memory()
     install_or_update_crypto_miner()
     install_or_update_benchmark()
+    run_shell_cmd("sudo apt-get install software-properties-common -y", quiet=True)
     run_shell_cmd("sudo add-apt-repository ppa:deki/firejail -y", quiet=True)
     run_shell_cmd("sudo apt-get install firejail firejail-profiles -y", quiet=True)
     run_shell_cmd('rm octane/started.txt', quiet=True)

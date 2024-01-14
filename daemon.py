@@ -41,7 +41,7 @@ if __name__=="__main__":
             # for python import errors
             print("Running requirements.txt reinstallation...")            
             os.system("pip3 install -r requirements.txt")
-            branch = "develop" if socket.gethostname() in ["rentaflop_one", "rentaflop_two", "rentaflop_three"] else "master"
+            branch = "develop" if socket.gethostname() in ["rentaflop-one", "rentaflop_two", "rentaflop_three"] else "master"
             os.system(f"git checkout {branch}")
             os.system("git pull")
             time.sleep(180)
