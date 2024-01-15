@@ -54,7 +54,7 @@ SUPPORTED_GPUS = {
 }
 CRYPTO_STATS = {"total_khs": "0.0"}
 # NOTE: if updated, also update daemon.py, launchpad.js, and host_update lambda
-TEST_HOSTS = ["rentaflop-one", "rentaflop_two", "rentaflop_three"]
+TEST_HOSTS = ["rentaflop-one", "rentaflop-two", "rentaflop-three"]
 
 
 def run_shell_cmd(cmd, quiet=False, very_quiet=False, format_output=True):
