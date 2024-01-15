@@ -136,6 +136,5 @@ daemon.log
 rentaflop_config.json
 trex/
 octane/
-octane.tar.gz
 blender/
 blender*.tar.xz
