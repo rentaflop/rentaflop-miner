@@ -26,7 +26,8 @@ def push_task(params):
     is_render = render_file is not None
     DAEMON_LOGGER.debug(f"Pushing task {task_id}...")
     # prevent duplicate tasks from being created in case of network delays or failures
-    existing_task = Task.query.filter_by(task_id=task_id).first()
+    with app.app_context():
+        existing_task = Task.query.filter_by(task_id=task_id).first()
     if existing_task:
         DAEMON_LOGGER.info(f"Task {task_id} already in queue! Exiting...")
         return
@@ -35,9 +36,10 @@ def push_task(params):
     task_dir = os.path.join(FILE_DIR, str(task_id))
     os.makedirs(task_dir)
     # create task straight away to add it to queue so we don't restart crypto miner if we have to take a few minutes to process a large render file
-    task = Task(task_dir=task_dir, task_id=task_id)
-    db.session.add(task)
-    db.session.commit()
+    with app.app_context():
+        task = Task(task_dir=task_dir, task_id=task_id)
+        db.session.add(task)
+        db.session.commit()
     if is_render:
         if is_zip:
             # NOTE: partially duplicated in job_queue.py
@@ -90,13 +92,14 @@ def _delete_task_with_id(task_id):
     delete task from db if it exists
     return task_dir if deleted, None otherwise
     """
-    task = Task.query.filter_by(task_id=task_id).first()
-    task_dir = None
-    if task:
-        task_dir = task.task_dir
-        task = db.session.merge(task)
-        db.session.delete(task)
-        db.session.commit()
+    with app.app_context():
+        task = Task.query.filter_by(task_id=task_id).first()
+        task_dir = None
+        if task:
+            task_dir = task.task_dir
+            task = db.session.merge(task)
+            db.session.delete(task)
+            db.session.commit()
 
     return task_dir
 
@@ -147,7 +150,8 @@ def queue_status(params):
     return contents of queue
     params is empty dict
     """
-    tasks = Task.query.all()
+    with app.app_context():
+        tasks = Task.query.all()
     # must include benchmark so we can set status to gpc
     task_ids = [task.task_id for task in tasks]
     last_frame_completed = None
@@ -158,7 +162,8 @@ def queue_status(params):
         DAEMON_LOGGER.exception(f"Caught exception in queue status: {e}")
 
     # need this because connection pool not getting cleared for some reason
-    db.close_all_sessions()
+    with app.app_context():
+        db.close_all_sessions()
     
     return {"queue": task_ids, "last_frame_completed": last_frame_completed}
 
@@ -223,7 +228,8 @@ def update_queue(params={}):
     starts the next task, if available
     """
     # get first queued task
-    task = Task.query.first()
+    with app.app_context():
+        task = Task.query.first()
     if not task:
         return
     

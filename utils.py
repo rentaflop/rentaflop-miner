@@ -534,7 +534,8 @@ def disable_oc(gpu_indexes):
     # do nothing if overclocking not set
     if not current_oc_settings:
         # release Overclock table lock
-        db.session.commit()
+        with app.app_context():
+            db.session.commit()
         
         return
     
@@ -545,7 +546,8 @@ def disable_oc(gpu_indexes):
     # do nothing if 0 because it means none of the supported gpus are overclocked anyways
     if n_gpus == 0:
         # release Overclock table lock
-        db.session.commit()
+        with app.app_context():
+            db.session.commit()
 
         return
 
@@ -577,7 +579,8 @@ def enable_oc(gpu_indexes):
     # do nothing if overclocking not set
     if not current_oc_settings or not original_oc_settings:
         # release Overclock table lock
-        db.session.commit()
+        with app.app_context():
+            db.session.commit()
 
         return
 
@@ -585,7 +588,8 @@ def enable_oc(gpu_indexes):
     # do nothing if user set new oc settings, since we assume these are already enabled
     if is_different:
         # release Overclock table lock
-        db.session.commit()
+        with app.app_context():
+            db.session.commit()
 
         return
     new_oc_settings = copy.deepcopy(current_oc_settings)
@@ -619,16 +623,17 @@ def write_oc_settings(oc_settings, oc_hash, db, commit=True):
     oc_dict = {"oc_settings": oc_settings, "oc_hash": oc_hash}
     oc_str = json.dumps(oc_dict)
     # must use db object to query because Overclock was initialized with different db connection that doesn't have lock
-    existing_oc_settings = db.session.query(Overclock).all()
-    if existing_oc_settings:
-        existing_oc_settings = existing_oc_settings[-1]
-        existing_oc_settings.oc_settings = oc_str
-    else:
-        oc_settings = Overclock(oc_settings=oc_str)
-        db.session.add(oc_settings)
+    with app.app_context():
+        existing_oc_settings = db.session.query(Overclock).all()
+        if existing_oc_settings:
+            existing_oc_settings = existing_oc_settings[-1]
+            existing_oc_settings.oc_settings = oc_str
+        else:
+            oc_settings = Overclock(oc_settings=oc_str)
+            db.session.add(oc_settings)
 
-    if commit:
-        db.session.commit()
+        if commit:
+            db.session.commit()
 
 
 def read_oc_settings():
@@ -639,7 +644,8 @@ def read_oc_settings():
     """
     # with_for_update acquires lock on the overclock table, which is necessary to avoid multiple concurrent threads from messing up the settings
     # if a concurrent thread tries to read or write the table when another thread has the lock, it will wait until the lock is released
-    existing_oc_settings = db.session.query(Overclock.oc_settings).with_for_update().first()
+    with app.app_context():
+        existing_oc_settings = db.session.query(Overclock.oc_settings).with_for_update().first()
     existing_oc_settings = existing_oc_settings[0]
     oc_dict = json.loads(existing_oc_settings)
 
@@ -695,9 +701,9 @@ def check_installation():
     run_shell_cmd('mysql -u root -pdaemon -e "create database daemon;"', quiet=True)
     run_shell_cmd('mysql -u root -pdaemon -e "SET session wait_timeout=10;"', quiet=True)
     run_shell_cmd('mysql -u root -pdaemon -e "SET interactive_timeout=10;"', quiet=True)
-    db.init_app(app)
-    db.drop_all(app=app)
-    db.create_all(app=app)
+    with app.app_context():
+        db.drop_all(app=app)
+        db.create_all(app=app)
 
 
 def install_all_requirements():
