@@ -674,7 +674,7 @@ def install_or_update_benchmark():
         return
     
     DAEMON_LOGGER.info("Installing benchmarking software...")
-    run_shell_cmd("mkdir octane && tar -xzf octane.tar.gz -C octane --strip-components 1")
+    run_shell_cmd("mkdir -p octane && tar -xzf octane.tar.gz -C octane --strip-components 1")
 
 
 def check_installation():
