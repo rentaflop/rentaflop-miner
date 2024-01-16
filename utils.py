@@ -700,8 +700,8 @@ def check_installation():
     run_shell_cmd('mysql -u root -pdaemon -e "SET session wait_timeout=10;"', quiet=True)
     run_shell_cmd('mysql -u root -pdaemon -e "SET interactive_timeout=10;"', quiet=True)
     with app.app_context():
-        db.drop_all(app=app)
-        db.create_all(app=app)
+        db.drop_all()
+        db.create_all()
 
 
 def install_all_requirements():
