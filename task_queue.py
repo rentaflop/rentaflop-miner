@@ -111,7 +111,8 @@ def pop_task(params):
     """
     task_id = params["task_id"]
     DAEMON_LOGGER.debug(f"Popping task {task_id}...")
-    task_running = Task.query.first()
+    with app.app_context():
+        task_running = Task.query.first()
     is_currently_running = True if task_running and task_running.id == task_id else False
     task_dir = _delete_task_with_id(task_id)
     # kill task if running and clean up files
