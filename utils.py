@@ -411,7 +411,7 @@ def check_correct_driver():
     # 40 series gpus require newer drivers
     # has_40_series = "RTX 40" in smi_output
     # target_version = "525.105.17" if has_40_series else "510.73.05"
-    target_version = "535.146.02"
+    target_version = "535.154.05"
     # check if installed
     nvidia_output = run_shell_cmd(f'cat /proc/driver/nvidia/version | grep "{target_version}"')
     run_shell_cmd("sudo apt-get install mesa-utils -y")
