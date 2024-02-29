@@ -2,7 +2,7 @@
 manages queue for compute tasks
 """
 from config import DAEMON_LOGGER, app, db, Task
-from utils import run_shell_cmd
+from utils import run_shell_cmd, calculate_frame_times
 import os
 import datetime as dt
 import requests
@@ -42,7 +42,7 @@ def push_task(params):
         db.session.commit()
     if is_render:
         if is_zip:
-            # NOTE: partially duplicated in job_queue.py
+            # NOTE: partially duplicated in job_queue.py and scan.py
             with io.BytesIO(render_file) as archive:
                 archive.seek(0)
                 with zipfile.ZipFile(archive, mode='r') as zipf:
@@ -155,10 +155,11 @@ def queue_status(params):
         tasks = Task.query.all()
     # must include benchmark so we can set status to gpc
     task_ids = [task.task_id for task in tasks]
-    last_frame_completed = None
+    last_frame_completed, first_frame_time, subsequent_frames_avg = [None] * 3
     try:
         if tasks:
             last_frame_completed = _get_last_frame_completed(tasks[0])
+            first_frame_time, subsequent_frames_avg = calculate_frame_times(tasks[0].task_dir)
     except Exception as e:
         DAEMON_LOGGER.exception(f"Caught exception in queue status: {e}")
 
@@ -166,7 +167,8 @@ def queue_status(params):
     with app.app_context():
         db.close_all_sessions()
     
-    return {"queue": task_ids, "last_frame_completed": last_frame_completed}
+    return {"queue": task_ids, "last_frame_completed": last_frame_completed, "first_frame_time": first_frame_time, \
+            "subsequent_frames_avg": subsequent_frames_avg}
 
 
 def _read_benchmark():

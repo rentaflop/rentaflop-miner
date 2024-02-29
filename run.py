@@ -10,8 +10,7 @@ import requests
 import json
 from config import DAEMON_LOGGER
 import subprocess
-from utils import run_shell_cmd
-import datetime as dt
+from utils import run_shell_cmd, calculate_frame_times
 import glob
 import traceback
 
@@ -45,43 +44,6 @@ def check_blender(target_version):
     least_to_most_recent = [f for _, f in sorted(zip(file_modification_times, list_of_files), key=lambda pair: pair[0])]
     lru_version = least_to_most_recent[0]
     run_shell_cmd(f"rm -rf {lru_version}")
-
-def calculate_frame_times(n_frames, task_dir):
-    """
-    calculate total time in minutes spent rendering frames, not including preprocessing
-    n_frames is number of frames rendered for this task, not total job frame number
-    requires render is completely finished and started_render.txt plus frames are still present
-    return first_frame_time, subsequent_frames_avg
-    """
-    output_files = os.path.join(task_dir, "output/*")
-    list_of_files = glob.glob(output_files)
-    first_file = min(list_of_files, key=os.path.getmtime)
-    last_file = max(list_of_files, key=os.path.getmtime)
-
-    render_start_time = os.path.getmtime(os.path.join(task_dir, "started_render.txt"))
-    render_start_time = dt.datetime.fromtimestamp(render_start_time)
-    first_frame_finish = os.path.getmtime(first_file)
-    first_frame_finish = dt.datetime.fromtimestamp(first_frame_finish)
-    last_frame_finish = os.path.getmtime(last_file)
-    last_frame_finish = dt.datetime.fromtimestamp(last_frame_finish)
-
-    first_frame_duration = first_frame_finish-render_start_time
-    first_frame_time = first_frame_duration.total_seconds()/60.0
-    # handle 1-frame task edge case
-    if n_frames == 1:
-        subsequent_frames_avg = first_frame_time
-    else:
-        # handle video output where only one file is created
-        if len(list_of_files) == 1:
-            each_frame_time = first_frame_time / n_frames
-            first_frame_time = each_frame_time
-            subsequent_frames_avg = each_frame_time
-        else:
-            subsequent_frames_duration = last_frame_finish-first_frame_finish
-            subsequent_frames_time = subsequent_frames_duration.total_seconds()/60.0
-            subsequent_frames_avg = subsequent_frames_time / (n_frames - 1)
-
-    return first_frame_time, subsequent_frames_avg
 
 
 def run_task(is_cpu=False):
@@ -129,8 +91,7 @@ def run_task(is_cpu=False):
         raise subprocess.CalledProcessError(cmd=e.cmd, returncode=e.returncode, output=log_tail)
     
     # successful render if no CalledProcessError, so send result to servers
-    n_frames = end_frame - start_frame + 1
-    first_frame_time, subsequent_frames_avg = calculate_frame_times(n_frames, task_dir)
+    first_frame_time, subsequent_frames_avg = calculate_frame_times(task_dir)
     tgz_path = os.path.join(task_dir, "output.tar.gz")
     output = os.path.join(task_dir, "output")
     old_dir = os.getcwd()

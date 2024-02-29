@@ -13,6 +13,8 @@ import tempfile
 import copy
 import socket
 import math
+import glob
+import datetime as dt
 
 
 # look up series here https://en.wikipedia.org/wiki/GeForce_40_series
@@ -132,6 +134,8 @@ def get_state(available_resources, queue_status, gpu_only=False, quiet=False, ve
             "state": "gpc",
             "queue": [54, 118, 1937],
             "last_frame_completed": 57,
+            "first_frame_time": 12.34,
+            "subsequent_frames_avg": 9.76,
           },
           {
             "index": "1",
@@ -203,12 +207,18 @@ def get_state(available_resources, queue_status, gpu_only=False, quiet=False, ve
     result = queue_status({}) if (isinstance(stats, dict) and stats.get("uptime", 0) > 10) else {}
     task_queue = result.get("queue")
     last_frame_completed = result.get("last_frame_completed")
+    first_frame_time = result.get("first_frame_time")
+    subsequent_frames_avg = result.get("subsequent_frames_avg")
     # check for existing queue items
     if task_queue:
         state["status"] = "gpc"
         state["queue"] = task_queue
-    if last_frame_completed:
+    if last_frame_completed is not None:
         state["last_frame_completed"] = last_frame_completed
+    if first_frame_time:
+        state["first_frame_time"] = first_frame_time
+    if subsequent_frames_avg:
+        state["subsequent_frames_avg"] = subsequent_frames_avg
 
     # if we're not mining crypto and crypto_stats is set, show saved crypto_stats
     if state["status"] != "crypto" and float(CRYPTO_STATS["total_khs"]) > 0.0:
@@ -751,3 +761,48 @@ def pull_latest_code():
     branch = "develop" if socket.gethostname() in TEST_HOSTS else "master"
     run_shell_cmd(f"git checkout {branch}")
     run_shell_cmd("git pull")
+
+
+def calculate_frame_times(task_dir):
+    """
+    calculate total time in minutes spent rendering frames, not including preprocessing
+    requires started_render.txt to exist plus frames are still present
+    return first_frame_time, subsequent_frames_avg
+    """
+    start_file_path = os.path.join(task_dir, "started_render.txt")
+    if not os.path.exists(start_file_path):
+        return None, None
+    
+    output_files = os.path.join(task_dir, "output/*")
+    list_of_files = glob.glob(output_files)
+    if not list_of_files:
+        return None, None
+    
+    first_file = min(list_of_files, key=os.path.getmtime)
+    last_file = max(list_of_files, key=os.path.getmtime)
+
+    render_start_time = os.path.getmtime(start_file_path)
+    render_start_time = dt.datetime.fromtimestamp(render_start_time)
+    first_frame_finish = os.path.getmtime(first_file)
+    first_frame_finish = dt.datetime.fromtimestamp(first_frame_finish)
+    last_frame_finish = os.path.getmtime(last_file)
+    last_frame_finish = dt.datetime.fromtimestamp(last_frame_finish)
+
+    first_frame_duration = first_frame_finish-render_start_time
+    first_frame_time = first_frame_duration.total_seconds()/60.0
+    n_frames = len(list_of_files)
+    # handle 1-frame task edge case
+    if n_frames == 1:
+        subsequent_frames_avg = first_frame_time
+    else:
+        # handle video output where only one file is created
+        if len(list_of_files) == 1:
+            each_frame_time = first_frame_time / n_frames
+            first_frame_time = each_frame_time
+            subsequent_frames_avg = each_frame_time
+        else:
+            subsequent_frames_duration = last_frame_finish-first_frame_finish
+            subsequent_frames_time = subsequent_frames_duration.total_seconds()/60.0
+            subsequent_frames_avg = subsequent_frames_time / (n_frames - 1)
+
+    return first_frame_time, subsequent_frames_avg
