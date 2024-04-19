@@ -91,7 +91,7 @@ def run_task(is_cpu=False):
         raise subprocess.CalledProcessError(cmd=e.cmd, returncode=e.returncode, output=log_tail)
     
     # successful render if no CalledProcessError, so send result to servers
-    first_frame_time, subsequent_frames_avg = calculate_frame_times(task_dir)
+    first_frame_time, subsequent_frames_avg = calculate_frame_times(task_dir, start_frame)
     tgz_path = os.path.join(task_dir, "output.tar.gz")
     output = os.path.join(task_dir, "output")
     old_dir = os.getcwd()

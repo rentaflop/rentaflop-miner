@@ -2,7 +2,7 @@
 manages queue for compute tasks
 """
 from config import DAEMON_LOGGER, app, db, Task
-from utils import run_shell_cmd, calculate_frame_times
+from utils import run_shell_cmd, calculate_frame_times, get_last_frame_completed
 import os
 import datetime as dt
 import requests
@@ -124,28 +124,6 @@ def pop_task(params):
     DAEMON_LOGGER.debug(f"Removed task {task_id}...")
 
 
-def _get_last_frame_completed(task):
-    """
-    return last frame number completed, None if 0 frames completed
-    """
-    log_path = os.path.join(task.task_dir, "log.txt")
-    output = run_shell_cmd(f"tail -100 {log_path} | grep -e 'Fra:'", very_quiet=True, format_output=False)
-    if not output:
-        return None
-    
-    lines = output.splitlines()
-    frame_in_progress = task.start_frame
-    for line in reversed(lines):
-        if line.startswith("Fra:"):
-            frame_in_progress = int(line.split()[0].replace("Fra:", ""))
-            break
-
-    if frame_in_progress == task.start_frame:
-        return None
-
-    return frame_in_progress - 1
-
-
 def queue_status(params):
     """
     return contents of queue
@@ -158,8 +136,8 @@ def queue_status(params):
     last_frame_completed, first_frame_time, subsequent_frames_avg = [None] * 3
     try:
         if tasks:
-            last_frame_completed = _get_last_frame_completed(tasks[0])
-            first_frame_time, subsequent_frames_avg = calculate_frame_times(tasks[0].task_dir)
+            last_frame_completed = get_last_frame_completed(tasks[0].task_dir, tasks[0].start_frame)
+            first_frame_time, subsequent_frames_avg = calculate_frame_times(tasks[0].task_dir, tasks[0].start_frame)
     except Exception as e:
         DAEMON_LOGGER.exception(f"Caught exception in queue status: {e}")
 

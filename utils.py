@@ -57,6 +57,8 @@ SUPPORTED_GPUS = {
 CRYPTO_STATS = {"total_khs": "0.0"}
 # NOTE: if updated, also update daemon.py, launchpad.js, and host_update lambda
 TEST_HOSTS = ["rentaflop-one", "rentaflop-two", "rentaflop-three"]
+# from https://docs.blender.org/manual/en/2.80/files/media/video_formats.html
+VIDEO_FORMATS = [".mpg", ".mpeg", ".dvd", ".vob", ".mp4", ".avi", ".mov", ".dv", ".ogg", ".ogv", ".mkv", ".flv"]
 
 
 def run_shell_cmd(cmd, quiet=False, very_quiet=False, format_output=True):
@@ -763,7 +765,29 @@ def pull_latest_code():
     run_shell_cmd("git pull")
 
 
-def calculate_frame_times(task_dir):
+def get_last_frame_completed(task_dir, start_frame):
+    """
+    return last frame number completed, None if 0 frames completed
+    """
+    log_path = os.path.join(task_dir, "log.txt")
+    output = run_shell_cmd(f"tail -100 {log_path} | grep -e 'Fra:'", very_quiet=True, format_output=False)
+    if not output:
+        return None
+    
+    lines = output.splitlines()
+    frame_in_progress = start_frame
+    for line in reversed(lines):
+        if line.startswith("Fra:"):
+            frame_in_progress = int(line.split()[0].replace("Fra:", ""))
+            break
+
+    if frame_in_progress == start_frame:
+        return None
+
+    return frame_in_progress - 1
+
+
+def calculate_frame_times(task_dir, start_frame):
     """
     calculate total time in minutes spent rendering frames, not including preprocessing
     requires started_render.txt to exist plus frames are still present
@@ -777,12 +801,31 @@ def calculate_frame_times(task_dir):
     list_of_files = glob.glob(output_files)
     if not list_of_files:
         return None, None
-    
-    first_file = min(list_of_files, key=os.path.getmtime)
-    last_file = max(list_of_files, key=os.path.getmtime)
 
+    n_frames = len(list_of_files)
     render_start_time = os.path.getmtime(start_file_path)
     render_start_time = dt.datetime.fromtimestamp(render_start_time)
+    # videos will output just one file, such as 0001-0500.mov
+    if n_frames == 1:
+        _, file_ext = os.path.splitext(list_of_files[0])
+        # if it is indeed a video file, we have to use logs to determine frame finish times
+        if file_ext.lower() in VIDEO_FORMATS:
+            last_frame_completed = get_last_frame_completed(task_dir, start_frame)
+            # since it's hard to get exact frame time completion from logs, we assume last frame just finished and set first and subsequent time equal
+            if last_frame_completed is not None:
+                now = dt.datetime.now(dt.timezone.utc)
+                n_frames_rendered = last_frame_completed - start_frame + 1
+                render_duration = now - render_start_time
+                render_time = render_duration.total_seconds()/60.0
+                subsequent_frames_avg = render_time / n_frames_rendered
+                first_frame_time = subsequent_frames_avg
+                
+                return first_frame_time, subsequent_frames_avg
+            else:
+                return None, None
+
+    first_file = min(list_of_files, key=os.path.getmtime)
+    last_file = max(list_of_files, key=os.path.getmtime)
     first_frame_finish = os.path.getmtime(first_file)
     first_frame_finish = dt.datetime.fromtimestamp(first_frame_finish)
     last_frame_finish = os.path.getmtime(last_file)
@@ -790,19 +833,12 @@ def calculate_frame_times(task_dir):
 
     first_frame_duration = first_frame_finish-render_start_time
     first_frame_time = first_frame_duration.total_seconds()/60.0
-    n_frames = len(list_of_files)
     # handle 1-frame task edge case
     if n_frames == 1:
         subsequent_frames_avg = first_frame_time
     else:
-        # handle video output where only one file is created
-        if len(list_of_files) == 1:
-            each_frame_time = first_frame_time / n_frames
-            first_frame_time = each_frame_time
-            subsequent_frames_avg = each_frame_time
-        else:
-            subsequent_frames_duration = last_frame_finish-first_frame_finish
-            subsequent_frames_time = subsequent_frames_duration.total_seconds()/60.0
-            subsequent_frames_avg = subsequent_frames_time / (n_frames - 1)
+        subsequent_frames_duration = last_frame_finish-first_frame_finish
+        subsequent_frames_time = subsequent_frames_duration.total_seconds()/60.0
+        subsequent_frames_avg = subsequent_frames_time / (n_frames - 1)
 
     return first_frame_time, subsequent_frames_avg
