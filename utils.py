@@ -805,7 +805,6 @@ def calculate_frame_times(task_dir, start_frame):
     n_frames = len(list_of_files)
     render_start_time = os.path.getmtime(start_file_path)
     render_start_time = dt.datetime.fromtimestamp(render_start_time)
-    render_start_time = render_start_time.replace(tzinfo=dt.timezone.utc)
     # videos will output just one file, such as 0001-0500.mov
     if n_frames == 1:
         _, file_ext = os.path.splitext(list_of_files[0])
@@ -814,7 +813,7 @@ def calculate_frame_times(task_dir, start_frame):
             last_frame_completed = get_last_frame_completed(task_dir, start_frame)
             # since it's hard to get exact frame time completion from logs, we assume last frame just finished and set first and subsequent time equal
             if last_frame_completed is not None:
-                now = dt.datetime.now(dt.timezone.utc)
+                now = dt.datetime.now()
                 n_frames_rendered = last_frame_completed - start_frame + 1
                 render_duration = now - render_start_time
                 render_time = render_duration.total_seconds()/60.0
