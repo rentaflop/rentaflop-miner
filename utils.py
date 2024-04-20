@@ -805,6 +805,7 @@ def calculate_frame_times(task_dir, start_frame):
     n_frames = len(list_of_files)
     render_start_time = os.path.getmtime(start_file_path)
     render_start_time = dt.datetime.fromtimestamp(render_start_time)
+    render_start_time = render_start_time.replace(tzinfo=dt.timezone.utc)
     # videos will output just one file, such as 0001-0500.mov
     if n_frames == 1:
         _, file_ext = os.path.splitext(list_of_files[0])
