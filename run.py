@@ -46,7 +46,7 @@ def check_blender(target_version):
     run_shell_cmd(f"rm -rf {lru_version}")
 
 
-def run_task(is_cpu=False):
+def run_task(is_cpu=False, is_png=False):
     """
     run rendering task
     """
@@ -80,6 +80,8 @@ def run_task(is_cpu=False):
     # most of the time we run on GPU with OPTIX, but sometimes we run on cpu if not enough VRAM or other GPU issue
     if not is_cpu:
         cmd += " --cycles-device OPTIX"
+    if is_png:
+        cmd += " -F PNG"
     # send output to log file
     log_path = os.path.join(task_dir, "log.txt")
     try:
@@ -128,9 +130,10 @@ def run_task(is_cpu=False):
 
 def main():
     try_with_cpu = False
+    try_with_png = False
     for i in range(2):
         try:
-            run_task(is_cpu=try_with_cpu)
+            run_task(is_cpu=try_with_cpu, is_png=try_with_png)
         except subprocess.CalledProcessError as e:
             DAEMON_LOGGER.error(f"Task execution command failed: {e}")
             DAEMON_LOGGER.error(f"Task execution command output: {e.output}")
@@ -138,11 +141,14 @@ def main():
                              "Invalid value in cuMemcpy2DUnaligned_v2" in e.output):
                 try_with_cpu = True
                 DAEMON_LOGGER.info("Ran out of VRAM so trying task again with CPU!")
+            if e.output and ("Error initializing video stream" in e.output):
+                try_with_png = True
+                DAEMON_LOGGER.info("Issue with video format so trying task again with PNG!")
         except:
             error = traceback.format_exc()
             DAEMON_LOGGER.error(f"Exception during task execution: {error}")
 
-        if not try_with_cpu:
+        if not try_with_cpu and not try_with_png:
             break
 
     # lets the task queue know when the run is finished
