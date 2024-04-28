@@ -87,6 +87,11 @@ def run_task(is_cpu=False, is_png=False):
     try:
         with open(log_path, "w") as f:
             subprocess.run(cmd, shell=True, encoding="utf8", check=True, stderr=subprocess.STDOUT, stdout=f)
+
+        # checking log tail because sometimes Blender throws and error and exits quietly without subprocess error
+        log_tail = run_shell_cmd(f"tail {log_path}", very_quiet=True, format_output=False)
+        if log_path and ("Error initializing video stream" in log_tail):
+            raise subprocess.CalledProcessError(cmd=cmd, returncode=1, output=log_tail)
     except subprocess.CalledProcessError as e:
         log_tail = run_shell_cmd(f"tail {log_path}", very_quiet=True, format_output=False)
         # manually setting output to log file tail since everything is output to log file
@@ -141,6 +146,7 @@ def main():
                              "Invalid value in cuMemcpy2DUnaligned_v2" in e.output):
                 try_with_cpu = True
                 DAEMON_LOGGER.info("Ran out of VRAM so trying task again with CPU!")
+            # NOTE: if error strings updated, see if they need to be updated in run_task too; sometimes blender exits quietly on error without subprocess error
             if e.output and ("Error initializing video stream" in e.output):
                 try_with_png = True
                 DAEMON_LOGGER.info("Issue with video format so trying task again with PNG!")
