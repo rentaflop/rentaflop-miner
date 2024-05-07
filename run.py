@@ -10,7 +10,7 @@ import requests
 import json
 from config import DAEMON_LOGGER
 import subprocess
-from utils import run_shell_cmd, calculate_frame_times
+from utils import run_shell_cmd, calculate_frame_times, post_to_rentaflop
 import glob
 import traceback
 
@@ -133,9 +133,12 @@ def run_task(is_cpu=False, is_png=False):
 
 
 def main():
+    task_dir = sys.argv[1]
+    task_id = os.path.basename(task_dir)
     try_with_cpu = False
     try_with_png = False
-    for i in range(2):
+    max_tries = 2
+    for i in range(max_tries):
         try:
             run_task(is_cpu=try_with_cpu, is_png=try_with_png)
         except subprocess.CalledProcessError as e:
@@ -150,7 +153,17 @@ def main():
                              "Error: height not divisible by 2" in e.output):
                 try_with_png = True
                 DAEMON_LOGGER.info("Issue with video format so trying task again with PNG!")
+
+            # if loop isn't being run again, we send error message back to rentaflop
+            if (not try_with_cpu and not try_with_png) or i == (max_tries - 1):
+                max_msg_len = 128
+                # grab last max_msg_len characters from error message
+                msg = e.output[-1 * max_msg_len:] if e.output else ""
+                if msg:
+                    data = {"rentaflop_id": rentaflop_id, "message": {"task_id": str(task_id), "type": "error", "message": msg}}
+                    post_to_rentaflop(data, "daemon", quiet=False)
         except:
+            # catch all for logging misc errors that slipped through
             error = traceback.format_exc()
             DAEMON_LOGGER.error(f"Exception during task execution: {error}")
 
@@ -158,7 +171,6 @@ def main():
             break
 
     # lets the task queue know when the run is finished
-    task_dir = sys.argv[1]
     run_shell_cmd(f"touch {task_dir}/finished.txt", quiet=True)
 
 
