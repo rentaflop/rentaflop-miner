@@ -296,7 +296,7 @@ def mine(params):
             k, v = directive.split("=")
             if k == "is_cpu" and v.lower() == "true":
                 is_cpu = True
-            elif k == "cuda_visible_devices":
+            elif k == "CUDA_VISIBLE_DEVICES":
                 cuda_visible_devices = v
     
     gpu_indexes = RENTAFLOP_CONFIG["available_resources"]["gpu_indexes"]
