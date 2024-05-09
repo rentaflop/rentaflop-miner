@@ -22,6 +22,10 @@ def push_task(params):
     start_frame = params.get("start_frame")
     end_frame = params.get("end_frame")
     blender_version = params.get("blender_version")
+    is_cpu = params.get("is_cpu")
+    is_cpu = 1 if (is_cpu and is_cpu.lower() == "true") else 0
+    cuda_visible_devices = params.get("cuda_visible_devices")
+    cuda_visible_devices = "NULL" if not cuda_visible_devices else f'"{cuda_visible_devices}"'
     is_zip = params.get("is_zip")
     is_render = render_file is not None
     DAEMON_LOGGER.debug(f"Pushing task {task_id}...")
@@ -71,6 +75,8 @@ def push_task(params):
         sql3 = f'UPDATE task SET end_frame={end_frame} WHERE task_id={task_id}'
         sql4 = f'UPDATE task SET uuid_str="{uuid_str}" WHERE task_id={task_id}'
         sql5 = f'UPDATE task SET blender_version="{blender_version}" WHERE task_id={task_id}'
+        sql6 = f'UPDATE task SET is_cpu={is_cpu} WHERE task_id={task_id}'
+        sql7 = f'UPDATE task SET cuda_visible_devices={cuda_visible_devices} WHERE task_id={task_id}'
         # updating task with pymysql instead of flask sqlalchemy because the initial commit in this function is causing the connection to sometimes close,
         # and trying to use it again here fails intermittently
         connection = pymysql.connect(host="localhost", user="root", password="daemon", database="daemon")
@@ -81,6 +87,8 @@ def push_task(params):
                 cursor.execute(sql3)
                 cursor.execute(sql4)
                 cursor.execute(sql5)
+                cursor.execute(sql6)
+                cursor.execute(sql7)
             
             connection.commit()
     
@@ -257,7 +265,12 @@ def update_queue(params={}):
     if task.uuid_str:
         # start task in bg
         DAEMON_LOGGER.debug(f"Starting task {task_id}...")
-        os.system(f"python3 run.py {task.task_dir} '{task.main_file_path}' {task.start_frame} {task.end_frame} {task.uuid_str} {task.blender_version} &")
+        cmd = f"python3 run.py {task.task_dir} '{task.main_file_path}' {task.start_frame} {task.end_frame} {task.uuid_str} {task.blender_version}"
+        # task directives
+        cmd += f" {task.is_cpu} {task.cuda_visible_devices}"
+        # run in background
+        cmd += " &"
+        os.system()
 
 
 # create tmp dir that's cleaned up when TEMP_DIR is destroyed

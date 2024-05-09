@@ -57,6 +57,8 @@ class Task(db.Model):
     end_frame = db.Column(db.Integer)
     uuid_str = db.Column(db.String(128))
     blender_version = db.Column(db.String(128))
+    is_cpu = db.Column(db.Boolean)
+    cuda_visible_devices = db.Column(db.String(64))
 
     def __repr__(self):
         return f"<Task {self.task_id} {self.task_dir}>"

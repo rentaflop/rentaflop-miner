@@ -2,7 +2,7 @@
 runs render task
 usage:
     # task_dir is directory containing render file for task
-    python3 run.py task_dir main_file_path start_frame end_frame uuid_str blender_version
+    python3 run.py task_dir main_file_path start_frame end_frame uuid_str blender_version is_cpu cuda_visible_devices
 """
 import sys
 import os
@@ -46,7 +46,7 @@ def check_blender(target_version):
     run_shell_cmd(f"rm -rf {lru_version}")
 
 
-def run_task(is_cpu=False, is_png=False):
+def run_task(is_png=False):
     """
     run rendering task
     """
@@ -56,6 +56,10 @@ def run_task(is_cpu=False, is_png=False):
     end_frame = int(sys.argv[4])
     uuid_str = sys.argv[5]
     blender_version = sys.argv[6]
+    is_cpu = sys.argv[7].lower() == "true"
+    cuda_visible_devices = sys.argv[8]
+    if cuda_visible_devices.lower() == "none":
+        cuda_visible_devices = None
     output_path = os.path.join(task_dir, "output/")
     blender_path = os.path.join(task_dir, "blender/")
     os.makedirs(output_path, exist_ok=True)
@@ -80,6 +84,8 @@ def run_task(is_cpu=False, is_png=False):
     # most of the time we run on GPU with OPTIX, but sometimes we run on cpu if not enough VRAM or other GPU issue
     if not is_cpu:
         cmd += " --cycles-device OPTIX"
+    if cuda_visible_devices:
+        cmd = f"CUDA_VISIBLE_DEVICES={cuda_visible_devices} {cmd}"
     # send output to log file
     log_path = os.path.join(task_dir, "log.txt")
     try:
@@ -135,19 +141,17 @@ def run_task(is_cpu=False, is_png=False):
 def main():
     task_dir = sys.argv[1]
     task_id = os.path.basename(task_dir)
-    try_with_cpu = False
     try_with_png = False
     max_tries = 2
     for i in range(max_tries):
         try:
-            run_task(is_cpu=try_with_cpu, is_png=try_with_png)
+            run_task(is_png=try_with_png)
         except subprocess.CalledProcessError as e:
             DAEMON_LOGGER.error(f"Task execution command failed: {e}")
             DAEMON_LOGGER.error(f"Task execution command output: {e.output}")
             if e.output and ("Out of memory in CUDA queue enqueue" in e.output or "System is out of GPU memory" in e.output or \
                              "Invalid value in cuMemcpy2DUnaligned_v2" in e.output):
-                try_with_cpu = True
-                DAEMON_LOGGER.info("Ran out of VRAM so trying task again with CPU!")
+                DAEMON_LOGGER.info("Ran out of VRAM so we should try task again with CPU via retask directive if no other GPU hosts can handle render.")
             # NOTE: if error strings updated, see if they need to be updated in run_task too; sometimes blender exits quietly on error without subprocess error
             if e.output and ("Error initializing video stream" in e.output or "Error: width not divisible by 2" in e.output or \
                              "Error: height not divisible by 2" in e.output):
@@ -155,7 +159,7 @@ def main():
                 DAEMON_LOGGER.info("Issue with video format so trying task again with PNG!")
 
             # if loop isn't being run again, we send error message back to rentaflop
-            if (not try_with_cpu and not try_with_png) or i == (max_tries - 1):
+            if (not try_with_png) or i == (max_tries - 1):
                 max_msg_len = 128
                 # grab last max_msg_len characters from error message
                 msg = e.output[-1 * max_msg_len:] if e.output else ""
@@ -167,7 +171,7 @@ def main():
             error = traceback.format_exc()
             DAEMON_LOGGER.error(f"Exception during task execution: {error}")
 
-        if not try_with_cpu and not try_with_png:
+        if not try_with_png:
             break
 
     # lets the task queue know when the run is finished

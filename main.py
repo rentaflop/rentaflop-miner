@@ -287,6 +287,18 @@ def mine(params):
     n_frames = params.get("n_frames")
     job_id = params.get("job_id")
     blender_version = params.get("blender_version")
+    directives = params.get("directives")
+    is_cpu = False
+    cuda_visible_devices = ""
+    if directives:
+        directives = directives.split(";")
+        for directive in directives:
+            k, v = directive.split("=")
+            if k == "is_cpu" and v.lower() == "true":
+                is_cpu = True
+            elif k == "cuda_visible_devices":
+                cuda_visible_devices = v
+    
     gpu_indexes = RENTAFLOP_CONFIG["available_resources"]["gpu_indexes"]
     is_render = False
     if task_id:
@@ -301,7 +313,7 @@ def mine(params):
             disable_oc(gpu_indexes)
             end_frame = start_frame + n_frames - 1
             data = {"cmd": "push_task", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame, "blender_version": blender_version, \
-                                                   "is_zip": is_zip}, "render_file": render_file}
+                                                   "is_cpu": is_cpu, "cuda_visible_devices": cuda_visible_devices, "is_zip": is_zip}, "render_file": render_file}
             send_to_task_queue(data)
         else:
             if RENTAFLOP_CONFIG["crypto_config"]["disable_crypto"]:
