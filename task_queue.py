@@ -267,7 +267,7 @@ def update_queue(params={}):
         DAEMON_LOGGER.debug(f"Starting task {task_id}...")
         cmd = f"python3 run.py {task.task_dir} '{task.main_file_path}' {task.start_frame} {task.end_frame} {task.uuid_str} {task.blender_version}"
         # task directives
-        cmd += f" {task.is_cpu} {task.cuda_visible_devices}"
+        cmd += f" {task.is_cpu} {task.cuda_visible_devices if task.cuda_visible_devices else 'None'}"
         # run in background
         cmd += " &"
         os.system()
