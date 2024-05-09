@@ -23,7 +23,7 @@ def push_task(params):
     end_frame = params.get("end_frame")
     blender_version = params.get("blender_version")
     is_cpu = params.get("is_cpu")
-    is_cpu = 1 if (is_cpu and is_cpu.lower() == "true") else 0
+    is_cpu = 1 if is_cpu else 0
     cuda_visible_devices = params.get("cuda_visible_devices")
     cuda_visible_devices = "NULL" if not cuda_visible_devices else f'"{cuda_visible_devices}"'
     is_zip = params.get("is_zip")
