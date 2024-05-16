@@ -855,4 +855,4 @@ def get_rentaflop_id():
     with open(REGISTRATION_FILE, "r") as f:
         rentaflop_config = json.load(f)
         
-    return rentaflop_config.get("rentaflop_id", ""):
+    return rentaflop_config.get("rentaflop_id", "")
