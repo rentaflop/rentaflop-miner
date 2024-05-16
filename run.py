@@ -10,7 +10,7 @@ import requests
 import json
 from config import DAEMON_LOGGER
 import subprocess
-from utils import run_shell_cmd, calculate_frame_times, post_to_rentaflop
+from utils import run_shell_cmd, calculate_frame_times, post_to_rentaflop, get_rentaflop_id
 import glob
 import traceback
 
@@ -164,7 +164,7 @@ def main():
                 # grab last max_msg_len characters from error message
                 msg = e.output[-1 * max_msg_len:] if e.output else ""
                 if msg:
-                    data = {"rentaflop_id": rentaflop_id, "message": {"task_id": str(task_id), "type": "error", "message": msg}}
+                    data = {"rentaflop_id": get_rentaflop_id(), "message": {"task_id": str(task_id), "type": "error", "message": msg}}
                     post_to_rentaflop(data, "daemon", quiet=False)
         except:
             # catch all for logging misc errors that slipped through

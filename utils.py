@@ -844,3 +844,15 @@ def calculate_frame_times(task_dir, start_frame):
         subsequent_frames_avg = subsequent_frames_time / (n_frames - 1)
 
     return first_frame_time, subsequent_frames_avg
+
+
+def get_rentaflop_id():
+    """
+    reads registration file and returns rentaflop id
+    return rentaflop_id
+    """
+    rentaflop_config = {}
+    with open(REGISTRATION_FILE, "r") as f:
+        rentaflop_config = json.load(f)
+        
+    return rentaflop_config.get("rentaflop_id", ""):
