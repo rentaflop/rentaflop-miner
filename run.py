@@ -72,6 +72,8 @@ def run_task(is_png=False):
     de_script = f""" "import os; os.system('''gpg --passphrase {uuid_str} --batch --no-tty -d '{render_path}' > '{render_path2}' ''')" """
     # reformats videos to PNG
     # fmt_script = f'''"import bpy; file_format = bpy.context.scene.render.image_settings.file_format; bpy.context.scene.render.image_settings.file_format = 'PNG' if file_format in ['FFMPEG', 'AVI_RAW', 'AVI_JPEG'] else file_format"'''
+    # remove filepath settings which could override CLI flag
+    path_script = 'import bpy; bpy.context.scene.render.filepath = ""'
     rm_script = f'''"import os; os.remove('{render_path2}')"'''
     render_config = subprocess.check_output(f"{blender_path}/blender --python-expr {de_script} --disable-autoexec -noaudio -b '{render_path2}' --python render_config.py", shell=True,
                                             encoding="utf8", stderr=subprocess.STDOUT)
@@ -80,7 +82,7 @@ def run_task(is_png=False):
     run_shell_cmd(f"touch {task_dir}/started_render.txt", quiet=True)
     sandbox_options = f"firejail --noprofile --net=none --caps.drop=all --private={task_dir} --blacklist=/"
     # render results for specified frames to output path; enables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
-    cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -noaudio -b '{render_path2}' --python-expr {rm_script} -o {output_path} -s {start_frame} -e {end_frame}{' -F PNG' if is_png else ''} -a --"
+    cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -noaudio -b '{render_path2}' --python-expr {path_script} --python-expr {rm_script} -o {output_path} -s {start_frame} -e {end_frame}{' -F PNG' if is_png else ''} -a --"
     # most of the time we run on GPU with OPTIX, but sometimes we run on cpu if not enough VRAM or other GPU issue
     if not is_cpu:
         cmd += " --cycles-device OPTIX"
@@ -92,7 +94,7 @@ def run_task(is_png=False):
         with open(log_path, "w") as f:
             subprocess.run(cmd, shell=True, encoding="utf8", check=True, stderr=subprocess.STDOUT, stdout=f)
 
-        # checking log tail because sometimes Blender throws and error and exits quietly without subprocess error
+        # checking log tail because sometimes Blender throws an error and exits quietly without subprocess error
         log_tail = run_shell_cmd(f"tail {log_path}", very_quiet=True, format_output=False)
         if log_tail and ("Error initializing video stream" in log_tail or "Error: width not divisible by 2" in log_tail or \
                          "Error: height not divisible by 2" in log_tail):
