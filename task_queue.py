@@ -55,7 +55,7 @@ def push_task(params):
                         # parse zip file and look for the main animation file to identify which software is used
                         # guaranteed to exist since rentaflop servers already found it
                         sub_extension = os.path.splitext(subfile)[1]
-                        if sub_extension in [".blend"]:
+                        if sub_extension in [".blend", ".blend1"]:
                             main_subfile = subfile
                             break
                     
