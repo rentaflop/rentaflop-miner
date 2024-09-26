@@ -287,6 +287,7 @@ def mine(params):
     n_frames = params.get("n_frames")
     job_id = params.get("job_id")
     blender_version = params.get("blender_version")
+    render_settings = params.get("render_settings")
     directives = params.get("directives")
     is_cpu = False
     cuda_visible_devices = ""
@@ -313,7 +314,8 @@ def mine(params):
             disable_oc(gpu_indexes)
             end_frame = start_frame + n_frames - 1
             data = {"cmd": "push_task", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame, "blender_version": blender_version, \
-                                                   "is_cpu": is_cpu, "cuda_visible_devices": cuda_visible_devices, "is_zip": is_zip}, "render_file": render_file}
+                                                   "is_cpu": is_cpu, "cuda_visible_devices": cuda_visible_devices, "is_zip": is_zip, \
+                                                   "render_settings": render_settings}, "render_file": render_file}
             send_to_task_queue(data)
         else:
             if RENTAFLOP_CONFIG["crypto_config"]["disable_crypto"]:

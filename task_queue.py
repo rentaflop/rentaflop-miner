@@ -27,6 +27,7 @@ def push_task(params):
     cuda_visible_devices = params.get("cuda_visible_devices")
     cuda_visible_devices = "NULL" if not cuda_visible_devices else f'"{cuda_visible_devices}"'
     is_zip = params.get("is_zip")
+    render_settings = params.get("render_settings")
     is_render = render_file is not None
     DAEMON_LOGGER.debug(f"Pushing task {task_id}...")
     # prevent duplicate tasks from being created in case of network delays or failures
@@ -45,6 +46,9 @@ def push_task(params):
         db.session.add(task)
         db.session.commit()
     if is_render:
+        with open(f"{task_dir}/render_settings.json", "w") as f:
+            json.dump(render_settings, f)
+        
         if is_zip:
             # NOTE: partially duplicated in job_queue.py and scan.py
             with io.BytesIO(render_file) as archive:

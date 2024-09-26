@@ -5,13 +5,14 @@ these are strictly settings that'd be set in the file itself and not provided in
 """
 import bpy
 import json
+import sys
 
 print(f"Found render engine: {bpy.context.scene.render.engine}")
 
-with open("render_settings.json", "r") as f:
-    settings = f.read()
+task_dir = sys.argv[1]
+with open(f"{task_dir}/render_settings.json", "r") as f:
+    settings = json.load(f)
 
-settings = json.reads(settings)
 frame_step = settings.get("frame_step")
 if frame_step is not None:
     bpy.context.scene.frame_step = int(frame_step)
