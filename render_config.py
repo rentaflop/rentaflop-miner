@@ -58,10 +58,10 @@ if selected_camera:
 # output_filename = settings.get("output_filename")
 # if output_filename:
 #     bpy.context.scene. = output_filename
-motion_blur = settings.get("motion_blur")
-if motion_blur is not None:
-    motion_blur = motion_blur == "true"
-    bpy.context.scene.render.use_motion_blur = motion_blur
+use_motion_blur = settings.get("use_motion_blur")
+if use_motion_blur is not None:
+    use_motion_blur = use_motion_blur == "true"
+    bpy.context.scene.render.use_motion_blur = use_motion_blur
 # TODO omitting because I don't understand how this would work via a web UI, I think they need to draw a rectangle
 # maybe it's mainly so if they upload with rectangle they can later disable it?
 # border_rendering = settings.get("border_rendering")
