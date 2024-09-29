@@ -44,11 +44,17 @@ if samples is not None:
     else:
         bpy.context.scene.display.render_aa = samples
 selected_camera = settings.get("selected_camera")
-if selected_camera is not None:
-    bpy.context.scene.camera.name = selected_camera
+if selected_camera:
+    selected_camera_obj = bpy.context.scene.camera
+    for obj in bpy.data.objects:
+        if obj.type == "CAMERA" and obj.name == selected_camera:
+            selected_camera_obj = obj
+            break
+    
+    bpy.context.scene.camera = selected_camera_obj
 
-# TODO need to add to scanner
 # TODO can't find output file name setting in blender (output path exists, but this shouldn't matter to customer), skipping for now
+# maybe it's just to name the downloaded zip file?
 # output_filename = settings.get("output_filename")
 # if output_filename:
 #     bpy.context.scene. = output_filename
@@ -57,6 +63,7 @@ if motion_blur is not None:
     motion_blur = motion_blur == "true"
     bpy.context.scene.render.use_motion_blur = motion_blur
 # TODO omitting because I don't understand how this would work via a web UI, I think they need to draw a rectangle
+# maybe it's mainly so if they upload with rectangle they can later disable it?
 # border_rendering = settings.get("border_rendering")
 # if border_rendering:
 #     bpy.context.scene.render.use_border = border_rendering
