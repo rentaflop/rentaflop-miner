@@ -6,10 +6,13 @@ these are strictly settings that'd be set in the file itself and not provided in
 import bpy
 import json
 import sys
+# get all args after "--", which allows us to ignore blender command args and only use args for this script
+argv = sys.argv
+argv = argv[argv.index("--") + 1:]
 
 print(f"Found render engine: {bpy.context.scene.render.engine}")
 
-task_dir = sys.argv[1]
+task_dir = argv[0]
 with open(f"{task_dir}/render_settings.json", "r") as f:
     settings = json.load(f)
 
