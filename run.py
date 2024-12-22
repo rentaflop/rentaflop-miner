@@ -76,7 +76,9 @@ def run_task(is_png=False):
     # NOTE: cannot pass additional args to blender after " -- " because the -- tells blender to ignore all subsequent args
     render_config = subprocess.check_output(f"{blender_path}/blender --python-expr {de_script} --disable-autoexec -noaudio -b '{render_path2}' --python render_config.py -- {task_dir}", shell=True,
                                             encoding="utf8", stderr=subprocess.STDOUT)
-    is_eevee = "Found render engine: BLENDER_EEVEE" in render_config
+    eevee_name = "BLENDER_EEVEE"
+    eevee_next_name = "BLENDER_EEVEE_NEXT"
+    is_eevee = (f"Found render engine: {eevee_name}" in render_config) or (f"Found render engine: {eevee_next_name}" in render_config)
 
     run_shell_cmd(f"touch {task_dir}/started_render.txt", quiet=True)
     sandbox_options = f"firejail --noprofile --net=none --caps.drop=all --private={task_dir} --blacklist=/"
