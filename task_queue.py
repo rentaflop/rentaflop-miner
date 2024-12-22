@@ -29,6 +29,10 @@ def push_task(params):
     cuda_visible_devices = "NULL" if not cuda_visible_devices else f'"{cuda_visible_devices}"'
     is_zip = params.get("is_zip")
     render_settings = params.get("render_settings")
+    # allow user-edited settings overrides for start and end frame, which are set directly from CLI
+    if render_settings:
+        start_frame = render_settings.get("start_frame", start_frame)
+        end_frame = render_settings.get("end_frame", end_frame)
     is_render = render_file is not None
     DAEMON_LOGGER.debug(f"Pushing task {task_id}...")
     # prevent duplicate tasks from being created in case of network delays or failures
