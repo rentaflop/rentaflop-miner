@@ -74,8 +74,8 @@ def run_task(is_png=False):
     # fmt_script = f'''"import bpy; file_format = bpy.context.scene.render.image_settings.file_format; bpy.context.scene.render.image_settings.file_format = 'PNG' if file_format in ['FFMPEG', 'AVI_RAW', 'AVI_JPEG'] else file_format"'''
     rm_script = f'''"import os; os.remove('{render_path2}')"'''
     # NOTE: cannot pass additional args to blender after " -- " because the -- tells blender to ignore all subsequent args
-    render_config = subprocess.check_output(f"{blender_path}/blender --python-expr {de_script} --disable-autoexec -noaudio -b '{render_path2}' --python render_config.py -- {task_dir}", shell=True,
-                                            encoding="utf8", stderr=subprocess.STDOUT)
+    render_config = subprocess.check_output(f"{blender_path}/blender --python-expr {de_script} --disable-autoexec -noaudio -b '{render_path2}' --python render_config.py -- {task_dir}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+    DAEMON_LOGGER.info(f"Found render_config output: {render_config}")
     eevee_name = "BLENDER_EEVEE"
     eevee_next_name = "BLENDER_EEVEE_NEXT"
     is_eevee = (f"Found render engine: {eevee_name}" in render_config) or (f"Found render engine: {eevee_next_name}" in render_config)
