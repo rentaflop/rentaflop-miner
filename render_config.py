@@ -94,3 +94,6 @@ if engine == "CYCLES":
         bpy.context.scene.cycles.use_adaptive_sampling = use_noise_threshold
         if use_noise_threshold:
             bpy.context.scene.cycles.adaptive_threshold = float(noise_threshold)
+
+# ensure changes are persistent
+bpy.ops.wm.save_mainfile()
