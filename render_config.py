@@ -63,7 +63,7 @@ if selected_camera:
 #     bpy.context.scene. = output_filename
 use_motion_blur = settings.get("use_motion_blur")
 if use_motion_blur is not None:
-    use_motion_blur = use_motion_blur == "true"
+    # bool values in settings will be actual python bools
     bpy.context.scene.render.use_motion_blur = use_motion_blur
 # TODO omitting because I don't understand how this would work via a web UI, I think they need to draw a rectangle
 # maybe it's mainly so if they upload with rectangle they can later disable it?
@@ -72,16 +72,13 @@ if use_motion_blur is not None:
 #     bpy.context.scene.render.use_border = border_rendering
 use_compositing = settings.get("use_compositing")
 if use_compositing is not None:
-    use_compositing = use_compositing == "true"
     bpy.context.scene.render.use_compositing = use_compositing
 use_sequencer = settings.get("use_sequencer")
 if use_sequencer is not None:
-    use_sequencer = use_sequencer == "true"
     bpy.context.scene.render.use_sequencer = use_sequencer
 use_stamp_note = settings.get("use_stamp_note")
 stamp_note = settings.get("stamp_note")
 if use_stamp_note is not None:
-    use_stamp_note = use_stamp_note == "true"
     bpy.context.scene.render.use_stamp_note = use_stamp_note
     if use_stamp_note:
         bpy.context.scene.render.stamp_note_text = stamp_note
@@ -90,7 +87,6 @@ if engine == "CYCLES":
     use_noise_threshold = settings.get("use_noise_threshold")
     noise_threshold = settings.get("noise_threshold")
     if use_noise_threshold is not None:
-        use_noise_threshold = use_noise_threshold == "true"
         bpy.context.scene.cycles.use_adaptive_sampling = use_noise_threshold
         if use_noise_threshold:
             bpy.context.scene.cycles.adaptive_threshold = float(noise_threshold)
