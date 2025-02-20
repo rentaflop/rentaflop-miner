@@ -8,11 +8,9 @@ import datetime as dt
 import requests
 import tempfile
 import uuid
-import io
-import zipfile
 import pymysql
 import json
-
+import glob
 
 def push_task(params):
     """
@@ -28,8 +26,8 @@ def push_task(params):
     is_cpu = 1 if is_cpu else 0
     cuda_visible_devices = params.get("cuda_visible_devices")
     cuda_visible_devices = "NULL" if not cuda_visible_devices else f'"{cuda_visible_devices}"'
-    is_zip = params.get("is_zip")
     render_settings = params.get("render_settings", {})
+    file_cached_dir = params.get("file_cached_dir")
     is_render = render_file is not None
     DAEMON_LOGGER.debug(f"Pushing task {task_id}...")
     # prevent duplicate tasks from being created in case of network delays or failures
@@ -39,7 +37,7 @@ def push_task(params):
         DAEMON_LOGGER.info(f"Task {task_id} already in queue! Exiting...")
         return
     
-    # create directory for task and write render file there
+    # create directory for task and write files there
     task_dir = os.path.join(FILE_DIR, str(task_id))
     os.makedirs(task_dir)
     # create task straight away to add it to queue so we don't restart crypto miner if we have to take a few minutes to process a large render file
@@ -50,31 +48,14 @@ def push_task(params):
     if is_render:
         with open(f"{task_dir}/render_settings.json", "w") as f:
             json.dump(render_settings, f)
-        
-        if is_zip:
-            # NOTE: partially duplicated in job_queue.py and scan.py
-            with io.BytesIO(render_file) as archive:
-                archive.seek(0)
-                with zipfile.ZipFile(archive, mode='r') as zipf:
-                    main_subfile = ""
-                    for subfile in zipf.namelist():
-                        # parse zip file and look for the main animation file to identify which software is used
-                        # guaranteed to exist since rentaflop servers already found it
-                        sub_extension = os.path.splitext(subfile)[1]
-                        if sub_extension in [".blend", ".blend1"]:
-                            main_subfile = subfile
-                            break
-                    
-                    zipf.extractall(task_dir)
 
-            render_path = os.path.join(task_dir, main_subfile)            
-        else:
-            render_path = os.path.join(task_dir, "render_file.blend")
-            with open(render_path, "wb") as f:
-                f.write(render_file)
+        blend_files = glob.glob(os.path.join(file_cached_dir, '**', "*.blend*"), recursive=True)
+        # TODO only using first blend found but it may be a good idea to detect all blends at some point
+        render_path = blend_files[0] if blend_files else ""
             
         uuid_str = uuid.uuid4().hex
-        os.system(f"gpg --passphrase {uuid_str} --batch --no-tty -c '{render_path}' && mv '{render_path}.gpg' '{render_path}'")
+        # TODO figure out encryption through use of cache
+        # os.system(f"gpg --passphrase {uuid_str} --batch --no-tty -c '{render_path}' && mv '{render_path}.gpg' '{render_path}'")
         task_id = int(task_id)
         sql1 = f'UPDATE task SET main_file_path="{render_path}" WHERE task_id={task_id}'
         sql2 = f'UPDATE task SET start_frame={start_frame} WHERE task_id={task_id}'

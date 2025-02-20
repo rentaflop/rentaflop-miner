@@ -2,7 +2,7 @@
 utility functions to be used in various parts of host software
 """
 import subprocess
-from config import DAEMON_LOGGER, REGISTRATION_FILE, app, db, Overclock
+from config import DAEMON_LOGGER, REGISTRATION_FILE, app, db, Overclock, CACHE_DIR
 import time
 import json
 import requests
@@ -15,6 +15,7 @@ import socket
 import math
 import glob
 import datetime as dt
+import shutil
 
 
 # look up series here https://en.wikipedia.org/wiki/GeForce_40_series
@@ -740,7 +741,7 @@ def install_all_requirements():
 def get_render_file(rentaflop_id, job_id):
     """
     fetch render file from rentaflop servers
-    return file, filename
+    return file
     """
     server_url = "https://api.rentaflop.com/host/input"
     data = {"rentaflop_id": str(rentaflop_id), "job_id": str(job_id)}
@@ -748,11 +749,8 @@ def get_render_file(rentaflop_id, job_id):
     file_url = api_response.json()["url"]
     file_response = requests.get(file_url, stream=True)
     render_file = file_response.content
-    # parse out filename from download URL
-    # NOTE: if s3 upload dir changes, then this must also change
-    filename = file_url.split("https://rentaflop-render-uploads.s3.amazonaws.com/")[1].split("?AWSAccessKeyId=")[0]
 
-    return render_file, filename
+    return render_file
 
 
 def pull_latest_code():
@@ -856,3 +854,64 @@ def get_rentaflop_id():
         rentaflop_config = json.load(f)
         
     return rentaflop_config.get("rentaflop_id", "")
+
+
+def _delete_expired_cache(cache_time_limit):
+    """
+    delete all directories in cache in which last modification of top level older than time limit
+    if none older than time limit, do nothing
+    """
+    now = dt.datetime.now()
+    age_threshold = now - dt.timedelta(days=cache_time_limit)
+    for cache_item in os.listdir(CACHE_DIR):
+        cache_item_path = os.path.join(CACHE_DIR, cache_item)
+        if os.path.isdir(cache_item_path):
+            dir_mtime = dt.datetime.fromtimestamp(os.path.getmtime(cache_item_path))
+            if dir_mtime < age_threshold:
+                DAEMON_LOGGER.debug(f"Evicting expired cache item {cache_item}")
+                shutil.rmtree(cache_item_path)
+
+
+def _delete_overflowing_cache(cache_size_limit):
+    """
+    delete oldest modified top level directory if cache has more than cache_size_limit items
+    if not overflowing, do nothing
+    """
+    cache_items = []
+    for cache_item in os.listdir(CACHE_DIR):
+        cache_item_path = os.path.join(CACHE_DIR, cache_item)
+        if os.path.isdir(cache_item_path):
+            dir_mtime = dt.datetime.fromtimestamp(os.path.getmtime(cache_item_path))
+            cache_items.append((cache_item_path, dir_mtime))
+
+    if len(cache_items) > cache_size_limit:
+        # sort directories by modification time (oldest first)
+        cache_items.sort(key=lambda x: x[1])
+
+        # delete the oldest directory
+        oldest_dir, oldest_time = cache_items[0]
+        DAEMON_LOGGER.debug(f"Evicting overflowing cache item {oldest_dir}")
+        shutil.rmtree(oldest_dir)
+
+
+def push_cache(file_uuid):
+    """
+    pushes file with file_uuid into cache
+    if it already exists in cache, we simply return False, file_cached_dir
+    if it doesn't already exist, we evict oldest dir if cache full (or has expired items), create directory for new file, and return True, file_cached_dir
+    return (newly_inserted, file_cached_dir)
+    """
+    cache_time_limit = 7
+    cache_size_limit = 12
+    if not file_uuid:
+        return False, None
+    
+    file_cached_dir = os.path.join(CACHE_DIR, file_uuid)
+    newly_inserted = not os.path.isdir(file_cached_dir)
+    if newly_inserted:
+        # check if cache full or expired and evict necessary directories
+        _delete_expired_cache(cache_time_limit)
+        os.makedirs(file_cached_dir)
+        _delete_overflowing_cache(cache_size_limit)
+    
+    return newly_inserted, file_cached_dir

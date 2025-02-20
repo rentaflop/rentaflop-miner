@@ -22,6 +22,8 @@ import traceback
 import subprocess
 from threading import Thread
 import datetime as dt
+import io
+import zipfile
 
 
 def _start_mining(startup=False):
@@ -286,6 +288,7 @@ def mine(params):
     start_frame = params.get("start_frame")
     n_frames = params.get("n_frames")
     job_id = params.get("job_id")
+    filename = params.get("filename")
     blender_version = params.get("blender_version")
     render_settings = params.get("render_settings")
     directives = params.get("directives")
@@ -307,15 +310,30 @@ def mine(params):
     
     if action == "start":
         if is_render:
-            render_file, filename = get_render_file(RENTAFLOP_CONFIG["rentaflop_id"], job_id)
-            extension = os.path.splitext(filename)[1]
+            extension = os.path.splitext(filename)[1] if filename else None
             is_zip = True if extension in [".zip"] else False
+            file_uuid = filename.split("-")[0] if filename else None
+            # inserts dir for file into cache if not already there; returns bool indicating whether inserted or already existed and corresponding dir where file is
+            newly_inserted, file_cached_dir = push_cache(file_uuid)
+            # if we inserted a new dir, we must actually download file and save it there
+            if newly_inserted:
+                render_file = get_render_file(RENTAFLOP_CONFIG["rentaflop_id"], job_id)
+                if is_zip:
+                    # NOTE: partially duplicated in job_queue.py and scan.py
+                    with io.BytesIO(render_file) as archive:
+                        archive.seek(0)
+                        with zipfile.ZipFile(archive, mode='r') as zipf:
+                            zipf.extractall(file_cached_dir)
+                else:
+                    with open(os.path.join(file_cached_dir, "render_file.blend"), "wb") as f:
+                        f.write(render_file)
+                
             stop_crypto_miner()
             disable_oc(gpu_indexes)
             end_frame = start_frame + n_frames - 1
             data = {"cmd": "push_task", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame, "blender_version": blender_version, \
-                                                   "is_cpu": is_cpu, "cuda_visible_devices": cuda_visible_devices, "is_zip": is_zip, \
-                                                   "render_settings": render_settings}, "render_file": render_file}
+                                                   "is_cpu": is_cpu, "cuda_visible_devices": cuda_visible_devices, "render_settings": render_settings, \
+                                                   "file_cached_dir": file_cached_dir}, "render_file": render_file}
             send_to_task_queue(data)
         else:
             if RENTAFLOP_CONFIG["crypto_config"]["disable_crypto"]:

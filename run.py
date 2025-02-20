@@ -68,13 +68,14 @@ def run_task(is_png=False):
     check_blender(blender_version)
     run_shell_cmd(f"tar -xf blender-{blender_version}.tar.xz -C {blender_path} --strip-components 1", quiet=True)
     render_name, render_extension = os.path.splitext(render_path)
-    render_path2 = render_name + "2" + render_extension
-    de_script = f""" "import os; os.system('''gpg --passphrase {uuid_str} --batch --no-tty -d '{render_path}' > '{render_path2}' ''')" """
+    # render_path2 = render_name + "2" + render_extension
+    # de_script = f""" "import os; os.system('''gpg --passphrase {uuid_str} --batch --no-tty -d '{render_path}' > '{render_path2}' ''')" """
     # reformats videos to PNG
     # fmt_script = f'''"import bpy; file_format = bpy.context.scene.render.image_settings.file_format; bpy.context.scene.render.image_settings.file_format = 'PNG' if file_format in ['FFMPEG', 'AVI_RAW', 'AVI_JPEG'] else file_format"'''
-    rm_script = f'''"import os; os.remove('{render_path2}')"'''
+    # rm_script = f'''"import os; os.remove('{render_path2}')"'''
     # NOTE: cannot pass additional args to blender after " -- " because the -- tells blender to ignore all subsequent args
-    render_config = subprocess.check_output(f"{blender_path}/blender --python-expr {de_script} --disable-autoexec -noaudio -b '{render_path2}' --python render_config.py -- {task_dir}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+    # render_config = subprocess.check_output(f"{blender_path}/blender --python-expr {de_script} --disable-autoexec -noaudio -b '{render_path2}' --python render_config.py -- {task_dir}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+    render_config = subprocess.check_output(f"{blender_path}/blender --disable-autoexec -noaudio -b '{render_path}' --python render_config.py -- {task_dir}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
     eevee_name = "BLENDER_EEVEE"
     eevee_next_name = "BLENDER_EEVEE_NEXT"
     is_eevee = (f"Found render engine: {eevee_name}" in render_config) or (f"Found render engine: {eevee_next_name}" in render_config)
@@ -82,7 +83,8 @@ def run_task(is_png=False):
     run_shell_cmd(f"touch {task_dir}/started_render.txt", quiet=True)
     sandbox_options = f"firejail --noprofile --net=none --caps.drop=all --private={task_dir} --blacklist=/"
     # render results for specified frames to output path; enables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
-    cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -noaudio -b '{render_path2}' --python-expr {rm_script} -o {output_path} -s {start_frame} -e {end_frame}{' -F PNG' if is_png else ''} -a --"
+    # cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -noaudio -b '{render_path2}' --python-expr {rm_script} -o {output_path} -s {start_frame} -e {end_frame}{' -F PNG' if is_png else ''} -a --"
+    cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -noaudio -b '{render_path}' -o {output_path} -s {start_frame} -e {end_frame}{' -F PNG' if is_png else ''} -a --"
     # most of the time we run on GPU with OPTIX, but sometimes we run on cpu if not enough VRAM or other GPU issue
     if not is_cpu:
         cmd += " --cycles-device OPTIX"
