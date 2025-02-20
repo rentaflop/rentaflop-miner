@@ -270,9 +270,6 @@ def send_to_task_queue(data):
     """
     cmd = data.get("cmd")
     params = data.get("params")
-    render_file = data.get("render_file")
-    if render_file:
-        params["render_file"] = render_file
 
     return TASK_QUEUE_CMD_TO_FUNC[cmd](params)
 
@@ -280,8 +277,8 @@ def send_to_task_queue(data):
 def mine(params):
     """
     handle commands related to mining, whether crypto mining or guest "mining"
-    params looks like {"action": "start" | "stop", "task_id": "13245", "render_file": contents}
-    iff render job, we receive task_id and render_file parameter (if action is start) that contains data to be rendered
+    params looks like {"action": "start" | "stop", "task_id": "13245", ...}
+    iff render job, we receive task_id parameter (if action is start) that contains data to be rendered
     """
     action = params["action"]
     task_id = params.get("task_id")
@@ -333,7 +330,7 @@ def mine(params):
             end_frame = start_frame + n_frames - 1
             data = {"cmd": "push_task", "params": {"task_id": task_id, "start_frame": start_frame, "end_frame": end_frame, "blender_version": blender_version, \
                                                    "is_cpu": is_cpu, "cuda_visible_devices": cuda_visible_devices, "render_settings": render_settings, \
-                                                   "file_cached_dir": file_cached_dir}, "render_file": render_file}
+                                                   "file_cached_dir": file_cached_dir, "is_render": is_render}}
             send_to_task_queue(data)
         else:
             if RENTAFLOP_CONFIG["crypto_config"]["disable_crypto"]:
@@ -520,9 +517,6 @@ def run_flask_server(q):
         request_json = json.loads(request.files.get("json").read())
         cmd = request_json.get("cmd")
         params = request_json.get("params")
-        render_file = request.files.get("render_file")
-        if render_file:
-            params["render_file"] = render_file
         
         func = CMD_TO_FUNC.get(cmd)
         finished = False

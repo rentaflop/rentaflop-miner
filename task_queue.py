@@ -17,7 +17,7 @@ def push_task(params):
     add a task to the queue; could be benchmark or render
     """
     task_id = params.get("task_id")
-    render_file = params.get("render_file")
+    is_render = params.get("is_render")
     # user-edited settings overrides for start and end frame are provided here by backend; render_settings values are not necessarily correct for this task
     start_frame = params.get("start_frame")
     end_frame = params.get("end_frame")
@@ -28,7 +28,6 @@ def push_task(params):
     cuda_visible_devices = "NULL" if not cuda_visible_devices else f'"{cuda_visible_devices}"'
     render_settings = params.get("render_settings", {})
     file_cached_dir = params.get("file_cached_dir")
-    is_render = render_file is not None
     DAEMON_LOGGER.debug(f"Pushing task {task_id}...")
     # prevent duplicate tasks from being created in case of network delays or failures
     with app.app_context():
