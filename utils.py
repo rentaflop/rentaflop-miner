@@ -875,6 +875,7 @@ def _delete_expired_cache(cache_time_limit):
 def _delete_overflowing_cache(cache_size_limit):
     """
     delete oldest modified top level directory if cache has more than cache_size_limit items
+    oldest dir amounts to LRU because doing a blender render changes mtime timestamp value
     if not overflowing, do nothing
     """
     cache_items = []
@@ -899,6 +900,7 @@ def push_cache(file_uuid):
     pushes file with file_uuid into cache
     if it already exists in cache, we simply return False, file_cached_dir
     if it doesn't already exist, we evict oldest dir if cache full (or has expired items), create directory for new file, and return True, file_cached_dir
+    oldest dir amounts to LRU because doing a blender render changes mtime timestamp value
     return (newly_inserted, file_cached_dir)
     """
     os.makedirs(CACHE_DIR, exist_ok=True)
