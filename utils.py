@@ -901,6 +901,7 @@ def push_cache(file_uuid):
     if it doesn't already exist, we evict oldest dir if cache full (or has expired items), create directory for new file, and return True, file_cached_dir
     return (newly_inserted, file_cached_dir)
     """
+    os.makedirs(CACHE_DIR, exist_ok=True)
     cache_time_limit = 7
     cache_size_limit = 12
     if not file_uuid:
