@@ -320,7 +320,14 @@ def mine(params):
                     with io.BytesIO(render_file) as archive:
                         archive.seek(0)
                         with zipfile.ZipFile(archive, mode='r') as zipf:
-                            zipf.extractall(file_cached_dir)
+                            try:
+                                zipf.extractall(file_cached_dir)
+                            except NotImplementedError:
+                                DAEMON_LOGGER.debug("Compression scheme not supported, attempting CLI extraction...")
+                                zip_path = os.path.join(file_cached_dir, "render_file.zip")
+                                with open(zip_path, "wb") as f:
+                                    f.write(render_file)
+                                subprocess.check_output(f"unzip {zip_path} -d {file_cached_dir}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
                 else:
                     with open(os.path.join(file_cached_dir, "render_file.blend"), "wb") as f:
                         f.write(render_file)
