@@ -49,8 +49,13 @@ def push_task(params):
             json.dump(render_settings, f)
 
         blend_files = glob.glob(os.path.join(file_cached_dir, '**', "*.blend*"), recursive=True)
-        # TODO only using first blend found but it may be a good idea to detect all blends at some point
-        render_path = blend_files[0] if blend_files else ""
+        # TODO only using one blend found but it may be a good idea to detect all blends at some point
+        render_path = ""
+        # prefer to use .blend instead of .blend1 if both found
+        for blend_file in blend_files:
+            render_path = blend_file
+            if blend_file.endswith(".blend"):
+                break
             
         uuid_str = uuid.uuid4().hex
         # TODO figure out encryption through use of cache
