@@ -60,6 +60,7 @@ class Task(db.Model):
     blender_version = db.Column(db.String(128))
     is_cpu = db.Column(db.Boolean)
     cuda_visible_devices = db.Column(db.String(64))
+    is_price_calculation = db.Column(db.Boolean)
 
     def __repr__(self):
         return f"<Task {self.task_id} {self.task_dir}>"

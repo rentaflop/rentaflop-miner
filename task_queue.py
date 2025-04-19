@@ -12,6 +12,7 @@ import pymysql
 import json
 import glob
 
+
 def push_task(params):
     """
     add a task to the queue; could be benchmark or render
@@ -28,6 +29,8 @@ def push_task(params):
     cuda_visible_devices = "NULL" if not cuda_visible_devices else f'"{cuda_visible_devices}"'
     render_settings = params.get("render_settings", {})
     file_cached_dir = params.get("file_cached_dir")
+    is_price_calculation = params.get("is_price_calculation")
+    is_price_calculation = 1 if is_price_calculation else 0
     DAEMON_LOGGER.debug(f"Pushing task {task_id}...")
     # prevent duplicate tasks from being created in case of network delays or failures
     with app.app_context():
@@ -41,7 +44,7 @@ def push_task(params):
     os.makedirs(task_dir)
     # create task straight away to add it to queue so we don't restart crypto miner if we have to take a few minutes to process a large render file
     with app.app_context():
-        task = Task(task_dir=task_dir, task_id=task_id)
+        task = Task(task_dir=task_dir, task_id=task_id, is_price_calculation=is_price_calculation)
         db.session.add(task)
         db.session.commit()
     if is_render:
@@ -201,6 +204,74 @@ def _handle_benchmark():
     return True
 
 
+def _compute_seconds(time_str):
+    """
+    turns 00:35.12 like strings into total number of seconds, rounded
+    """
+    parts = time_str.split(':')
+    
+    # MM:SS.xx
+    if len(parts) == 2:
+        minutes, seconds = parts
+        total_seconds = int(minutes) * 60 + float(seconds)
+    # HH:MM:SS.xx
+    else:
+        hours, minutes, seconds = parts
+        total_seconds = int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+
+    return round(total_seconds)
+
+
+def _get_samples_render_metadata(samples_metadata):
+    """
+    return n_samples_rendered, seconds_rendering, seconds_remaining
+    samples_metadata looks like:
+    Fra:0 Mem:184.79M (Peak 184.79M) | Time:00:35.12 | Remaining:04:12.77 | Mem:550.87M, Peak:550.87M | Scene, ViewLayer | Sample 496/4096
+    """
+    n_samples_rendered = int(samples_metadata.split("Sample ")[1].split("/")[0])
+    seconds_rendering = _compute_seconds(samples_metadata.split("Time:")[1].split(" |")[0])
+    seconds_remaining = _compute_seconds(samples_metadata.split("Remaining:")[1].split(" |")[0])
+    
+    return n_samples_rendered, seconds_rendering, seconds_remaining
+
+
+def _handle_pc_partial_frames(task):
+    """
+    check if task has been rendering samples (ie not since render command started but since samples started being calculated) for longer than 5 minute timeout
+    if so, terminate the rendering process so we can report extrapolated frame render time
+    requires that task is a price calculation
+    returns True if we stopped the rendering, False otherwise
+    """
+    # read log file and parse out metadata for samples and time rendered
+    log_path = os.path.join(task.task_dir, "log.txt")
+    # output is first and last render samples lines
+    first_last_samples_metadata = run_shell_cmd(f"grep -E 'Sample [0-9]+/[0-9]+$' {log_path} | sed -e 1b -e '$!d'", quiet=True)
+    if not first_last_samples_metadata or len(first_last_samples_metadata.splitlines()) != 2:
+        return False
+
+    first_samples_metadata, last_samples_metadata = first_last_samples_metadata.splitlines()
+    _, samples_calc_start_seconds, _ = _get_samples_render_metadata(first_samples_metadata)
+    n_samples_rendered, samples_calc_current_seconds, frame_seconds_remaining = _get_samples_render_metadata(last_samples_metadata)
+    seconds_spent_rendering_samples = samples_calc_current_seconds - samples_calc_start_seconds
+
+    # check for 5 minutes of rendering samples (not including Blender loading file, preprocessing, etc); don't stop render if only a minute left
+    pc_samples_calc_timeout = 300
+    if seconds_spent_rendering_samples > pc_samples_calc_timeout and frame_seconds_remaining > 60:
+        # echo to a file the total seconds it would've taken to finish this frame so we can send back to servers
+        start_time = os.path.getmtime(os.path.join(task.task_dir, "started.txt"))
+        start_time = dt.datetime.fromtimestamp(start_time)
+        # must use now instead of utcnow since getmtime is local timestamp on local filesystem timezone
+        current_time = dt.datetime.now()
+        total_frame_seconds = round((current_time - start_time).total_seconds() + frame_seconds_remaining)
+        run_shell_cmd(f"echo {total_frame_seconds} > {task.task_dir}/frame_seconds.txt", quiet=True)
+        # lets the task queue know when the run is finished
+        run_shell_cmd(f"touch {task.task_dir}/finished.txt", quiet=True)
+
+        return True
+
+    return False
+
+
 def update_queue(params={}):
     """
     checks for any finished tasks and sends results back to servers
@@ -216,6 +287,7 @@ def update_queue(params={}):
     task_id = task.task_id
     # check if task finished
     if os.path.exists(os.path.join(task.task_dir, "finished.txt")):
+        # TODO check for existence of frame_seconds.txt and handle partial PC output
         pop_task({"task_id": task_id})
         DAEMON_LOGGER.debug(f"Finished task {task_id}")
         
@@ -237,6 +309,13 @@ def update_queue(params={}):
             
             return update_queue()
 
+        # check for PCs taking too long and stop after partial frame
+        if task.is_price_calculation:
+            stopping_render = _handle_pc_partial_frames(task)
+            # if we should stop the render, call update_queue again immediately so the job finishes faster
+            if stopping_render:
+                return update_queue()
+        
         return
 
     # task_id will be -1 iff benchmark task
