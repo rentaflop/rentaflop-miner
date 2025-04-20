@@ -102,23 +102,36 @@ def run_task(is_png=False):
                          "Error: height not divisible by 2" in log_tail):
             raise subprocess.CalledProcessError(cmd=cmd, returncode=1, output=log_tail)
     except subprocess.CalledProcessError as e:
+        # NOTE: no subprocess error when handling PC partial render timeout, we just go past try-except
         log_tail = run_shell_cmd(f"tail {log_path}", very_quiet=True, format_output=False)
         # manually setting output to log file tail since everything is output to log file
         raise subprocess.CalledProcessError(cmd=e.cmd, returncode=e.returncode, output=log_tail)
-    
-    # successful render if no CalledProcessError, so send result to servers
-    first_frame_time, subsequent_frames_avg = calculate_frame_times(task_dir, start_frame)
-    tgz_path = os.path.join(task_dir, "output.tar.gz")
+
+    # successful render if no CalledProcessError, so send result (usually frames but sometimes partial PC time estimate) to servers
     output = os.path.join(task_dir, "output")
-    old_dir = os.getcwd()
-    os.chdir(task_dir)
-    # zip and send output dir
-    run_shell_cmd(f"tar -czf output.tar.gz output", quiet=True)
-    # check to ensure we're sending a correctly-zipped output to rentaflop servers
-    incorrect_tar_output = run_shell_cmd("tar --compare --file=output.tar.gz", quiet=True)
-    os.chdir(old_dir)
-    if incorrect_tar_output:
-        raise Exception("Output tarball doesn't match output frames!")
+    has_finished_frames = False
+    if os.listdir(output):
+        has_finished_frames = True
+    
+    # if this exists, then we only have partial PC frame output to report; ie there are no finished frames
+    total_frame_seconds = None
+    render_time_file_path = os.path.join(task_dir, "frame_seconds.txt")
+    if os.path.exists(render_time_file_path):
+        with open(render_time_file_path, "r") as f:
+            total_frame_seconds = int(f.read())
+
+    if has_finished_frames:
+        first_frame_time, subsequent_frames_avg = calculate_frame_times(task_dir, start_frame)
+        tgz_path = os.path.join(task_dir, "output.tar.gz")
+        old_dir = os.getcwd()
+        os.chdir(task_dir)
+        # zip and send output dir
+        run_shell_cmd(f"tar -czf output.tar.gz output", quiet=True)
+        # check to ensure we're sending a correctly-zipped output to rentaflop servers
+        incorrect_tar_output = run_shell_cmd("tar --compare --file=output.tar.gz", quiet=True)
+        os.chdir(old_dir)
+        if incorrect_tar_output:
+            raise Exception("Output tarball doesn't match output frames!")
 
     sandbox_id = os.getenv("SANDBOX_ID")
     server_url = "https://api.rentaflop.com/host/output"
@@ -127,16 +140,20 @@ def run_task(is_png=False):
     data = {"task_id": str(task_id), "sandbox_id": str(sandbox_id)}
     response = requests.post(server_url, json=data)
     response_json = response.json()
-    storage_url, fields = response_json["url"], response_json["fields"]
-    # upload output to upload location
-    # using curl instead of python requests because large files get overflowError: string longer than 2147483647 bytes
-    fields_flags = " ".join([f"-F {k}={fields[k]}" for k in fields])
-    run_shell_cmd(f"curl -X POST {fields_flags} -F file=@{tgz_path} {storage_url}", quiet=True)
+    if has_finished_frames:
+        storage_url, fields = response_json["url"], response_json["fields"]
+        # upload output to upload location
+        # using curl instead of python requests because large files get overflowError: string longer than 2147483647 bytes
+        fields_flags = " ".join([f"-F {k}={fields[k]}" for k in fields])
+        run_shell_cmd(f"curl -X POST {fields_flags} -F file=@{tgz_path} {storage_url}", quiet=True)
 
     # confirm upload
     data["confirm"] = True
-    data["first_frame_time"] = first_frame_time
-    data["subsequent_frames_avg"] = subsequent_frames_avg
+    if has_finished_frames:
+        data["first_frame_time"] = first_frame_time
+        data["subsequent_frames_avg"] = subsequent_frames_avg
+    if total_frame_seconds is not None:
+        data["total_frame_seconds"] = total_frame_seconds
     if is_eevee:
         data["is_eevee"] = True
     requests.post(server_url, json=data)

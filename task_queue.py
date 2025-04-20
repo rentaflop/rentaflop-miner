@@ -264,8 +264,9 @@ def _handle_pc_partial_frames(task):
         current_time = dt.datetime.now()
         total_frame_seconds = round((current_time - start_time).total_seconds() + frame_seconds_remaining)
         run_shell_cmd(f"echo {total_frame_seconds} > {task.task_dir}/frame_seconds.txt", quiet=True)
-        # lets the task queue know when the run is finished
-        run_shell_cmd(f"touch {task.task_dir}/finished.txt", quiet=True)
+        DAEMON_LOGGER.info(f"Price calculation timeout exceeded, finishing task {task.task_id}...")
+        # stops the blender process to trigger task output and cleanup
+        run_shell_cmd("pkill -f blender")
 
         return True
 
