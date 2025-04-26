@@ -102,12 +102,13 @@ def run_task(is_png=False):
                          "Error: height not divisible by 2" in log_tail):
             raise subprocess.CalledProcessError(cmd=cmd, returncode=1, output=log_tail)
     except subprocess.CalledProcessError as e:
-        # NOTE: no subprocess error when handling PC partial render timeout, we just go past try-except
-        log_tail = run_shell_cmd(f"tail {log_path}", very_quiet=True, format_output=False)
-        # manually setting output to log file tail since everything is output to log file
-        raise subprocess.CalledProcessError(cmd=e.cmd, returncode=e.returncode, output=log_tail)
+        # if process died with code 15, that means we preempted it with pkill for PC partial render timeout, so we do nothing
+        if e.returncode != -15:
+            log_tail = run_shell_cmd(f"tail {log_path}", very_quiet=True, format_output=False)
+            # manually setting output to log file tail since everything is output to log file
+            raise subprocess.CalledProcessError(cmd=e.cmd, returncode=e.returncode, output=log_tail)
 
-    # successful render if no CalledProcessError, so send result (usually frames but sometimes partial PC time estimate) to servers
+    # successful render, so send result (usually frames but sometimes partial PC time estimate) to servers
     output = os.path.join(task_dir, "output")
     has_finished_frames = False
     if os.listdir(output):
@@ -169,7 +170,7 @@ def main():
         try:
             run_task(is_png=try_with_png)
         except subprocess.CalledProcessError as e:
-            DAEMON_LOGGER.error(f"Task execution command failed: {e}")
+            DAEMON_LOGGER.error(f"Task execution command failed: Return code={e.returncode} {e}")
             DAEMON_LOGGER.error(f"Task execution command output: {e.output}")
             if e.output and ("Out of memory in CUDA queue enqueue" in e.output or "System is out of GPU memory" in e.output or \
                              "Invalid value in cuMemcpy2DUnaligned_v2" in e.output):
