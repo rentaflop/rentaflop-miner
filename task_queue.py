@@ -312,10 +312,7 @@ def update_queue(params={}):
 
         # check for PCs taking too long and stop after partial frame
         if task.is_price_calculation:
-            stopping_render = _handle_pc_partial_frames(task)
-            # if we should stop the render, call update_queue again immediately so the job finishes faster
-            if stopping_render:
-                return update_queue()
+            _handle_pc_partial_frames(task)
         
         return
 
