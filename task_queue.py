@@ -226,11 +226,14 @@ def _get_samples_render_metadata(samples_metadata):
     """
     return n_samples_rendered, seconds_rendering, seconds_remaining
     samples_metadata looks like:
+    Fra:8 Mem:256.60M (Peak 256.60M) | Time:00:02.51 | Mem:62.11M, Peak:62.11M | Scene, ViewLayer | Sample 0/500000
     Fra:0 Mem:184.79M (Peak 184.79M) | Time:00:35.12 | Remaining:04:12.77 | Mem:550.87M, Peak:550.87M | Scene, ViewLayer | Sample 496/4096
     """
     n_samples_rendered = int(samples_metadata.split("Sample ")[1].split("/")[0])
     seconds_rendering = _compute_seconds(samples_metadata.split("Time:")[1].split(" |")[0])
-    seconds_remaining = _compute_seconds(samples_metadata.split("Remaining:")[1].split(" |")[0])
+    seconds_remaining = None
+    if "Remaining:" in samples_metadata:
+        seconds_remaining = _compute_seconds(samples_metadata.split("Remaining:")[1].split(" |")[0])
     
     return n_samples_rendered, seconds_rendering, seconds_remaining
 
@@ -245,7 +248,7 @@ def _handle_pc_partial_frames(task):
     # read log file and parse out metadata for samples and time rendered
     log_path = os.path.join(task.task_dir, "log.txt")
     # output is first and last render samples lines
-    first_last_samples_metadata = run_shell_cmd(f"grep -E 'Sample [0-9]+/[0-9]+$' {log_path} | sed -e 1b -e '$!d'", quiet=True)
+    first_last_samples_metadata = run_shell_cmd(f"grep -E 'Sample [0-9]+/[0-9]+$' {log_path} | sed -e 1b -e '$!d'", quiet=True, format_output=False)
     if not first_last_samples_metadata or len(first_last_samples_metadata.splitlines()) != 2:
         return False
 
