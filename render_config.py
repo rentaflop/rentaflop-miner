@@ -6,8 +6,11 @@ these are strictly settings that'd be set in the file itself and not provided in
 import bpy
 import json
 import os
-from config import CACHE_DIR
 import sys
+
+
+# can't import from other files located in rentaflop-miner directory
+CACHE_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "render_file_cache")
 
 
 def modify_settings_with_overrides():
