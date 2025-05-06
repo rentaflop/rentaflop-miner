@@ -183,9 +183,18 @@ def main():
 
             # if loop isn't being run again, we send error message back to rentaflop
             if (not try_with_png) or i == (max_tries - 1):
-                max_msg_len = 128
+                max_msg_len = 256
                 # grab last max_msg_len characters from error message
-                msg = e.output[-1 * max_msg_len:] if e.output else ""
+                msg = ""
+                if e.output:
+                    msg = e.output
+                    # remove unhelpful parts of error message
+                    filter_msgs = ["Parent is shutting down, bye...", "shutting down the child process...", "The new log directory is"]
+                    for filter_msg in filter_msgs:
+                        msg = msg.split(filter_msg)[0]
+
+                    msg = msg[-1 * max_msg_len:]
+
                 if msg:
                     data = {"rentaflop_id": get_rentaflop_id(), "message": {"task_id": str(task_id), "type": "error", "message": msg}}
                     post_to_rentaflop(data, "daemon", quiet=False)
