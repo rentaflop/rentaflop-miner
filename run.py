@@ -122,7 +122,7 @@ def run_task(is_png=False):
             total_frame_seconds = int(f.read())
 
     if has_finished_frames:
-        first_frame_time, subsequent_frames_avg = calculate_frame_times(task_dir, start_frame)
+        first_frame_time, subsequent_frames_avg = calculate_frame_times(task_dir, start_frame, n_frames_rendered=(end_frame - start_frame + 1))
         tgz_path = os.path.join(task_dir, "output.tar.gz")
         old_dir = os.getcwd()
         os.chdir(task_dir)

@@ -766,6 +766,7 @@ def pull_latest_code():
 def get_last_frame_completed(task_dir, start_frame):
     """
     return last frame number completed, None if 0 frames completed
+    NOTE: this often returns None or one frame less than number actually completed
     """
     log_path = os.path.join(task_dir, "log.txt")
     output = run_shell_cmd(f"tail -100 {log_path} | grep -e 'Fra:'", very_quiet=True, format_output=False)
@@ -785,7 +786,7 @@ def get_last_frame_completed(task_dir, start_frame):
     return frame_in_progress - 1
 
 
-def calculate_frame_times(task_dir, start_frame):
+def calculate_frame_times(task_dir, start_frame, n_frames_rendered=None):
     """
     calculate total time in minutes spent rendering frames, not including preprocessing
     requires started_render.txt to exist plus frames are still present
@@ -808,7 +809,12 @@ def calculate_frame_times(task_dir, start_frame):
         _, file_ext = os.path.splitext(list_of_files[0])
         # if it is indeed a video file, we have to use logs to determine frame finish times
         if file_ext.lower() in VIDEO_FORMATS:
-            last_frame_completed = get_last_frame_completed(task_dir, start_frame)
+            # don't use log check of last_frame_completed when n_frames_rendered is provided because log check is often off by 1
+            if n_frames_rendered:
+                last_frame_completed = start_frame + n_frames_rendered - 1
+            else:
+                last_frame_completed = get_last_frame_completed(task_dir, start_frame)
+
             # since it's hard to get exact frame time completion from logs, we assume last frame just finished and set first and subsequent time equal
             if last_frame_completed is not None:
                 now = dt.datetime.now()
