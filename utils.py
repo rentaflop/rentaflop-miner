@@ -821,9 +821,7 @@ def calculate_frame_times(task_dir, start_frame, n_frames_rendered=None):
                 n_frames_rendered = last_frame_completed - start_frame + 1
                 render_duration = now - render_start_time
                 render_time = render_duration.total_seconds()/60.0
-                # since we aren't measuring frame time precisely here, we reduce the estimate via a multiplier < 1
-                video_estimate_multiplier = 0.67
-                subsequent_frames_avg = video_estimate_multiplier * render_time / n_frames_rendered
+                subsequent_frames_avg = render_time / n_frames_rendered
                 first_frame_time = subsequent_frames_avg
                 
                 return first_frame_time, subsequent_frames_avg
