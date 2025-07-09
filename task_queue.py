@@ -51,6 +51,7 @@ def push_task(params):
         with open(f"{task_dir}/render_settings.json", "w") as f:
             json.dump(render_settings, f)
 
+        # NOTE: duplicated in run.py
         blend_files = glob.glob(os.path.join(file_cached_dir, '**', "*.blend*"), recursive=True)
         # TODO only using one blend found but it may be a good idea to detect all blends at some point
         render_path = ""

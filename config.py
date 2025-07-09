@@ -6,6 +6,7 @@ import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 import uuid
+import sys
 
 
 def _get_logger(log_file):
@@ -13,7 +14,7 @@ def _get_logger(log_file):
     modules use this to create/retrieve and configure how logging works for their specific module
     """
     module_logger = logging.getLogger("daemon.log")
-    handler = logging.FileHandler(log_file)
+    handler = logging.StreamHandler(sys.stdout) if IS_CLOUD_HOST else logging.FileHandler(log_file)
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(logging.Formatter("%(filename)s:%(lineno)d %(levelname)s %(asctime)s - %(message)s"))
     module_logger.addHandler(handler)
@@ -29,6 +30,9 @@ FIRST_STARTUP = not os.path.exists(LOG_FILE)
 DAEMON_LOGGER = _get_logger(LOG_FILE)
 # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
 DAEMON_PORT = 46443
+# env vars for when cloud hosts run
+IS_CLOUD_HOST = os.getenv("IS_CLOUD_HOST", "0") == "1"
+FILENAME = os.getenv("FILENAME", "")
 
 
 class Config(object):

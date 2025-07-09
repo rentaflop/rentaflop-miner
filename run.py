@@ -3,16 +3,28 @@ runs render task
 usage:
     # task_dir is directory containing render file for task
     python3 run.py task_dir main_file_path start_frame end_frame uuid_str blender_version is_cpu cuda_visible_devices
+    # running with IS_CLOUD_HOST=1, extracts params from env vars
+    python3 run.py
 """
 import sys
 import os
 import requests
 import json
-from config import DAEMON_LOGGER
+from config import DAEMON_LOGGER, IS_CLOUD_HOST, FILENAME
 import subprocess
 from utils import run_shell_cmd, calculate_frame_times, post_to_rentaflop, get_rentaflop_id
 import glob
 import traceback
+import boto3
+"""
+defines db tables
+"""
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+
+
+if IS_CLOUD_HOST:
+    S3_CLIENT = boto3.client("s3", region_name="us-east-1")
 
 
 def check_blender(target_version):
@@ -50,6 +62,8 @@ def run_task(is_png=False):
     """
     run rendering task
     """
+    # TODO get these from env vars for cloud hosts
+    # TODO save settings for cloud hosts
     task_dir = sys.argv[1]
     render_path = sys.argv[2]
     start_frame = int(sys.argv[3])
@@ -65,9 +79,29 @@ def run_task(is_png=False):
     os.makedirs(output_path, exist_ok=True)
     os.makedirs(blender_path, exist_ok=True)
     run_shell_cmd(f"touch {task_dir}/started.txt", quiet=True)
-    check_blender(blender_version)
+    if not IS_CLOUD_HOST:
+        check_blender(blender_version)
     run_shell_cmd(f"tar -xf blender-{blender_version}.tar.xz -C {blender_path} --strip-components 1", quiet=True)
-    render_name, render_extension = os.path.splitext(render_path)
+    if IS_CLOUD_HOST:
+        input_path = os.path.join(task_dir, "input/")
+        os.makedirs(input_path, exist_ok=True)
+        extension = os.path.splitext(FILENAME)[1] if FILENAME else None
+        is_zip = True if extension in [".zip"] else False
+        saved_name = "render_file.zip" if is_zip else "render_file.blend"
+        saved_path = os.path.join(input_path, saved_name)
+        S3_CLIENT.download_file("rentaflop-render-uploads", FILENAME, saved_path)
+        render_path = blend_path
+        if is_zip:
+            subprocess.check_output(f"unzip {saved_path} -d {input_path}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+            # NOTE: duplicated in task_queue.py
+            blend_files = glob.glob(os.path.join(input_path, '**', "*.blend*"), recursive=True)
+            # prefer to use .blend instead of .blend1 if both found
+            for blend_file in blend_files:
+                render_path = blend_file
+                if blend_file.endswith(".blend"):
+                    break
+
+    # render_name, render_extension = os.path.splitext(render_path)
     # render_path2 = render_name + "2" + render_extension
     # de_script = f""" "import os; os.system('''gpg --passphrase {uuid_str} --batch --no-tty -d '{render_path}' > '{render_path2}' ''')" """
     # reformats videos to PNG
@@ -134,36 +168,68 @@ def run_task(is_png=False):
         if incorrect_tar_output:
             raise Exception("Output tarball doesn't match output frames!")
 
-    sandbox_id = os.getenv("SANDBOX_ID")
-    server_url = "https://api.rentaflop.com/host/output"
     task_id = os.path.basename(task_dir)
-    # first request to get upload location
-    data = {"task_id": str(task_id), "sandbox_id": str(sandbox_id)}
-    response = requests.post(server_url, json=data)
-    response_json = response.json()
-    if has_finished_frames:
-        storage_url, fields = response_json["url"], response_json["fields"]
-        # upload output to upload location
-        # using curl instead of python requests because large files get overflowError: string longer than 2147483647 bytes
-        fields_flags = " ".join([f"-F {k}={fields[k]}" for k in fields])
-        # TODO check for errors like "could not resolve host" and retry a couple times
-        run_shell_cmd(f"curl -X POST {fields_flags} -F file=@{tgz_path} {storage_url}", quiet=True)
+    if IS_CLOUD_HOST:
+        if has_finished_frames:
+            # TODO get job_id from task object
+            job_id = os.getenv("JOB_ID")
+            S3_CLIENT.upload_file(tgz_path, "rentaflop-render-output", f"{job_id}/{task_id}.tar.gz")
 
-    # confirm upload
-    data["confirm"] = True
-    if has_finished_frames:
-        data["first_frame_time"] = first_frame_time
-        data["subsequent_frames_avg"] = subsequent_frames_avg
-    if total_frame_seconds is not None:
-        data["total_frame_seconds"] = total_frame_seconds
-    if is_eevee:
-        data["is_eevee"] = True
-    requests.post(server_url, json=data)
+        # TODO set db task attributes here
+    else:
+        sandbox_id = os.getenv("SANDBOX_ID")
+        server_url = "https://api.rentaflop.com/host/output"
+        # first request to get upload location
+        data = {"task_id": str(task_id), "sandbox_id": str(sandbox_id)}
+        response = requests.post(server_url, json=data)
+        response_json = response.json()
+        if has_finished_frames:
+            storage_url, fields = response_json["url"], response_json["fields"]
+            # upload output to upload location
+            # using curl instead of python requests because large files get overflowError: string longer than 2147483647 bytes
+            fields_flags = " ".join([f"-F {k}={fields[k]}" for k in fields])
+            # TODO check for errors like "could not resolve host" and retry a couple times
+            run_shell_cmd(f"curl -X POST {fields_flags} -F file=@{tgz_path} {storage_url}", quiet=True)
+
+        # confirm upload
+        data["confirm"] = True
+        if has_finished_frames:
+            data["first_frame_time"] = first_frame_time
+            data["subsequent_frames_avg"] = subsequent_frames_avg
+        if total_frame_seconds is not None:
+            data["total_frame_seconds"] = total_frame_seconds
+        if is_eevee:
+            data["is_eevee"] = True
+        requests.post(server_url, json=data)
 
 
 def main():
-    task_dir = sys.argv[1]
-    task_id = os.path.basename(task_dir)
+    if IS_CLOUD_HOST:
+        database_url = os.getenv("database_url")
+        task_id = os.getenv("task_id")
+        tasks_path = "tasks"
+        os.makedirs(tasks_path, exist_ok=True)
+        task_dir = os.path.join(tasks_path, str(task_id))
+        os.makedirs(task_dir)
+        # init flask sqlalchemy orm
+        app = Flask(__name__)
+        class Config(object):
+            SQLALCHEMY_DATABASE_URI = database_url
+            SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+        app.config.from_object(Config)
+        with app.app_context():
+            db = SQLAlchemy(app)
+            db.metadata.reflect(bind=db.engine)
+            # NOTE: separate from miner host Task table; this one connects to backend db from cloud host
+            class Task(db.Model):
+                __table__ = db.Model.metadata.tables["task"]
+            class Settings(db.Model):
+                __table__ = db.Model.metadata.tables["settings"]
+    else:
+        task_dir = sys.argv[1]
+        task_id = os.path.basename(task_dir)
+    
     try_with_png = False
     max_tries = 2
     for i in range(max_tries):
@@ -196,8 +262,11 @@ def main():
                     msg = msg[-1 * max_msg_len:]
 
                 if msg:
-                    data = {"rentaflop_id": get_rentaflop_id(), "message": {"task_id": str(task_id), "type": "error", "message": msg}}
-                    post_to_rentaflop(data, "daemon", quiet=False)
+                    if not IS_CLOUD_HOST:
+                        data = {"rentaflop_id": get_rentaflop_id(), "message": {"task_id": str(task_id), "type": "error", "message": msg}}
+                        post_to_rentaflop(data, "daemon", quiet=False)
+                    else:
+                        # TODO set task error message
         except:
             # catch all for logging misc errors that slipped through
             error = traceback.format_exc()
