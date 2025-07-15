@@ -40,4 +40,4 @@ COPY . /app
 COPY --from=blender-downloader /downloads/*.tar.xz /app/
 
 # Default to running as ECS task
-CMD ["python3", "run.py"]
+CMD ["python3", "cloud_native_host.py"]

@@ -10,6 +10,7 @@ import sys
 
 
 # can't import from other files located in rentaflop-miner directory
+IS_CLOUD_HOST = os.getenv("IS_CLOUD_HOST", "0") == "1"
 CACHE_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "render_file_cache")
 
 
@@ -231,12 +232,19 @@ def modify_missing_found_elsewhere():
     if found, sets blender filepath to the new path
     NOTE: partially duplicated in blender scanner fargate
     """
-    current_path = bpy.data.filepath
     zip_path = None
-    # find where user files/dirs are in cache
-    while current_path and current_path != "/" and current_path != CACHE_DIR:
-        zip_path = current_path
-        current_path = os.path.dirname(current_path)
+    if IS_CLOUD_HOST:
+        # get all args after "--", which allows us to ignore blender command args and only use args for this script
+        argv = sys.argv
+        argv = argv[argv.index("--") + 1:]
+        task_dir = argv[0]
+        zip_path = os.path.join(task_dir, "input/")
+    else:
+        current_path = bpy.data.filepath
+        # find where user files/dirs are in cache
+        while current_path and current_path != "/" and current_path != CACHE_DIR:
+            zip_path = current_path
+            current_path = os.path.dirname(current_path)
     
     missing_files, missing_caches = _get_missing()
     found_missing_file_names_to_paths, found_missing_cache_names_to_paths = _get_found_elsewhere(missing_files, missing_caches, zip_path)

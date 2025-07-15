@@ -922,3 +922,75 @@ def push_cache(file_uuid):
         _delete_overflowing_cache(cache_size_limit)
     
     return newly_inserted, file_cached_dir
+
+
+def _compute_seconds(time_str):
+    """
+    turns 00:35.12 like strings into total number of seconds, rounded
+    """
+    parts = time_str.split(':')
+    
+    # MM:SS.xx
+    if len(parts) == 2:
+        minutes, seconds = parts
+        total_seconds = int(minutes) * 60 + float(seconds)
+    # HH:MM:SS.xx
+    else:
+        hours, minutes, seconds = parts
+        total_seconds = int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+
+    return round(total_seconds)
+
+
+def _get_samples_render_metadata(samples_metadata):
+    """
+    return n_samples_rendered, seconds_rendering, seconds_remaining
+    samples_metadata looks like:
+    Fra:8 Mem:256.60M (Peak 256.60M) | Time:00:02.51 | Mem:62.11M, Peak:62.11M | Scene, ViewLayer | Sample 0/500000
+    Fra:0 Mem:184.79M (Peak 184.79M) | Time:00:35.12 | Remaining:04:12.77 | Mem:550.87M, Peak:550.87M | Scene, ViewLayer | Sample 496/4096
+    """
+    n_samples_rendered = int(samples_metadata.split("Sample ")[1].split("/")[0])
+    seconds_rendering = _compute_seconds(samples_metadata.split("Time:")[1].split(" |")[0])
+    seconds_remaining = None
+    if "Remaining:" in samples_metadata:
+        seconds_remaining = _compute_seconds(samples_metadata.split("Remaining:")[1].split(" |")[0])
+    
+    return n_samples_rendered, seconds_rendering, seconds_remaining
+
+
+def handle_pc_partial_frames(task_id, task_dir):
+    """
+    check if task has been rendering samples (ie not since render command started but since samples started being calculated) for longer than 5 minute timeout
+    if so, terminate the rendering process so we can report extrapolated frame render time
+    requires that task is a price calculation
+    returns True if we stopped the rendering, False otherwise
+    """
+    # read log file and parse out metadata for samples and time rendered
+    log_path = os.path.join(task_dir, "log.txt")
+    # output is first and last render samples lines
+    first_last_samples_metadata = run_shell_cmd(f"grep -E 'Sample [0-9]+/[0-9]+$' {log_path} | sed -e 1b -e '$!d'", quiet=True, format_output=False)
+    if not first_last_samples_metadata or len(first_last_samples_metadata.splitlines()) != 2:
+        return False
+
+    first_samples_metadata, last_samples_metadata = first_last_samples_metadata.splitlines()
+    _, samples_calc_start_seconds, _ = _get_samples_render_metadata(first_samples_metadata)
+    n_samples_rendered, samples_calc_current_seconds, frame_seconds_remaining = _get_samples_render_metadata(last_samples_metadata)
+    seconds_spent_rendering_samples = samples_calc_current_seconds - samples_calc_start_seconds
+
+    # check for 5 minutes of rendering samples (not including Blender loading file, preprocessing, etc); don't stop render if only a minute left
+    pc_samples_calc_timeout = 300
+    if seconds_spent_rendering_samples > pc_samples_calc_timeout and frame_seconds_remaining > 60:
+        # echo to a file the total seconds it would've taken to finish this frame so we can send back to servers
+        start_time = os.path.getmtime(os.path.join(task_dir, "started.txt"))
+        start_time = dt.datetime.fromtimestamp(start_time)
+        # must use now instead of utcnow since getmtime is local timestamp on local filesystem timezone
+        current_time = dt.datetime.now()
+        total_frame_seconds = round((current_time - start_time).total_seconds() + frame_seconds_remaining)
+        run_shell_cmd(f"echo {total_frame_seconds} > {task_dir}/frame_seconds.txt", quiet=True)
+        DAEMON_LOGGER.info(f"Price calculation timeout exceeded, finishing task {task_id}...")
+        # stops the blender process to trigger task output and cleanup
+        run_shell_cmd("pkill -f blender")
+
+        return True
+
+    return False

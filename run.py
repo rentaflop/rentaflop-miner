@@ -16,6 +16,7 @@ from utils import run_shell_cmd, calculate_frame_times, post_to_rentaflop, get_r
 import glob
 import traceback
 import boto3
+import datetime as dt
 """
 defines db tables
 """
@@ -25,6 +26,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 if IS_CLOUD_HOST:
     S3_CLIENT = boto3.client("s3", region_name="us-east-1")
+    LAMBDA_CLIENT = boto3.client("lambda", region_name="us-east-1")
 
 
 def check_blender(target_version):
@@ -58,28 +60,37 @@ def check_blender(target_version):
     run_shell_cmd(f"rm -rf {lru_version}")
 
 
-def run_task(is_png=False):
+def run_task(is_png=False, task_dir=None, app=None, task=None):
     """
     run rendering task
     """
-    # TODO get these from env vars for cloud hosts
-    # TODO save settings for cloud hosts
-    task_dir = sys.argv[1]
-    render_path = sys.argv[2]
-    start_frame = int(sys.argv[3])
-    end_frame = int(sys.argv[4])
-    uuid_str = sys.argv[5]
-    blender_version = sys.argv[6]
-    is_cpu = sys.argv[7].lower() == "true"
-    cuda_visible_devices = sys.argv[8]
-    if cuda_visible_devices.lower() == "none":
+    if IS_CLOUD_HOST:
+        start_frame = task.start_frame
+        end_frame = start_frame + task.n_frames - 1
+        blender_version = os.getenv("blender_version")
+        is_cpu = True
         cuda_visible_devices = None
+    else:
+        task_dir = sys.argv[1]
+        render_path = sys.argv[2]
+        start_frame = int(sys.argv[3])
+        end_frame = int(sys.argv[4])
+        uuid_str = sys.argv[5]
+        blender_version = sys.argv[6]
+        is_cpu = sys.argv[7].lower() == "true"
+        cuda_visible_devices = sys.argv[8]
+        if cuda_visible_devices.lower() == "none":
+            cuda_visible_devices = None
     output_path = os.path.join(task_dir, "output/")
     blender_path = os.path.join(task_dir, "blender/")
     os.makedirs(output_path, exist_ok=True)
     os.makedirs(blender_path, exist_ok=True)
     run_shell_cmd(f"touch {task_dir}/started.txt", quiet=True)
-    if not IS_CLOUD_HOST:
+    if IS_CLOUD_HOST:
+        task.status = "started"
+        task.start_time = dt.datetime.utcnow()
+        db.session.commit()
+    else:
         check_blender(blender_version)
     run_shell_cmd(f"tar -xf blender-{blender_version}.tar.xz -C {blender_path} --strip-components 1", quiet=True)
     if IS_CLOUD_HOST:
@@ -160,7 +171,7 @@ def run_task(is_png=False):
         tgz_path = os.path.join(task_dir, "output.tar.gz")
         old_dir = os.getcwd()
         os.chdir(task_dir)
-        # zip and send output dir
+        # zip and check output dir
         run_shell_cmd(f"tar -czf output.tar.gz output", quiet=True)
         # check to ensure we're sending a correctly-zipped output to rentaflop servers
         incorrect_tar_output = run_shell_cmd("tar --compare --file=output.tar.gz", quiet=True)
@@ -171,11 +182,24 @@ def run_task(is_png=False):
     task_id = os.path.basename(task_dir)
     if IS_CLOUD_HOST:
         if has_finished_frames:
-            # TODO get job_id from task object
-            job_id = os.getenv("JOB_ID")
+            job_id = task.job_id
+            # automatically retries 3 times with exponential backoff
             S3_CLIENT.upload_file(tgz_path, "rentaflop-render-output", f"{job_id}/{task_id}.tar.gz")
+            # set db task attributes following host_output.py
+            task.status = "stopped"
+            task.stop_time = dt.datetime.utcnow()
+            task.first_frame_time = first_frame_time if has_finished_frames else 1.0
+            task.subsequent_frames_avg = subsequent_frames_avg if has_finished_frames else 1.0
+        
+        if total_frame_seconds is not None:
+            task.total_frame_seconds = total_frame_seconds
 
-        # TODO set db task attributes here
+        db.session.commit()
+        # trigger job queue to check if this job finished
+        payload = {"cmd": "check_finished", "params": {"task_id": task.id, "is_eevee": is_eevee}}
+        LAMBDA_CLIENT.invoke(FunctionName="job-queue", InvocationType="Event", Payload=json.dumps(payload))
+        # exits whole container task, not just subprocess
+        os._exit(0)
     else:
         sandbox_id = os.getenv("SANDBOX_ID")
         server_url = "https://api.rentaflop.com/host/output"
@@ -203,7 +227,94 @@ def run_task(is_png=False):
         requests.post(server_url, json=data)
 
 
+def get_scanned_settings(name, filename, job_id, Settings):
+    """
+    check file upload scans in db for existence of completed scan for filename
+    if job_id set, then we return settings this job is using otherwise return the original upload settings
+    return scan json settings or None if scan does not exist (not finished or failed)
+    NOTE: duplicated in backend utils.py
+    """
+    # NOTE: when changed, update config.py, blender_scanner.py, job_queue.py, and add latest version to scanner Dockerfile
+    to_return = {"selected_version": "4.4.0", "tier": "pro", "frame_step": 1}
+    settings = Settings.query.filter_by(job_id=job_id).first()
+    # settings weren't parsed yet so we do nothing
+    if not settings:
+        return to_return
+    
+    settings = json.loads(settings.original_settings)
+    # clean settings up for frontend
+    to_return = {
+        "name": name,
+        "scene": settings.get("scene"),
+        "version": settings.get("version", "0.0.0"),
+        # NOTE: when changed, update config.py, blender_scanner.py, and add latest version to scanner Dockerfile
+        "selected_version": settings.get("selected_version", "4.4.0"),
+        "tier": settings.get("tier", "pro"),
+        "start_frame": settings.get("start_frame"),
+        "end_frame": settings.get("end_frame"),
+        "frame_step": settings.get("frame_step"),
+        "n_frames": settings.get("n_frames"),
+        "engine": settings.get("engine"),
+        "output_file_format": settings.get("output_file_format"),
+        "resolution_percentage": settings.get("resolution_percentage"),
+        "resolution_x": settings.get("resolution_x"),
+        "resolution_y": settings.get("resolution_y"),
+        "cameras": settings.get("cameras") if "cameras" in settings else [],
+        "selected_camera": settings.get("selected_camera"),
+        "has_camera": settings.get("has_camera"),
+        "pixel_samples": settings.get("pixel_samples"),
+        "use_motion_blur": settings.get("use_motion_blur"),
+        "use_compositing": settings.get("use_compositing"),
+        "use_sequencer": settings.get("use_sequencer"),
+        "use_stamp_note": settings.get("use_stamp_note"),
+        "stamp_note": settings.get("stamp_note"),
+        "use_noise_threshold": settings.get("use_noise_threshold"),
+        "noise_threshold": settings.get("noise_threshold"),
+        "simulations": settings.get("simulations"),
+        "errors": [],
+        "error_resolutions": [],
+        "warnings": [],
+        "warning_resolutions": [],
+        "upload_id": upload.id
+    }
+    # NOTE: partial duplicate in views.py, we have this one in case there was a default version (ie set-settings not used) different than the original upload
+    # ensure eevee name matches blender version; UI always uses BLENDER_EEVEE but it needs to be BLENDER_EEVEE_NEXT if version 4.2
+    maj_min_version = float(".".join(settings.get("selected_version", "0.0.0").split(".")[:-1]))
+    if to_return["engine"] == "BLENDER_EEVEE" and maj_min_version >= 4.2:
+        to_return["engine"] = "BLENDER_EEVEE_NEXT"
+
+    # error checking
+    # if settings already populated with errors, then these came from the scanner itself
+    to_return["errors"] = settings.get("errors", [])
+    to_return["error_resolutions"] = settings.get("error_resolutions", [])
+    if not to_return["errors"] and not settings.get("has_camera"):
+        to_return["errors"].append("No scene camera found!")
+        to_return["error_resolutions"].append("Please add a camera and re-upload your project.")
+
+    # warning checking
+    missing_files = settings.get("missing_files")
+    if missing_files:
+        missing_file_strs = [f"Name: {os.path.basename(missing_file)}\nFile path: {missing_file}" for missing_file in missing_files]
+        warning_str = "The following missing files were found:\n" + "\n".join(missing_file_strs)
+        warning_resolution_str = "If these textures and assets are needed for your render, please make sure to pack them into your file or create a zip."
+        to_return["warnings"].append(warning_str)
+        to_return["warning_resolutions"].append(warning_resolution_str)
+
+    missing_caches = settings.get("missing_caches")
+    if missing_caches:
+        missing_cache_strs = [f"Name: {os.path.basename(missing_cache)}\nFolder path: {missing_cache}" for missing_cache in missing_caches]
+        warning_str = "The following missing simulation caches were found:\n" + "\n".join(missing_cache_strs)
+        warning_resolution_str = "Please make sure to bake your simulations and zip your animation file along with its cache folders."
+        to_return["warnings"].append(warning_str)
+        to_return["warning_resolutions"].append(warning_resolution_str)
+
+    return to_return
+
+
 def main():
+    task = None
+    app = None
+    db = None
     if IS_CLOUD_HOST:
         database_url = os.getenv("database_url")
         task_id = os.getenv("task_id")
@@ -226,6 +337,17 @@ def main():
                 __table__ = db.Model.metadata.tables["task"]
             class Settings(db.Model):
                 __table__ = db.Model.metadata.tables["settings"]
+
+            # get task and settings objects
+            task = Task.query.filter_by(id=task_id).first()
+            task.status = "queued"
+            db.session.commit()
+            name = "-".join(FILENAME.split("-")[1:])
+            render_settings = get_scanned_settings(name, FILENAME, task.job_id, Settings)
+            # save settings to task_dir/render_settings.json
+            settings_path = os.path.join(task_dir, "render_settings.json")
+            with open(settings_path, "w") as f:
+                json.dump(render_settings, f)
     else:
         task_dir = sys.argv[1]
         task_id = os.path.basename(task_dir)
@@ -234,7 +356,11 @@ def main():
     max_tries = 2
     for i in range(max_tries):
         try:
-            run_task(is_png=try_with_png)
+            if IS_CLOUD_HOST:
+                with app.app_context():
+                    run_task(is_png=try_with_png, task_dir=task_dir, app=app, task=task)
+            else:
+                run_task(is_png=try_with_png, task_dir=task_dir, app=app, task=task)
         except subprocess.CalledProcessError as e:
             DAEMON_LOGGER.error(f"Task execution command failed: Return code={e.returncode} {e}")
             DAEMON_LOGGER.error(f"Task execution command output: {e.output}")
@@ -265,8 +391,16 @@ def main():
                     if not IS_CLOUD_HOST:
                         data = {"rentaflop_id": get_rentaflop_id(), "message": {"task_id": str(task_id), "type": "error", "message": msg}}
                         post_to_rentaflop(data, "daemon", quiet=False)
-                    else:
-                        # TODO set task error message
+
+                if IS_CLOUD_HOST:
+                    # set task error message
+                    task.error = msg
+                    # task failed
+                    task.status = "failed"
+                    task.stop_time = dt.datetime.utcnow()
+                    db.session.commit()
+                    # exits whole container task, not just subprocess
+                    os._exit(0)
         except:
             # catch all for logging misc errors that slipped through
             error = traceback.format_exc()
