@@ -89,6 +89,7 @@ def run_task(is_png=False, task_dir=None, app=None, task=None):
     if IS_CLOUD_HOST:
         task.status = "started"
         task.start_time = dt.datetime.utcnow()
+        # must commit before any long-running commands are executed otherwise db connection will reset and we'll lose changes
         db.session.commit()
     else:
         check_blender(blender_version)
@@ -393,12 +394,13 @@ def main():
                         post_to_rentaflop(data, "daemon", quiet=False)
 
                 if IS_CLOUD_HOST:
-                    # set task error message
-                    task.error = msg
-                    # task failed
-                    task.status = "failed"
-                    task.stop_time = dt.datetime.utcnow()
-                    db.session.commit()
+                    with app.app_context():
+                        # set task error message
+                        task.error = msg
+                        # task failed
+                        task.status = "failed"
+                        task.stop_time = dt.datetime.utcnow()
+                        db.session.commit()
                     # exits whole container task, not just subprocess
                     os._exit(0)
         except:

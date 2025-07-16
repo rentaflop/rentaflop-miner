@@ -2,7 +2,7 @@ import subprocess
 from flask_apscheduler import APScheduler
 import datetime as dt
 from config import DAEMON_LOGGER
-from utils import handle_pc_partial_frames
+from utils import handle_pc_partial_frames, calculate_frame_times, get_last_frame_completed
 """
 defines db tables
 """
@@ -10,19 +10,17 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 
 
-def _check_task_status(task):
+def _check_task_status(task, task_dir):
     """
     checks status of task running on this cloud host and timeout if applicable
     task times out after 24 hours or partial PC time limit
     returns True iff task reached terminal state (stopped or failed), False otherwise
     """
-    tasks_path = "tasks"
-    task_dir = os.path.join(tasks_path, str(task_id))
     # no need to check for completed tasks, ie finished.txt, because run.py stops ecs task when completed
     # check if task started
     if os.path.exists(os.path.join(task_dir, "started.txt")):
         # set timeout on queued task and kill if exceeded time limit
-        start_time = os.path.getmtime(os.path.join(task.task_dir, "started.txt"))
+        start_time = os.path.getmtime(os.path.join(task_dir, "started.txt"))
         start_time = dt.datetime.fromtimestamp(start_time)
         # must use now instead of utcnow since getmtime is local timestamp on local filesystem timezone
         current_time = dt.datetime.now()
@@ -54,6 +52,14 @@ def checkin(db, app, task):
     """
     with app.app_context():
         task.last_seen = dt.datetime.utcnow()
+        tasks_path = "tasks"
+        task_dir = os.path.join(tasks_path, str(task_id))
+        start_frame = task.start_frame
+        last_frame_completed = get_last_frame_completed(task_dir, start_frame)
+        first_frame_time, subsequent_frames_avg = calculate_frame_times(task_dir, start_frame)
+        task.last_frame_completed = last_frame_completed
+        task.first_frame_time = first_frame_time
+        task.subsequent_frames_avg = subsequent_frames_avg
         is_finished = _check_task_status(task)
         db.session.commit()
         
