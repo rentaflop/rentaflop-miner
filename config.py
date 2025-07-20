@@ -27,12 +27,13 @@ LOG_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "daemon.log
 REGISTRATION_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "rentaflop_config.json")
 CACHE_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "render_file_cache")
 FIRST_STARTUP = not os.path.exists(LOG_FILE)
-DAEMON_LOGGER = _get_logger(LOG_FILE)
 # find good open ports at https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
 DAEMON_PORT = 46443
 # env vars for when cloud hosts run
 IS_CLOUD_HOST = os.getenv("IS_CLOUD_HOST", "0") == "1"
 FILENAME = os.getenv("FILENAME", "")
+# get logger based on which type of host
+DAEMON_LOGGER = _get_logger(LOG_FILE)
 
 
 class Config(object):
