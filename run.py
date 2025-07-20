@@ -236,7 +236,7 @@ def get_scanned_settings(name, filename, job_id, Settings):
     NOTE: duplicated in backend utils.py
     """
     # NOTE: when changed, update config.py, blender_scanner.py, job_queue.py, and add latest version to scanner Dockerfile
-    to_return = {"selected_version": "4.4.0", "tier": "pro", "frame_step": 1}
+    to_return = {"selected_version": "4.4.0", "frame_step": 1}
     settings = Settings.query.filter_by(job_id=job_id).first()
     # settings weren't parsed yet so we do nothing
     if not settings:
@@ -250,7 +250,6 @@ def get_scanned_settings(name, filename, job_id, Settings):
         "version": settings.get("version", "0.0.0"),
         # NOTE: when changed, update config.py, blender_scanner.py, and add latest version to scanner Dockerfile
         "selected_version": settings.get("selected_version", "4.4.0"),
-        "tier": settings.get("tier", "pro"),
         "start_frame": settings.get("start_frame"),
         "end_frame": settings.get("end_frame"),
         "frame_step": settings.get("frame_step"),
