@@ -1,7 +1,9 @@
 import subprocess
+import os
+import sys
 from flask_apscheduler import APScheduler
 import datetime as dt
-from config import DAEMON_LOGGER
+from config import DAEMON_LOGGER, IS_TEST_MODE
 from utils import handle_pc_partial_frames, calculate_frame_times, get_last_frame_completed
 """
 defines db tables
@@ -53,14 +55,14 @@ def checkin(db, app, task):
     with app.app_context():
         task.last_seen = dt.datetime.utcnow()
         tasks_path = "tasks"
-        task_dir = os.path.join(tasks_path, str(task_id))
+        task_dir = os.path.join(tasks_path, str(task.id))
         start_frame = task.start_frame
         last_frame_completed = get_last_frame_completed(task_dir, start_frame)
         first_frame_time, subsequent_frames_avg = calculate_frame_times(task_dir, start_frame)
         task.last_frame_completed = last_frame_completed
         task.first_frame_time = first_frame_time
         task.subsequent_frames_avg = subsequent_frames_avg
-        is_finished = _check_task_status(task)
+        is_finished = _check_task_status(task, task_dir)
         db.session.commit()
         
     if is_finished:
@@ -71,8 +73,13 @@ def start_render_task():
     """
     run run.py as a background process
     """
-    subprocess.Popen(["python3", "run.py"])
-    DAEMON_LOGGER.info("Started run.py")
+    if IS_TEST_MODE:
+        # In test mode, run synchronously to get the result immediately
+        DAEMON_LOGGER.info("Test mode: running run.py synchronously")
+        subprocess.run(["python3", "run.py"])
+    else:
+        subprocess.Popen(["python3", "run.py"])
+        DAEMON_LOGGER.info("Started run.py")
 
 
 if __name__ == "__main__":
@@ -96,8 +103,14 @@ if __name__ == "__main__":
         task = Task.query.filter_by(id=task_id).first()
 
     start_render_task()
-    first_run_time = dt.datetime.now() + dt.timedelta(seconds=5)
-    scheduler = APScheduler()
-    scheduler.add_job(id="Checkin", func=checkin, trigger="interval", seconds=60, max_instances=1, next_run_time=first_run_time, kwargs={
-        "db": db, "app": app, "task": task})
-    scheduler.start()
+    
+    if IS_TEST_MODE:
+        # In test mode, exit after render task completes
+        DAEMON_LOGGER.info("Test mode: exiting after render completion")
+        sys.exit(0)
+    else:
+        first_run_time = dt.datetime.now() + dt.timedelta(seconds=5)
+        scheduler = APScheduler()
+        scheduler.add_job(id="Checkin", func=checkin, trigger="interval", seconds=60, max_instances=1, next_run_time=first_run_time, kwargs={
+            "db": db, "app": app, "task": task})
+        scheduler.start()

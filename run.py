@@ -10,7 +10,7 @@ import sys
 import os
 import requests
 import json
-from config import DAEMON_LOGGER, IS_CLOUD_HOST, FILENAME
+from config import DAEMON_LOGGER, IS_CLOUD_HOST, IS_TEST_MODE, FILENAME
 import subprocess
 from utils import run_shell_cmd, calculate_frame_times, post_to_rentaflop, get_rentaflop_id
 import glob
@@ -101,7 +101,13 @@ def run_task(is_png=False, task_dir=None, app=None, task=None):
         is_zip = True if extension in [".zip"] else False
         saved_name = "render_file.zip" if is_zip else "render_file.blend"
         saved_path = os.path.join(input_path, saved_name)
-        S3_CLIENT.download_file("rentaflop-render-uploads", FILENAME, saved_path)
+        
+        if IS_TEST_MODE:
+            # In test mode, FILENAME is a local file path, use it directly
+            print(f"Test mode: using local file {FILENAME} directly")
+            saved_path = FILENAME
+        else:
+            S3_CLIENT.download_file("rentaflop-render-uploads", FILENAME, saved_path)
         render_path = blend_path
         if is_zip:
             subprocess.check_output(f"unzip {saved_path} -d {input_path}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
@@ -228,7 +234,7 @@ def run_task(is_png=False, task_dir=None, app=None, task=None):
         requests.post(server_url, json=data)
 
 
-def get_scanned_settings(name, filename, job_id, Settings):
+def get_scanned_settings(name, job_id, Settings):
     """
     check file upload scans in db for existence of completed scan for filename
     if job_id set, then we return settings this job is using otherwise return the original upload settings
@@ -343,7 +349,7 @@ def main():
             task.status = "queued"
             db.session.commit()
             name = "-".join(FILENAME.split("-")[1:])
-            render_settings = get_scanned_settings(name, FILENAME, task.job_id, Settings)
+            render_settings = get_scanned_settings(name, task.job_id, Settings)
             # save settings to task_dir/render_settings.json
             settings_path = os.path.join(task_dir, "render_settings.json")
             with open(settings_path, "w") as f:

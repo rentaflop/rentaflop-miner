@@ -31,6 +31,7 @@ FIRST_STARTUP = not os.path.exists(LOG_FILE)
 DAEMON_PORT = 46443
 # env vars for when cloud hosts run
 IS_CLOUD_HOST = os.getenv("IS_CLOUD_HOST", "0") == "1"
+IS_TEST_MODE = os.getenv("IS_TEST_MODE", "false").lower() == "true"
 FILENAME = os.getenv("FILENAME", "")
 # get logger based on which type of host
 DAEMON_LOGGER = _get_logger(LOG_FILE)
