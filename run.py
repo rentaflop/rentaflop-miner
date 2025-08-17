@@ -93,7 +93,8 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task=None):
         db.session.commit()
     else:
         check_blender(blender_version)
-    run_shell_cmd(f"tar -xf blender-{blender_version}.tar.xz -C {blender_path} --strip-components 1", quiet=True)
+    if not IS_TEST_MODE:
+        run_shell_cmd(f"tar -xf blender-{blender_version}.tar.xz -C {blender_path} --strip-components 1", quiet=True)
     if IS_CLOUD_HOST:
         input_path = os.path.join(task_dir, "input/")
         os.makedirs(input_path, exist_ok=True)
@@ -108,7 +109,7 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task=None):
             saved_path = FILENAME
         else:
             S3_CLIENT.download_file("rentaflop-render-uploads", FILENAME, saved_path)
-        render_path = blend_path
+        render_path = saved_path
         if is_zip:
             subprocess.check_output(f"unzip {saved_path} -d {input_path}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
             # NOTE: duplicated in task_queue.py
