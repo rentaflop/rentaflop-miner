@@ -60,13 +60,11 @@ def check_blender(target_version):
     run_shell_cmd(f"rm -rf {lru_version}")
 
 
-def run_task(is_png=False, task_dir=None, db=None, app=None, task=None):
+def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start_frame=None, end_frame=None):
     """
     run rendering task
     """
     if IS_CLOUD_HOST:
-        start_frame = task.start_frame
-        end_frame = start_frame + task.n_frames - 1
         blender_version = os.getenv("blender_version")
         is_cpu = True
         cuda_visible_devices = None
@@ -88,12 +86,15 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task=None):
     os.makedirs(blender_path, exist_ok=True)
     run_shell_cmd(f"touch {task_dir}/started.txt", quiet=True)
     if IS_CLOUD_HOST:
-        task.status = "started"
-        task.start_time = dt.datetime.utcnow()
-        # must commit before any long-running commands are executed otherwise db connection will reset and we'll lose changes
-        db.session.commit()
+        with app.app_context():
+            task = Task.query.filter_by(id=task_id).first()
+            task.status = "started"
+            task.start_time = dt.datetime.utcnow()
+            # must commit before any long-running commands are executed otherwise db connection will reset and we'll lose changes
+            db.session.commit()
     else:
         check_blender(blender_version)
+    
     if not IS_TEST_MODE:
         run_shell_cmd(f"tar -xf blender-{blender_version}.tar.xz -C {blender_path} --strip-components 1", quiet=True)
     if IS_CLOUD_HOST:
@@ -188,23 +189,25 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task=None):
         if incorrect_tar_output:
             raise Exception("Output tarball doesn't match output frames!")
 
-    task_id = os.path.basename(task_dir)
     if IS_CLOUD_HOST:
-        if has_finished_frames:
-            job_id = task.job_id
-            if not IS_TEST_MODE:
-                # automatically retries 3 times with exponential backoff
-                S3_CLIENT.upload_file(tgz_path, "rentaflop-render-output", f"{job_id}/{task_id}.tar.gz")
-            # set db task attributes following host_output.py
-            task.status = "stopped"
-            task.stop_time = dt.datetime.utcnow()
-            task.first_frame_time = first_frame_time if has_finished_frames else 1.0
-            task.subsequent_frames_avg = subsequent_frames_avg if has_finished_frames else 1.0
-        
-        if total_frame_seconds is not None:
-            task.total_frame_seconds = total_frame_seconds
+        with app.app_context():
+            task = Task.query.filter_by(id=task_id).first()
+            if has_finished_frames:
+                job_id = task.job_id
+                if not IS_TEST_MODE:
+                    # automatically retries 3 times with exponential backoff
+                    S3_CLIENT.upload_file(tgz_path, "rentaflop-render-output", f"{job_id}/{task_id}.tar.gz")
+                # set db task attributes following host_output.py
+                task.status = "stopped"
+                task.stop_time = dt.datetime.utcnow()
+                task.first_frame_time = first_frame_time if has_finished_frames else 1.0
+                task.subsequent_frames_avg = subsequent_frames_avg if has_finished_frames else 1.0
 
-        db.session.commit()
+            if total_frame_seconds is not None:
+                task.total_frame_seconds = total_frame_seconds
+
+            db.session.commit()
+        
         if not IS_TEST_MODE:
             # trigger job queue to check if this job finished
             payload = {"cmd": "check_finished", "params": {"task_id": task.id, "is_eevee": is_eevee}}
@@ -321,9 +324,7 @@ def get_scanned_settings(name, job_id, Settings):
 
 
 def main():
-    task = None
-    app = None
-    db = None
+    app, db, task_id, task_dir, start_frame, end_frame = [None]*6
     if IS_CLOUD_HOST:
         database_url = os.getenv("database_url")
         task_id = os.getenv("task_id")
@@ -349,6 +350,8 @@ def main():
 
             # get task and settings objects
             task = Task.query.filter_by(id=task_id).first()
+            start_frame = task.start_frame
+            end_frame = start_frame + task.n_frames - 1
             task.status = "queued"
             db.session.commit()
             name = "-".join(FILENAME.split("-")[1:])
@@ -365,11 +368,7 @@ def main():
     max_tries = 2
     for i in range(max_tries):
         try:
-            if IS_CLOUD_HOST:
-                with app.app_context():
-                    run_task(is_png=try_with_png, task_dir=task_dir, db=db, app=app, task=task)
-            else:
-                run_task(is_png=try_with_png, task_dir=task_dir, db=db, app=app, task=task)
+            run_task(is_png=try_with_png, task_dir=task_dir, db=db, app=app, task_id=task_id, start_frame=start_frame, end_frame=end_frame)
         except subprocess.CalledProcessError as e:
             DAEMON_LOGGER.error(f"Task execution command failed: Return code={e.returncode} {e}")
             DAEMON_LOGGER.error(f"Task execution command output: {e.output}")
@@ -403,6 +402,7 @@ def main():
 
                 if IS_CLOUD_HOST:
                     with app.app_context():
+                        task = Task.query.filter_by(id=task_id).first()
                         # set task error message
                         task.error = msg
                         # task failed

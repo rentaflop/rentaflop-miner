@@ -46,13 +46,19 @@ def _check_task_status(task, task_dir):
         return False
 
 
-def checkin(db, app, task):
+def checkin(db, app, task_id):
     """
     periodic checkin to see where task progress is and update rentaflop db
     like a cron to do the following periodically: check task status, setting db attributes like in host.py and task.last_seen,
     creating frame_seconds.txt file for PC partial renders, and running pkill on PC partial renders after timeout
     """
     with app.app_context():
+        # NOTE: separate from miner host Task table; this one connects to backend db from cloud host
+        class Task(db.Model):
+            __table__ = db.Model.metadata.tables["task"]
+
+        # get task object
+        task = Task.query.filter_by(id=task_id).first()
         task.last_seen = dt.datetime.utcnow()
         tasks_path = "tasks"
         task_dir = os.path.join(tasks_path, str(task.id))
@@ -95,12 +101,6 @@ if __name__ == "__main__":
     with app.app_context():
         db = SQLAlchemy(app)
         db.metadata.reflect(bind=db.engine)
-        # NOTE: separate from miner host Task table; this one connects to backend db from cloud host
-        class Task(db.Model):
-            __table__ = db.Model.metadata.tables["task"]
-
-        # get task object
-        task = Task.query.filter_by(id=task_id).first()
 
     start_render_task()
     
@@ -112,5 +112,5 @@ if __name__ == "__main__":
         first_run_time = dt.datetime.now() + dt.timedelta(seconds=5)
         scheduler = APScheduler()
         scheduler.add_job(id="Checkin", func=checkin, trigger="interval", seconds=60, max_instances=1, next_run_time=first_run_time, kwargs={
-            "db": db, "app": app, "task": task})
+            "db": db, "app": app, "task_id": task_id})
         scheduler.start()
