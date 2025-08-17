@@ -138,7 +138,7 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task=None):
     sandbox_options = f"firejail --noprofile --net=none --caps.drop=all --private={task_dir} --blacklist=/"
     # render results for specified frames to output path; enables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
     # cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -noaudio -b '{render_path2}' --python-expr {rm_script} -o {output_path} -s {start_frame} -e {end_frame}{' -F PNG' if is_png else ''} -a --"
-    cmd = f"DISPLAY=:0.0 {sandbox_options} {full_blender_path} --enable-autoexec -noaudio -b '{render_path}' -o {output_path} -s {start_frame} -e {end_frame}{' -F PNG' if is_png else ''} -a --"
+    cmd = f"DISPLAY=:0.0 {'' if IS_TEST_MODE else sandbox_options} {full_blender_path} --enable-autoexec -noaudio -b '{render_path}' -o {output_path} -s {start_frame} -e {end_frame}{' -F PNG' if is_png else ''} -a --"
     # most of the time we run on GPU with OPTIX, but sometimes we run on cpu if not enough VRAM or other GPU issue
     if not is_cpu:
         cmd += " --cycles-device OPTIX"
@@ -192,8 +192,9 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task=None):
     if IS_CLOUD_HOST:
         if has_finished_frames:
             job_id = task.job_id
-            # automatically retries 3 times with exponential backoff
-            S3_CLIENT.upload_file(tgz_path, "rentaflop-render-output", f"{job_id}/{task_id}.tar.gz")
+            if not IS_TEST_MODE:
+                # automatically retries 3 times with exponential backoff
+                S3_CLIENT.upload_file(tgz_path, "rentaflop-render-output", f"{job_id}/{task_id}.tar.gz")
             # set db task attributes following host_output.py
             task.status = "stopped"
             task.stop_time = dt.datetime.utcnow()
@@ -204,9 +205,10 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task=None):
             task.total_frame_seconds = total_frame_seconds
 
         db.session.commit()
-        # trigger job queue to check if this job finished
-        payload = {"cmd": "check_finished", "params": {"task_id": task.id, "is_eevee": is_eevee}}
-        LAMBDA_CLIENT.invoke(FunctionName="job-queue", InvocationType="Event", Payload=json.dumps(payload))
+        if not IS_TEST_MODE:
+            # trigger job queue to check if this job finished
+            payload = {"cmd": "check_finished", "params": {"task_id": task.id, "is_eevee": is_eevee}}
+            LAMBDA_CLIENT.invoke(FunctionName="job-queue", InvocationType="Event", Payload=json.dumps(payload))
         # exits whole container task, not just subprocess
         os._exit(0)
     else:
