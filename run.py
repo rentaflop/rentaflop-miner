@@ -60,7 +60,7 @@ def check_blender(target_version):
     run_shell_cmd(f"rm -rf {lru_version}")
 
 
-def run_task(is_png=False, task_dir=None, app=None, task=None):
+def run_task(is_png=False, task_dir=None, db=db, app=None, task=None):
     """
     run rendering task
     """
@@ -363,9 +363,9 @@ def main():
         try:
             if IS_CLOUD_HOST:
                 with app.app_context():
-                    run_task(is_png=try_with_png, task_dir=task_dir, app=app, task=task)
+                    run_task(is_png=try_with_png, task_dir=task_dir, db=db, app=app, task=task)
             else:
-                run_task(is_png=try_with_png, task_dir=task_dir, app=app, task=task)
+                run_task(is_png=try_with_png, task_dir=task_dir, db=db, app=app, task=task)
         except subprocess.CalledProcessError as e:
             DAEMON_LOGGER.error(f"Task execution command failed: Return code={e.returncode} {e}")
             DAEMON_LOGGER.error(f"Task execution command output: {e.output}")
