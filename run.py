@@ -87,6 +87,10 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
     run_shell_cmd(f"touch {task_dir}/started.txt", quiet=True)
     if IS_CLOUD_HOST:
         with app.app_context():
+            # NOTE: separate from miner host Task table; this one connects to backend db from cloud host
+            class Task(db.Model):
+                __table__ = db.Model.metadata.tables["task"]
+            
             task = Task.query.filter_by(id=task_id).first()
             task.status = "started"
             task.start_time = dt.datetime.utcnow()
