@@ -60,7 +60,7 @@ def check_blender(target_version):
     run_shell_cmd(f"rm -rf {lru_version}")
 
 
-def run_task(is_png=False, task_dir=None, db=db, app=None, task=None):
+def run_task(is_png=False, task_dir=None, db=None, app=None, task=None):
     """
     run rendering task
     """
