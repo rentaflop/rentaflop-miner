@@ -83,6 +83,7 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task=None):
             cuda_visible_devices = None
     output_path = os.path.join(task_dir, "output/")
     blender_path = os.path.join(task_dir, "blender/")
+    full_blender_path = "blender" if IS_TEST_MODE else os.path.join(blender_path, "blender")
     os.makedirs(output_path, exist_ok=True)
     os.makedirs(blender_path, exist_ok=True)
     run_shell_cmd(f"touch {task_dir}/started.txt", quiet=True)
@@ -128,7 +129,7 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task=None):
     # rm_script = f'''"import os; os.remove('{render_path2}')"'''
     # NOTE: cannot pass additional args to blender after " -- " because the -- tells blender to ignore all subsequent args
     # render_config = subprocess.check_output(f"{blender_path}/blender --python-expr {de_script} --disable-autoexec -noaudio -b '{render_path2}' --python render_config.py -- {task_dir}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
-    render_config = subprocess.check_output(f"{blender_path}/blender --disable-autoexec -noaudio -b '{render_path}' --python render_config.py -- {task_dir}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+    render_config = subprocess.check_output(f"{full_blender_path} --disable-autoexec -noaudio -b '{render_path}' --python render_config.py -- {task_dir}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
     eevee_name = "BLENDER_EEVEE"
     eevee_next_name = "BLENDER_EEVEE_NEXT"
     is_eevee = (f"Found render engine: {eevee_name}" in render_config) or (f"Found render engine: {eevee_next_name}" in render_config)
@@ -137,7 +138,7 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task=None):
     sandbox_options = f"firejail --noprofile --net=none --caps.drop=all --private={task_dir} --blacklist=/"
     # render results for specified frames to output path; enables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
     # cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -noaudio -b '{render_path2}' --python-expr {rm_script} -o {output_path} -s {start_frame} -e {end_frame}{' -F PNG' if is_png else ''} -a --"
-    cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -noaudio -b '{render_path}' -o {output_path} -s {start_frame} -e {end_frame}{' -F PNG' if is_png else ''} -a --"
+    cmd = f"DISPLAY=:0.0 {sandbox_options} {full_blender_path} --enable-autoexec -noaudio -b '{render_path}' -o {output_path} -s {start_frame} -e {end_frame}{' -F PNG' if is_png else ''} -a --"
     # most of the time we run on GPU with OPTIX, but sometimes we run on cpu if not enough VRAM or other GPU issue
     if not is_cpu:
         cmd += " --cycles-device OPTIX"
