@@ -280,8 +280,7 @@ def get_scanned_settings(name, job_id, Settings):
         "errors": [],
         "error_resolutions": [],
         "warnings": [],
-        "warning_resolutions": [],
-        "upload_id": upload.id
+        "warning_resolutions": []
     }
     # NOTE: partial duplicate in views.py, we have this one in case there was a default version (ie set-settings not used) different than the original upload
     # ensure eevee name matches blender version; UI always uses BLENDER_EEVEE but it needs to be BLENDER_EEVEE_NEXT if version 4.2
