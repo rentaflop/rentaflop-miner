@@ -30,14 +30,14 @@ RUN apt-get update && apt-get install -y \
     firejail \
     && apt-get clean
 
+# Copy Blender versions from build stage
+COPY --from=blender-downloader /downloads/*.tar.xz /app/
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . /app
-
-# Copy Blender versions from build stage
-COPY --from=blender-downloader /downloads/*.tar.xz /app/
 
 # Default to running as ECS task
 CMD ["python3", "cloud_native_host.py"]
