@@ -35,28 +35,35 @@ def check_blender(target_version):
     does nothing if target_version installed
     maintains a LRU cache of downloaded blender versions
     """
+    DAEMON_LOGGER.info(f"Checking Blender version {target_version}...")
     file_path = f"blender-{target_version}.tar.xz"
     if os.path.exists(file_path):
+        DAEMON_LOGGER.info(f"Blender {target_version} already exists, updating access time")
         # update last modified time to now
         os.utime(file_path)
         
         return
 
-    DAEMON_LOGGER.debug(f"Installing blender version {target_version}...")
+    DAEMON_LOGGER.info(f"Blender {target_version} not found, downloading...")
     short_version = target_version.rpartition(".")[0]
+    DAEMON_LOGGER.info(f"Downloading Blender {target_version} from blender.org...")
     # go to https://download.blender.org/release/ to check blender version updates
     run_shell_cmd(f"wget https://download.blender.org/release/Blender{short_version}/blender-{target_version}-linux-x64.tar.xz -O blender.tar.xz && mv blender.tar.xz blender-{target_version}.tar.xz")
+    DAEMON_LOGGER.info(f"Blender {target_version} download completed")
 
     # update cache, if necessary
     cache_size = 5
     list_of_files = glob.glob("blender-*.tar.xz")
+    DAEMON_LOGGER.info(f"Current cache has {len(list_of_files)} Blender versions, max is {cache_size}")
     if len(list_of_files) <= cache_size:
         return
 
     # cache too large, need to remove LRU version
+    DAEMON_LOGGER.info("Cache is full, removing least recently used Blender version")
     file_modification_times = [os.path.getmtime(f) for f in list_of_files]
     least_to_most_recent = [f for _, f in sorted(zip(file_modification_times, list_of_files), key=lambda pair: pair[0])]
     lru_version = least_to_most_recent[0]
+    DAEMON_LOGGER.info(f"Removing LRU Blender version: {lru_version}")
     run_shell_cmd(f"rm -rf {lru_version}")
 
 
@@ -64,10 +71,13 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
     """
     run rendering task
     """
+    DAEMON_LOGGER.info(f"Starting run_task with task_id={task_id}, is_png={is_png}, start_frame={start_frame}, end_frame={end_frame}")
+    
     if IS_CLOUD_HOST:
         blender_version = os.getenv("blender_version")
         is_cpu = True
         cuda_visible_devices = None
+        DAEMON_LOGGER.info(f"Cloud host mode: blender_version={blender_version}, is_cpu={is_cpu}")
     else:
         task_dir = sys.argv[1]
         render_path = sys.argv[2]
@@ -79,12 +89,15 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
         cuda_visible_devices = sys.argv[8]
         if cuda_visible_devices.lower() == "none":
             cuda_visible_devices = None
+        DAEMON_LOGGER.info(f"Miner host mode: task_dir={task_dir}, blender_version={blender_version}, is_cpu={is_cpu}, cuda_visible_devices={cuda_visible_devices}")
     output_path = os.path.join(task_dir, "output/")
     blender_path = os.path.join(task_dir, "blender/")
     full_blender_path = "blender" if IS_TEST_MODE else os.path.join(blender_path, "blender")
+    DAEMON_LOGGER.info(f"Setting up directories: output_path={output_path}, blender_path={blender_path}")
     os.makedirs(output_path, exist_ok=True)
     os.makedirs(blender_path, exist_ok=True)
     run_shell_cmd(f"touch {task_dir}/started.txt", quiet=True)
+    DAEMON_LOGGER.info("Created task directories and marked as started")
     if IS_CLOUD_HOST:
         with app.app_context():
             # NOTE: separate from miner host Task table; this one connects to backend db from cloud host
@@ -100,7 +113,9 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
         check_blender(blender_version)
     
     if not IS_TEST_MODE:
+        DAEMON_LOGGER.info(f"Extracting Blender {blender_version} to {blender_path}")
         run_shell_cmd(f"tar -xf blender-{blender_version}.tar.xz -C {blender_path} --strip-components 1", quiet=True)
+        DAEMON_LOGGER.info("Blender extraction completed")
     if IS_CLOUD_HOST:
         input_path = os.path.join(task_dir, "input/")
         os.makedirs(input_path, exist_ok=True)
@@ -114,17 +129,23 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
             DAEMON_LOGGER.info(f"Test mode: using local file {FILENAME} directly")
             saved_path = FILENAME
         else:
+            DAEMON_LOGGER.info(f"Downloading render file {FILENAME} from S3 to {saved_path}")
             S3_CLIENT.download_file("rentaflop-render-uploads", FILENAME, saved_path)
+            DAEMON_LOGGER.info("S3 download completed")
         render_path = saved_path
         if is_zip:
+            DAEMON_LOGGER.info(f"Extracting zip file {saved_path} to {input_path}")
             subprocess.check_output(f"unzip {saved_path} -d {input_path}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
             # NOTE: duplicated in task_queue.py
             blend_files = glob.glob(os.path.join(input_path, '**', "*.blend*"), recursive=True)
+            DAEMON_LOGGER.info(f"Found {len(blend_files)} blend files: {blend_files}")
             # prefer to use .blend instead of .blend1 if both found
             for blend_file in blend_files:
                 render_path = blend_file
                 if blend_file.endswith(".blend"):
+                    DAEMON_LOGGER.info(f"Selected .blend file: {blend_file}")
                     break
+            DAEMON_LOGGER.info(f"Final render path: {render_path}")
 
     # render_name, render_extension = os.path.splitext(render_path)
     # render_path2 = render_name + "2" + render_extension
@@ -134,12 +155,17 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
     # rm_script = f'''"import os; os.remove('{render_path2}')"'''
     # NOTE: cannot pass additional args to blender after " -- " because the -- tells blender to ignore all subsequent args
     # render_config = subprocess.check_output(f"{blender_path}/blender --python-expr {de_script} --disable-autoexec -noaudio -b '{render_path2}' --python render_config.py -- {task_dir}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+    DAEMON_LOGGER.info(f"Analyzing render configuration for {render_path}")
     render_config = subprocess.check_output(f"{full_blender_path} --disable-autoexec -noaudio -b '{render_path}' --python render_config.py -- {task_dir}", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
     eevee_name = "BLENDER_EEVEE"
     eevee_next_name = "BLENDER_EEVEE_NEXT"
     is_eevee = (f"Found render engine: {eevee_name}" in render_config) or (f"Found render engine: {eevee_next_name}" in render_config)
+    engine_type = "Eevee" if is_eevee else "Cycles"
+    DAEMON_LOGGER.info(f"Detected render engine: {engine_type}")
 
     run_shell_cmd(f"touch {task_dir}/started_render.txt", quiet=True)
+    DAEMON_LOGGER.info(f"Starting render process for frames {start_frame}-{end_frame}")
+    
     sandbox_options = f"firejail --noprofile --net=none --caps.drop=all --private={task_dir} --blacklist=/"
     # render results for specified frames to output path; enables scripting; if eevee is specified in blend file then it'll use eevee, even though cycles is specified here
     # cmd = f"DISPLAY=:0.0 {sandbox_options} {blender_path}/blender --enable-autoexec -noaudio -b '{render_path2}' --python-expr {rm_script} -o {output_path} -s {start_frame} -e {end_frame}{' -F PNG' if is_png else ''} -a --"
@@ -147,31 +173,46 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
     # most of the time we run on GPU with OPTIX, but sometimes we run on cpu if not enough VRAM or other GPU issue
     if not is_cpu:
         cmd += " --cycles-device OPTIX"
+        DAEMON_LOGGER.info("Using GPU rendering with OPTIX")
+    else:
+        DAEMON_LOGGER.info("Using CPU rendering")
     if cuda_visible_devices:
         cmd = f"CUDA_VISIBLE_DEVICES={cuda_visible_devices} {cmd}"
+        DAEMON_LOGGER.info(f"Using CUDA devices: {cuda_visible_devices}")
+    
+    DAEMON_LOGGER.info(f"Render command: {cmd}")
     # send output to log file
     log_path = os.path.join(task_dir, "log.txt")
     try:
+        DAEMON_LOGGER.info("Starting Blender render subprocess...")
         with open(log_path, "w") as f:
             subprocess.run(cmd, shell=True, encoding="utf8", check=True, stderr=subprocess.STDOUT, stdout=f)
+        DAEMON_LOGGER.info("Blender render subprocess completed successfully")
 
         # checking log tail because sometimes Blender throws an error and exits quietly without subprocess error
         log_tail = run_shell_cmd(f"tail {log_path}", very_quiet=True, format_output=False)
         if log_tail and ("Error initializing video stream" in log_tail or "Error: width not divisible by 2" in log_tail or \
                          "Error: height not divisible by 2" in log_tail):
+            DAEMON_LOGGER.error(f"Found video format error in log: {log_tail}")
             raise subprocess.CalledProcessError(cmd=cmd, returncode=1, output=log_tail)
     except subprocess.CalledProcessError as e:
         # if process died with code 15, that means we preempted it with pkill for PC partial render timeout, so we do nothing
         if e.returncode != -15:
+            DAEMON_LOGGER.error(f"Render process failed with return code {e.returncode}")
             log_tail = run_shell_cmd(f"tail {log_path}", very_quiet=True, format_output=False)
             # manually setting output to log file tail since everything is output to log file
             raise subprocess.CalledProcessError(cmd=e.cmd, returncode=e.returncode, output=log_tail)
+        else:
+            DAEMON_LOGGER.info("Render process was terminated (return code -15), likely due to timeout")
 
     # successful render, so send result (usually frames but sometimes partial PC time estimate) to servers
     output = os.path.join(task_dir, "output")
     has_finished_frames = False
     if os.listdir(output):
         has_finished_frames = True
+        DAEMON_LOGGER.info(f"Render completed with finished frames in {output}")
+    else:
+        DAEMON_LOGGER.info("No finished frames found in output directory")
     
     # if this exists, then we only have partial PC frame output to report; ie there are no finished frames
     total_frame_seconds = None
@@ -179,19 +220,26 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
     if os.path.exists(render_time_file_path):
         with open(render_time_file_path, "r") as f:
             total_frame_seconds = int(f.read())
+        DAEMON_LOGGER.info(f"Found partial render time data: {total_frame_seconds} seconds")
 
     if has_finished_frames:
+        DAEMON_LOGGER.info("Calculating frame rendering times...")
         first_frame_time, subsequent_frames_avg = calculate_frame_times(task_dir, start_frame, n_frames_rendered=(end_frame - start_frame + 1))
+        DAEMON_LOGGER.info(f"Frame times - first: {first_frame_time}s, avg subsequent: {subsequent_frames_avg}s")
+        
         tgz_path = os.path.join(task_dir, "output.tar.gz")
         old_dir = os.getcwd()
         os.chdir(task_dir)
+        DAEMON_LOGGER.info("Creating output tarball...")
         # zip and check output dir
         run_shell_cmd(f"tar -czf output.tar.gz output", quiet=True)
         # check to ensure we're sending a correctly-zipped output to rentaflop servers
         incorrect_tar_output = run_shell_cmd("tar --compare --file=output.tar.gz", quiet=True)
         os.chdir(old_dir)
         if incorrect_tar_output:
+            DAEMON_LOGGER.error(f"Output tarball validation failed: {incorrect_tar_output}")
             raise Exception("Output tarball doesn't match output frames!")
+        DAEMON_LOGGER.info("Output tarball created and validated successfully")
 
     if IS_CLOUD_HOST:
         with app.app_context():
@@ -199,8 +247,10 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
             if has_finished_frames:
                 job_id = task.job_id
                 if not IS_TEST_MODE:
+                    DAEMON_LOGGER.info(f"Uploading output to S3: {job_id}/{task_id}.tar.gz")
                     # automatically retries 3 times with exponential backoff
                     S3_CLIENT.upload_file(tgz_path, "rentaflop-render-output", f"{job_id}/{task_id}.tar.gz")
+                    DAEMON_LOGGER.info("S3 upload completed successfully")
                 # set db task attributes following host_output.py
                 task.status = "stopped"
                 task.stop_time = dt.datetime.utcnow()
@@ -217,21 +267,25 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
             payload = {"cmd": "check_finished", "params": {"task_id": task_id, "is_eevee": is_eevee}}
             LAMBDA_CLIENT.invoke(FunctionName="job-queue", InvocationType="Event", Payload=json.dumps(payload))
         # exits whole container task, not just subprocess
+        DAEMON_LOGGER.info(f"Task {task_id} completed successfully, exiting container")
         os._exit(0)
     else:
         sandbox_id = os.getenv("SANDBOX_ID")
         server_url = "https://api.rentaflop.com/host/output"
         # first request to get upload location
         data = {"task_id": str(task_id), "sandbox_id": str(sandbox_id)}
+        DAEMON_LOGGER.info(f"Requesting upload location for task {task_id}")
         response = requests.post(server_url, json=data)
         response_json = response.json()
         if has_finished_frames:
             storage_url, fields = response_json["url"], response_json["fields"]
+            DAEMON_LOGGER.info(f"Got upload location, uploading to {storage_url}")
             # upload output to upload location
             # using curl instead of python requests because large files get overflowError: string longer than 2147483647 bytes
             fields_flags = " ".join([f"-F {k}={fields[k]}" for k in fields])
             # TODO check for errors like "could not resolve host" and retry a couple times
             run_shell_cmd(f"curl -X POST {fields_flags} -F file=@{tgz_path} {storage_url}", quiet=True)
+            DAEMON_LOGGER.info("File upload to storage location completed")
 
         # confirm upload
         data["confirm"] = True
@@ -242,7 +296,9 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
             data["total_frame_seconds"] = total_frame_seconds
         if is_eevee:
             data["is_eevee"] = True
+        DAEMON_LOGGER.info(f"Confirming upload with data: {data}")
         requests.post(server_url, json=data)
+        DAEMON_LOGGER.info("Upload confirmation sent successfully")
 
 
 def get_scanned_settings(name, job_id, Settings):
@@ -415,6 +471,7 @@ def main():
                         task.stop_time = dt.datetime.utcnow()
                         db.session.commit()
                     # exits whole container task, not just subprocess
+                    DAEMON_LOGGER.error(f"Task {task_id} failed, exiting container with error")
                     os._exit(0)
         except:
             # catch all for logging misc errors that slipped through
@@ -463,4 +520,5 @@ if __name__=="__main__":
     finally:
         if IS_CLOUD_HOST:
             # Always exit the container/process
+            DAEMON_LOGGER.error("Fatal error in main, exiting container with code 1")
             os._exit(1)

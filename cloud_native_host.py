@@ -86,6 +86,7 @@ def checkin(db, app, task_id):
         db.session.commit()
         
     if is_finished:
+        DAEMON_LOGGER.info(f"Task {task_id} finished, cloud native host exiting")
         sys.exit(0)
 
 
@@ -149,4 +150,5 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             DAEMON_LOGGER.info("Received interrupt, shutting down scheduler")
             scheduler.shutdown()
+            DAEMON_LOGGER.info("Cloud native host exiting due to keyboard interrupt")
             sys.exit(0)
