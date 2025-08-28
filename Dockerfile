@@ -39,5 +39,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . /app
 
+# ensure we didn't accidentally copy test tasks folder
+RUN rm -rf tasks
+
 # Default to running as ECS task
 CMD ["python3", "cloud_native_host.py"]

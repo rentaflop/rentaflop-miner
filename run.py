@@ -111,7 +111,7 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
         
         if IS_TEST_MODE:
             # In test mode, FILENAME is a local file path, use it directly
-            print(f"Test mode: using local file {FILENAME} directly")
+            DAEMON_LOGGER.info(f"Test mode: using local file {FILENAME} directly")
             saved_path = FILENAME
         else:
             S3_CLIENT.download_file("rentaflop-render-uploads", FILENAME, saved_path)
@@ -328,6 +328,7 @@ def get_scanned_settings(name, job_id, Settings):
 
 
 def main():
+    DAEMON_LOGGER.info("Starting run.py to begin render")
     app, db, task_id, task_dir, start_frame, end_frame = [None]*6
     if IS_CLOUD_HOST:
         database_url = os.getenv("database_url")

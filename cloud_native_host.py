@@ -82,10 +82,26 @@ def start_render_task():
     if IS_TEST_MODE:
         # In test mode, run synchronously to get the result immediately
         DAEMON_LOGGER.info("Test mode: running run.py synchronously")
-        subprocess.run(["python3", "run.py"])
+        result = subprocess.run(["python3", "run.py"], capture_output=True, text=True)
+        if result.returncode != 0:
+            DAEMON_LOGGER.error(f"run.py failed with exit code {result.returncode}")
+            DAEMON_LOGGER.error(f"stdout: {result.stdout}")
+            DAEMON_LOGGER.error(f"stderr: {result.stderr}")
     else:
-        subprocess.Popen(["python3", "run.py"])
-        DAEMON_LOGGER.info("Started run.py")
+        try:
+            process = subprocess.Popen(["python3", "run.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            DAEMON_LOGGER.info(f"Started run.py with PID {process.pid}")
+            # Check if process started successfully after a brief moment so we can log any immediate failures
+            import time
+            time.sleep(3)
+            if process.poll() is not None:
+                # Process has already terminated
+                stdout, stderr = process.communicate()
+                DAEMON_LOGGER.error(f"run.py failed immediately with exit code {process.returncode}")
+                DAEMON_LOGGER.error(f"stdout: {stdout}")
+                DAEMON_LOGGER.error(f"stderr: {stderr}")
+        except Exception as e:
+            DAEMON_LOGGER.error(f"Failed to start run.py: {e}")
 
 
 if __name__ == "__main__":
@@ -114,3 +130,4 @@ if __name__ == "__main__":
         scheduler.add_job(id="Checkin", func=checkin, trigger="interval", seconds=60, max_instances=1, next_run_time=first_run_time, kwargs={
             "db": db, "app": app, "task_id": task_id})
         scheduler.start()
+        DAEMON_LOGGER.info("Exiting after render completion")

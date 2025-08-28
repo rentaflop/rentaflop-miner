@@ -3,3 +3,4 @@ flask_apscheduler
 flask_sqlalchemy
 pymysql
 boto3
+requests
