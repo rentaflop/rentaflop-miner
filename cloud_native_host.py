@@ -1,6 +1,7 @@
 import subprocess
 import os
 import sys
+import signal
 from flask_apscheduler import APScheduler
 import datetime as dt
 from config import DAEMON_LOGGER, IS_TEST_MODE
@@ -15,6 +16,11 @@ from flask_sqlalchemy import SQLAlchemy
 # Global variable to store the subprocess
 RENDER_PROCESS = None
 
+def sigterm_handler(signum, frame):
+    """Handle SIGTERM signal sent by run.py when task completes"""
+    DAEMON_LOGGER.info("Received SIGTERM from run.py, exiting gracefully")
+    sys.exit(0)
+
 
 def _check_task_status(task, task_dir):
     """
@@ -24,10 +30,13 @@ def _check_task_status(task, task_dir):
     """
     global RENDER_PROCESS
     
-    # Check if render process has died unexpectedly; run.py always exits entire container when it completes the task
+    # Check if render process has completed; run.py handles db updates for exit code 0
     if RENDER_PROCESS is not None and RENDER_PROCESS.poll() is not None:
         exit_code = RENDER_PROCESS.returncode
-        if exit_code != 0:
+        if exit_code == 0:
+            DAEMON_LOGGER.info(f"run.py process completed successfully with exit code {exit_code}")
+            return True
+        else:
             DAEMON_LOGGER.error(f"run.py process terminated with exit code {exit_code}")
             task.stop_time = dt.datetime.utcnow()
             task.status = "failed"
@@ -114,6 +123,9 @@ def start_render_task():
 
 
 if __name__ == "__main__":
+    # Register signal handler for graceful shutdown when run.py completes
+    signal.signal(signal.SIGTERM, sigterm_handler)
+    
     database_url = os.getenv("database_url")
     task_id = os.getenv("task_id")
     # init flask sqlalchemy orm

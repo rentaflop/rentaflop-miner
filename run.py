@@ -17,6 +17,7 @@ import glob
 import traceback
 import boto3
 import datetime as dt
+import signal
 """
 defines db tables
 """
@@ -268,6 +269,10 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
             LAMBDA_CLIENT.invoke(FunctionName="job-queue", InvocationType="Event", Payload=json.dumps(payload))
         # exits whole container task, not just subprocess
         DAEMON_LOGGER.info(f"Task {task_id} completed successfully, exiting container")
+        try:
+            os.kill(os.getppid(), signal.SIGTERM)
+        except:
+            pass
         os._exit(0)
     else:
         sandbox_id = os.getenv("SANDBOX_ID")
@@ -472,6 +477,10 @@ def main():
                         db.session.commit()
                     # exits whole container task, not just subprocess
                     DAEMON_LOGGER.error(f"Task {task_id} failed, exiting container with error")
+                    try:
+                        os.kill(os.getppid(), signal.SIGTERM)
+                    except:
+                        pass
                     os._exit(0)
         except:
             # catch all for logging misc errors that slipped through
