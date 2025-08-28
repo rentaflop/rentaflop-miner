@@ -12,13 +12,27 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 
 
+# Global variable to store the subprocess
+RENDER_PROCESS = None
+
+
 def _check_task_status(task, task_dir):
     """
     checks status of task running on this cloud host and timeout if applicable
     task times out after 24 hours or partial PC time limit
     returns True iff task reached terminal state (stopped or failed), False otherwise
     """
-    # no need to check for completed tasks, ie finished.txt, because run.py stops ecs task when completed
+    global RENDER_PROCESS
+    
+    # Check if render process has died unexpectedly; run.py always exits entire container when it completes the task
+    if RENDER_PROCESS is not None and RENDER_PROCESS.poll() is not None:
+        exit_code = RENDER_PROCESS.returncode
+        if exit_code != 0:
+            DAEMON_LOGGER.error(f"run.py process terminated with exit code {exit_code}")
+            task.stop_time = dt.datetime.utcnow()
+            task.status = "failed"
+            return True
+    
     # check if task started
     if os.path.exists(os.path.join(task_dir, "started.txt")):
         # set timeout on queued task and kill if exceeded time limit
@@ -79,6 +93,8 @@ def start_render_task():
     """
     run run.py as a background process
     """
+    global RENDER_PROCESS
+    
     if IS_TEST_MODE:
         # In test mode, run synchronously to get the result immediately
         DAEMON_LOGGER.info("Test mode: running run.py synchronously")
@@ -89,10 +105,11 @@ def start_render_task():
             DAEMON_LOGGER.error(f"stderr: {result.stderr}")
     else:
         try:
-            process = subprocess.Popen(["python3", "run.py"])
-            DAEMON_LOGGER.info(f"Started run.py with PID {process.pid}")
+            RENDER_PROCESS = subprocess.Popen(["python3", "run.py"])
+            DAEMON_LOGGER.info(f"Started run.py with PID {RENDER_PROCESS.pid}")
         except Exception as e:
             DAEMON_LOGGER.error(f"Failed to start run.py: {e}")
+            RENDER_PROCESS = None
 
 
 if __name__ == "__main__":
@@ -121,4 +138,15 @@ if __name__ == "__main__":
         scheduler.add_job(id="Checkin", func=checkin, trigger="interval", seconds=60, max_instances=1, next_run_time=first_run_time, kwargs={
             "db": db, "app": app, "task_id": task_id})
         scheduler.start()
-        DAEMON_LOGGER.info("Exiting after render completion")
+        DAEMON_LOGGER.info("Scheduler started, keeping process alive")
+        
+        # Keep the main thread alive so the scheduler can run
+        # The checkin job will call sys.exit(0) when the task completes or times out
+        try:
+            import time
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            DAEMON_LOGGER.info("Received interrupt, shutting down scheduler")
+            scheduler.shutdown()
+            sys.exit(0)

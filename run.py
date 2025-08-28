@@ -214,7 +214,7 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
         
         if not IS_TEST_MODE:
             # trigger job queue to check if this job finished
-            payload = {"cmd": "check_finished", "params": {"task_id": task.id, "is_eevee": is_eevee}}
+            payload = {"cmd": "check_finished", "params": {"task_id": task_id, "is_eevee": is_eevee}}
             LAMBDA_CLIENT.invoke(FunctionName="job-queue", InvocationType="Event", Payload=json.dumps(payload))
         # exits whole container task, not just subprocess
         os._exit(0)
@@ -424,9 +424,43 @@ def main():
         if not try_with_png:
             break
 
-    # lets the task queue know when the run is finished
-    run_shell_cmd(f"touch {task_dir}/finished.txt", quiet=True)
+    if not IS_CLOUD_HOST:
+        # lets the task queue know when the run is finished
+        run_shell_cmd(f"touch {task_dir}/finished.txt", quiet=True)
 
 
 if __name__=="__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        error = traceback.format_exc()
+        DAEMON_LOGGER.error(f"Fatal exception in run.py: {error}")
+        
+        # Try to mark task as failed if we're in cloud host mode
+        if IS_CLOUD_HOST:
+            try:
+                database_url = os.getenv("database_url")
+                task_id = os.getenv("task_id")
+                if database_url and task_id:
+                    app = Flask(__name__)
+                    class Config(object):
+                        SQLALCHEMY_DATABASE_URI = database_url
+                        SQLALCHEMY_TRACK_MODIFICATIONS = False
+                    app.config.from_object(Config)
+                    with app.app_context():
+                        db = SQLAlchemy(app)
+                        db.metadata.reflect(bind=db.engine)
+                        class Task(db.Model):
+                            __table__ = db.Model.metadata.tables["task"]
+                        task = Task.query.filter_by(id=task_id).first()
+                        if task:
+                            task.error = error[:256] if error else "Fatal error occurred"
+                            task.status = "failed"
+                            task.stop_time = dt.datetime.utcnow()
+                            db.session.commit()
+            except:
+                DAEMON_LOGGER.error("Failed to update task status in database during fatal error handling")
+    finally:
+        if IS_CLOUD_HOST:
+            # Always exit the container/process
+            os._exit(1)
