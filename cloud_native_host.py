@@ -89,17 +89,8 @@ def start_render_task():
             DAEMON_LOGGER.error(f"stderr: {result.stderr}")
     else:
         try:
-            process = subprocess.Popen(["python3", "run.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            process = subprocess.Popen(["python3", "run.py"])
             DAEMON_LOGGER.info(f"Started run.py with PID {process.pid}")
-            # Check if process started successfully after a brief moment so we can log any immediate failures
-            import time
-            time.sleep(3)
-            if process.poll() is not None:
-                # Process has already terminated
-                stdout, stderr = process.communicate()
-                DAEMON_LOGGER.error(f"run.py failed immediately with exit code {process.returncode}")
-                DAEMON_LOGGER.error(f"stdout: {stdout}")
-                DAEMON_LOGGER.error(f"stderr: {stderr}")
         except Exception as e:
             DAEMON_LOGGER.error(f"Failed to start run.py: {e}")
 
