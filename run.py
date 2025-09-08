@@ -267,13 +267,13 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
             # trigger job queue to check if this job finished
             payload = {"cmd": "check_finished", "params": {"task_id": task_id, "is_eevee": is_eevee}}
             LAMBDA_CLIENT.invoke(FunctionName="job-queue", InvocationType="Event", Payload=json.dumps(payload))
-        # exits whole container task, not just subprocess
-        DAEMON_LOGGER.info(f"Task {task_id} completed successfully, exiting container")
-        try:
-            os.kill(os.getppid(), signal.SIGTERM)
-        except:
-            pass
-        os._exit(0)
+            # exits whole container task, not just subprocess
+            DAEMON_LOGGER.info(f"Task {task_id} completed successfully, exiting container")
+            try:
+                os.kill(os.getppid(), signal.SIGTERM)
+            except:
+                pass
+            os._exit(0)
     else:
         sandbox_id = os.getenv("SANDBOX_ID")
         server_url = "https://api.rentaflop.com/host/output"
