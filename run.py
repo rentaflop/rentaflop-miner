@@ -527,7 +527,7 @@ if __name__=="__main__":
             except:
                 DAEMON_LOGGER.error("Failed to update task status in database during fatal error handling")
     finally:
-        if IS_CLOUD_HOST:
+        if IS_CLOUD_HOST and not IS_TEST_MODE:
             # Always exit the container/process
             DAEMON_LOGGER.error("Fatal error in main, exiting container with code 1")
             os._exit(1)
