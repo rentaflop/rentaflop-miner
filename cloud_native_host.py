@@ -168,12 +168,11 @@ if __name__ == "__main__":
     with app.app_context():
         db = SQLAlchemy(app)
         db.metadata.reflect(bind=db.engine)
-        
-        # Set global variables for signal handler
-        global SIGNAL_DB, SIGNAL_APP, SIGNAL_TASK_ID
-        SIGNAL_DB = db
-        SIGNAL_APP = app
-        SIGNAL_TASK_ID = task_id
+    
+    # Set global variables for signal handler
+    SIGNAL_DB = db
+    SIGNAL_APP = app
+    SIGNAL_TASK_ID = task_id
 
     start_render_task()
     
