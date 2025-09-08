@@ -967,9 +967,28 @@ def handle_pc_partial_frames(task_id, task_dir):
     """
     # read log file and parse out metadata for samples and time rendered
     log_path = os.path.join(task_dir, "log.txt")
+    pc_samples_calc_timeout = 300
+    
     # output is first and last render samples lines
     first_last_samples_metadata = run_shell_cmd(f"grep -E 'Sample [0-9]+/[0-9]+$' {log_path} | sed -e 1b -e '$!d'", quiet=True, format_output=False)
     if not first_last_samples_metadata or len(first_last_samples_metadata.splitlines()) != 2:
+        # Check for hung PC render when samples data is not available yet
+        started_render_path = os.path.join(task_dir, "started_render.txt")
+        if os.path.exists(started_render_path):
+            started_render_time = os.path.getmtime(started_render_path)
+            log_modified_time = os.path.getmtime(log_path) if os.path.exists(log_path) else 0
+            current_time = time.time()
+            
+            # Check if started_render.txt is at least pc_samples_calc_timeout seconds old
+            # AND log_path has not been modified for at least pc_samples_calc_timeout seconds
+            if (current_time - started_render_time >= pc_samples_calc_timeout and 
+                current_time - log_modified_time >= pc_samples_calc_timeout):
+                
+                DAEMON_LOGGER.info(f"Non-log-output timeout detected for task {task_id}, killing hung PC render...")
+                # Kill with SIGKILL (signal 9) instead of normal timeout signal 15
+                run_shell_cmd("pkill -9 -f blender")
+                return True
+        
         return False
 
     first_samples_metadata, last_samples_metadata = first_last_samples_metadata.splitlines()
@@ -978,7 +997,6 @@ def handle_pc_partial_frames(task_id, task_dir):
     seconds_spent_rendering_samples = samples_calc_current_seconds - samples_calc_start_seconds
 
     # check for 5 minutes of rendering samples (not including Blender loading file, preprocessing, etc); don't stop render if only a minute left
-    pc_samples_calc_timeout = 300
     if seconds_spent_rendering_samples > pc_samples_calc_timeout and frame_seconds_remaining > 60:
         # echo to a file the total seconds it would've taken to finish this frame so we can send back to servers
         start_time = os.path.getmtime(os.path.join(task_dir, "started.txt"))

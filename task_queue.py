@@ -235,7 +235,7 @@ def update_queue(params={}):
         start_time = dt.datetime.fromtimestamp(start_time)
         # must use now instead of utcnow since getmtime is local timestamp on local filesystem timezone
         current_time = dt.datetime.now()
-        # NOTE: if timeout updated, make sure to also update in retask_task lambda
+        # NOTE: if timeout updated, make sure to also update in retask_task lambda, cloud_native_host.py, and AWS batch job def
         timeout = dt.timedelta(hours=24)
         if timeout < (current_time-start_time):
             DAEMON_LOGGER.info(f"Task timed out! Exiting...")

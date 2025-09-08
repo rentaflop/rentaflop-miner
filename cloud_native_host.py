@@ -13,13 +13,42 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 
 
-# Global variable to store the subprocess
+# Global variables to store subprocess and db context
 RENDER_PROCESS = None
+SIGNAL_DB = None
+SIGNAL_APP = None
+SIGNAL_TASK_ID = None
 
-def sigterm_handler(signum, frame):
-    """Handle SIGTERM signal sent by run.py when task completes"""
-    DAEMON_LOGGER.info("Received SIGTERM from run.py, exiting gracefully")
-    sys.exit(0)
+def signal_handler(signum, frame):
+    """Handle SIGTERM and SIGCHLD signals"""
+    global RENDER_PROCESS, SIGNAL_DB, SIGNAL_APP, SIGNAL_TASK_ID
+    
+    if signum == signal.SIGTERM:
+        DAEMON_LOGGER.info("Received SIGTERM, exiting gracefully")
+        sys.exit(0)
+    elif signum == signal.SIGCHLD:
+        if RENDER_PROCESS is not None and RENDER_PROCESS.poll() is not None:
+            exit_code = RENDER_PROCESS.returncode
+            if exit_code == 0:
+                DAEMON_LOGGER.info(f"run.py process completed successfully with exit code {exit_code}")
+            else:
+                DAEMON_LOGGER.error(f"run.py process terminated with exit code {exit_code}")
+                # Update task status and stop time on failure signal capture
+                if SIGNAL_DB and SIGNAL_APP and SIGNAL_TASK_ID:
+                    try:
+                        with SIGNAL_APP.app_context():
+                            class Task(SIGNAL_DB.Model):
+                                __table__ = SIGNAL_DB.Model.metadata.tables["task"]
+                            task = Task.query.filter_by(id=SIGNAL_TASK_ID).first()
+                            if task:
+                                task.status = "failed"
+                                task.stop_time = dt.datetime.utcnow()
+                                SIGNAL_DB.session.commit()
+                                DAEMON_LOGGER.info(f"Updated task {SIGNAL_TASK_ID} status to failed with stop time")
+                    except Exception as e:
+                        DAEMON_LOGGER.error(f"Failed to update task status on signal: {e}")
+            DAEMON_LOGGER.info("Cloud native host exiting due to child process termination")
+            sys.exit(exit_code)
 
 
 def _check_task_status(task, task_dir):
@@ -49,7 +78,7 @@ def _check_task_status(task, task_dir):
         start_time = dt.datetime.fromtimestamp(start_time)
         # must use now instead of utcnow since getmtime is local timestamp on local filesystem timezone
         current_time = dt.datetime.now()
-        # NOTE: if timeout updated, make sure to also update in task_queue.py and retask_task lambda
+        # NOTE: if timeout updated, make sure to also update in task_queue.py, retask_task lambda, and aws batch job def
         timeout = dt.timedelta(hours=24)
         if timeout < (current_time-start_time):
             DAEMON_LOGGER.error(f"Task timed out! Exiting...")
@@ -123,8 +152,9 @@ def start_render_task():
 
 
 if __name__ == "__main__":
-    # Register signal handler for graceful shutdown when run.py completes
-    signal.signal(signal.SIGTERM, sigterm_handler)
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGCHLD, signal_handler)
     
     database_url = os.getenv("database_url")
     task_id = os.getenv("task_id")
@@ -138,6 +168,12 @@ if __name__ == "__main__":
     with app.app_context():
         db = SQLAlchemy(app)
         db.metadata.reflect(bind=db.engine)
+        
+        # Set global variables for signal handler
+        global SIGNAL_DB, SIGNAL_APP, SIGNAL_TASK_ID
+        SIGNAL_DB = db
+        SIGNAL_APP = app
+        SIGNAL_TASK_ID = task_id
 
     start_render_task()
     
