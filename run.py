@@ -252,12 +252,12 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
                     # automatically retries 3 times with exponential backoff
                     S3_CLIENT.upload_file(tgz_path, "rentaflop-render-output", f"{job_id}/{task_id}.tar.gz")
                     DAEMON_LOGGER.info("S3 upload completed successfully")
-                # set db task attributes following host_output.py
-                task.status = "stopped"
-                task.stop_time = dt.datetime.utcnow()
-                task.first_frame_time = first_frame_time if has_finished_frames else 1.0
-                task.subsequent_frames_avg = subsequent_frames_avg if has_finished_frames else 1.0
 
+            # set db task attributes following host_output.py
+            task.status = "stopped"
+            task.stop_time = dt.datetime.utcnow()
+            task.first_frame_time = first_frame_time if has_finished_frames else 1.0
+            task.subsequent_frames_avg = subsequent_frames_avg if has_finished_frames else 1.0
             if total_frame_seconds is not None:
                 task.total_frame_seconds = total_frame_seconds
 
