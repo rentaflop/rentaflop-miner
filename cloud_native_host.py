@@ -24,7 +24,25 @@ def signal_handler(signum, frame):
     global RENDER_PROCESS, SIGNAL_DB, SIGNAL_APP, SIGNAL_TASK_ID
     
     if signum == signal.SIGTERM:
-        DAEMON_LOGGER.info("Received SIGTERM, exiting gracefully")
+        DAEMON_LOGGER.info("Received SIGTERM, checking task status before exit")
+        # Check task status and mark as failed if not already in terminal state
+        # This handles cases where spot instances are interrupted or container receives SIGTERM
+        if SIGNAL_DB and SIGNAL_APP and SIGNAL_TASK_ID:
+            try:
+                with SIGNAL_APP.app_context():
+                    class Task(SIGNAL_DB.Model):
+                        __table__ = SIGNAL_DB.Model.metadata.tables["task"]
+                    task = Task.query.filter_by(id=SIGNAL_TASK_ID).first()
+                    if task and task.status not in ["stopped", "failed"]:
+                        DAEMON_LOGGER.info(f"Marking task {SIGNAL_TASK_ID} as failed due to SIGTERM")
+                        task.status = "failed"
+                        task.stop_time = dt.datetime.utcnow()
+                        SIGNAL_DB.session.commit()
+                    elif task:
+                        DAEMON_LOGGER.info(f"Task {SIGNAL_TASK_ID} already in terminal state: {task.status}")
+            except Exception as e:
+                DAEMON_LOGGER.error(f"Failed to update task status on SIGTERM: {e}")
+        DAEMON_LOGGER.info("Exiting gracefully after SIGTERM")
         sys.exit(0)
     elif signum == signal.SIGCHLD:
         if RENDER_PROCESS is not None and RENDER_PROCESS.poll() is not None:
