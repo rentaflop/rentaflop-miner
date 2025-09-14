@@ -1,7 +1,7 @@
 # ---- Stage 1: Blender installer ----
 FROM debian:bullseye as blender-downloader
 
-ARG BLENDER_VERSIONS="2.83.14 2.93.4 3.0.1 3.1.2 3.2.2 3.3.1 3.4.1 3.5.0 3.6.1 3.6.7 4.0.2 4.1.1 4.2.0 4.4.0"
+ARG BLENDER_VERSIONS="2.83.14 2.93.4 3.0.1 3.1.2 3.2.2 3.3.1 3.5.0 3.6.7 4.0.2 4.1.1 4.2.0 4.4.0 4.5.3"
 
 RUN apt-get update && apt-get install -y wget
 
