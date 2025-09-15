@@ -134,10 +134,17 @@ def checkin(db, app, task_id):
         task_dir = os.path.join(tasks_path, str(task.id))
         start_frame = task.start_frame
         last_frame_completed = get_last_frame_completed(task_dir, start_frame)
-        first_frame_time, subsequent_frames_avg = calculate_frame_times(task_dir, start_frame)
-        task.last_frame_completed = last_frame_completed
-        task.first_frame_time = first_frame_time
-        task.subsequent_frames_avg = subsequent_frames_avg
+        n_frames_rendered = last_frame_completed - start_frame + 1 if last_frame_completed else None
+        is_price_calculation = os.getenv("IS_PRICE_CALCULATION", "0") == "1"
+        if is_price_calculation:
+            n_frames_rendered = 1
+        first_frame_time, subsequent_frames_avg = calculate_frame_times(task_dir, start_frame, n_frames_rendered=n_frames_rendered)
+        if last_frame_completed:
+            task.last_frame_completed = last_frame_completed
+        if first_frame_time:
+            task.first_frame_time = first_frame_time
+        if subsequent_frames_avg:
+            task.subsequent_frames_avg = subsequent_frames_avg
         is_finished = _check_task_status(task, task_dir)
         db.session.commit()
         

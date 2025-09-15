@@ -801,7 +801,17 @@ def calculate_frame_times(task_dir, start_frame, n_frames_rendered=None):
     if not list_of_files:
         return None, None
 
-    n_frames = len(list_of_files)
+    n_files = len(list_of_files)
+    
+    # Use n_frames_rendered when available, otherwise fall back to file count
+    # fixes issue where more than one file per frame is output
+    if n_frames_rendered is not None:
+        n_frames = n_frames_rendered
+        # Detect potential multiple files per frame issue
+        if n_files != n_frames_rendered and n_files > n_frames_rendered:
+            DAEMON_LOGGER.info(f"Detected {n_files} output files for {n_frames_rendered} frames - likely multiple files per frame")
+    else:
+        n_frames = n_files
     render_start_time = os.path.getmtime(start_file_path)
     render_start_time = dt.datetime.fromtimestamp(render_start_time)
     # videos will output just one file, such as 0001-0500.mov

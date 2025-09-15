@@ -226,7 +226,7 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
     if has_finished_frames:
         DAEMON_LOGGER.info("Calculating frame rendering times...")
         first_frame_time, subsequent_frames_avg = calculate_frame_times(task_dir, start_frame, n_frames_rendered=(end_frame - start_frame + 1))
-        DAEMON_LOGGER.info(f"Frame times - first: {first_frame_time}s, avg subsequent: {subsequent_frames_avg}s")
+        DAEMON_LOGGER.info(f"Frame times - first: {first_frame_time}m, avg subsequent: {subsequent_frames_avg}m")
         
         tgz_path = os.path.join(task_dir, "output.tar.gz")
         old_dir = os.getcwd()
