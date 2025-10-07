@@ -233,13 +233,23 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
         os.chdir(task_dir)
         DAEMON_LOGGER.info("Creating output tarball...")
         # zip and check output dir
-        run_shell_cmd(f"tar -czf output.tar.gz output", quiet=True)
+        try:
+            subprocess.check_output("tar -czf output.tar.gz output", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            os.chdir(old_dir)
+            DAEMON_LOGGER.error(f"Failed to create output tarball: {e.output}")
+            raise Exception(f"Failed to create output tarball: {e.output}")
         # check to ensure we're sending a correctly-zipped output to rentaflop servers
-        incorrect_tar_output = run_shell_cmd("tar --compare --file=output.tar.gz", quiet=True)
-        os.chdir(old_dir)
-        if incorrect_tar_output:
-            DAEMON_LOGGER.error(f"Output tarball validation failed: {incorrect_tar_output}")
-            raise Exception("Output tarball doesn't match output frames!")
+        try:
+            incorrect_tar_output = subprocess.check_output("tar --compare --file=output.tar.gz", shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+            os.chdir(old_dir)
+            if incorrect_tar_output:
+                DAEMON_LOGGER.error(f"Output tarball validation failed: {incorrect_tar_output}")
+                raise Exception("Output tarball doesn't match output frames!")
+        except subprocess.CalledProcessError as e:
+            os.chdir(old_dir)
+            DAEMON_LOGGER.error(f"Output tarball validation failed: {e.output}")
+            raise Exception(f"Output tarball validation failed: {e.output}")
         DAEMON_LOGGER.info("Output tarball created and validated successfully")
 
     if IS_CLOUD_HOST:
