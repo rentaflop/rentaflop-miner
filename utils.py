@@ -807,8 +807,8 @@ def calculate_frame_times(task_dir, start_frame, n_frames_rendered=None):
     # fixes issue where more than one file per frame is output
     if n_frames_rendered is not None:
         n_frames = n_frames_rendered
-        # Detect potential multiple files per frame issue
-        if n_files != n_frames_rendered and n_files > n_frames_rendered:
+        # Detect potential multiple files per frame issue, but only when off by more than 1 since n_frames_rendered often lags
+        if n_files != n_frames_rendered and n_files > (n_frames_rendered + 1):
             DAEMON_LOGGER.info(f"Detected {n_files} output files for {n_frames_rendered} frames - likely multiple files per frame")
     else:
         n_frames = n_files
