@@ -258,10 +258,33 @@ def run_task(is_png=False, task_dir=None, db=None, app=None, task_id=None, start
             if has_finished_frames:
                 job_id = task.job_id
                 if not IS_TEST_MODE:
-                    DAEMON_LOGGER.info(f"Uploading output to S3: {job_id}/{task_id}.tar.gz")
-                    # automatically retries 3 times with exponential backoff
-                    S3_CLIENT.upload_file(tgz_path, "rentaflop-render-output", f"{job_id}/{task_id}.tar.gz")
-                    DAEMON_LOGGER.info("S3 upload completed successfully")
+                    # Upload the final batch of frames (scheduler skips batches containing the final frame)
+                    from utils import get_new_frames_for_upload, create_frame_tarball, update_uploaded_frames_tracking
+                    frame_files = get_new_frames_for_upload(task_dir, task.start_frame, None)
+
+                    if frame_files:
+                        DAEMON_LOGGER.info(f"Uploading final batch of {len(frame_files)} frames to S3")
+                        tarball_path, start_frame_num, end_frame_num = create_frame_tarball(
+                            task_dir, job_id, task_id, frame_files
+                        )
+                        if tarball_path:
+                            try:
+                                s3_key = f"{job_id}/{os.path.basename(tarball_path)}"
+                                S3_CLIENT.upload_file(tarball_path, "rentaflop-render-output", s3_key)
+                                DAEMON_LOGGER.info(f"Successfully uploaded final frames to S3: {s3_key}")
+                                update_uploaded_frames_tracking(task_dir, start_frame_num, end_frame_num)
+                                # Clean up the tarball after successful upload
+                                try:
+                                    os.remove(tarball_path)
+                                except:
+                                    pass
+                            except Exception as e:
+                                DAEMON_LOGGER.error(f"Failed to upload final frames: {e}")
+                                raise
+                    else:
+                        DAEMON_LOGGER.info("No frames to upload")
+                else:
+                    DAEMON_LOGGER.info("Test mode: skipping frame upload")
 
             # set db task attributes following host_output.py
             task.status = "stopped"

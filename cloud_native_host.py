@@ -5,12 +5,14 @@ import signal
 from flask_apscheduler import APScheduler
 import datetime as dt
 from config import DAEMON_LOGGER, IS_TEST_MODE
-from utils import handle_pc_partial_frames, calculate_frame_times, get_last_frame_completed
+from utils import handle_pc_partial_frames, calculate_frame_times, get_last_frame_completed, create_frame_tarball, get_new_frames_for_upload, update_uploaded_frames_tracking, get_uploaded_frames
 """
 defines db tables
 """
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+import boto3
+import json
 
 
 # Global variables to store subprocess and db context
@@ -116,6 +118,83 @@ def _check_task_status(task, task_dir):
         return False
 
 
+def upload_frames_periodically(db, app, task_id):
+    """
+    periodic job that uploads any new frames as tarballs every 5 minutes
+    only runs for cloud hosts, not miner hosts
+    creates tarballs with naming convention: {job_id}/{task_id}_frames_{start}-{end}.tar.gz
+
+    NOTE: Does not upload if frames include the final frame of the task - run.py will handle the final batch
+    """
+    try:
+        with app.app_context():
+            # NOTE: separate from miner host Task table; this one connects to backend db from cloud host
+            class Task(db.Model):
+                __table__ = db.Model.metadata.tables["task"]
+
+            # get task object
+            task = Task.query.filter_by(id=task_id).first()
+            if not task:
+                DAEMON_LOGGER.error(f"Task {task_id} not found in database")
+                return
+
+            job_id = task.job_id
+            tasks_path = "tasks"
+            task_dir = os.path.join(tasks_path, str(task.id))
+
+            # Calculate the final frame number for this task
+            final_frame = task.start_frame + task.n_frames - 1
+
+            # get list of new frames that haven't been uploaded yet
+            frame_files = get_new_frames_for_upload(task_dir, task.start_frame, None)
+
+            if not frame_files:
+                DAEMON_LOGGER.debug(f"No new frames to upload for task {task_id}")
+                return
+
+            # create a tarball of the frame files
+            tarball_path, start_frame_num, end_frame_num = create_frame_tarball(
+                task_dir, job_id, task_id, frame_files
+            )
+
+            if not tarball_path:
+                DAEMON_LOGGER.error(f"Failed to create frame tarball for task {task_id}")
+                return
+
+            # Check if the final frame is included in this batch - if so, skip and let run.py handle it
+            if end_frame_num >= final_frame:
+                DAEMON_LOGGER.info(f"Frames {start_frame_num}-{end_frame_num} include final frame {final_frame}, skipping scheduler upload (run.py will handle)")
+                return
+
+            # upload to S3
+            if not IS_TEST_MODE:
+                try:
+                    S3_CLIENT = boto3.client("s3", region_name="us-east-1")
+                    s3_key = f"{job_id}/{os.path.basename(tarball_path)}"
+                    DAEMON_LOGGER.info(f"Uploading frame tarball to S3: {s3_key}")
+                    S3_CLIENT.upload_file(tarball_path, "rentaflop-render-output", s3_key)
+                    DAEMON_LOGGER.info(f"Successfully uploaded frame tarball to S3: {s3_key}")
+
+                    # update tracking to mark these frames as uploaded
+                    update_uploaded_frames_tracking(task_dir, start_frame_num, end_frame_num)
+
+                    # delete the tarball after successful upload
+                    try:
+                        os.remove(tarball_path)
+                        DAEMON_LOGGER.debug(f"Deleted local tarball: {tarball_path}")
+                    except Exception as e:
+                        DAEMON_LOGGER.warning(f"Failed to delete local tarball {tarball_path}: {e}")
+
+                except Exception as e:
+                    DAEMON_LOGGER.error(f"Failed to upload frame tarball to S3: {e}")
+            else:
+                DAEMON_LOGGER.info(f"Test mode: would upload {tarball_path} to S3 at {job_id}/{os.path.basename(tarball_path)}")
+                update_uploaded_frames_tracking(task_dir, start_frame_num, end_frame_num)
+
+    except Exception as e:
+        DAEMON_LOGGER.error(f"Error in upload_frames_periodically: {e}")
+
+
 def checkin(db, app, task_id):
     """
     periodic checkin to see where task progress is and update rentaflop db
@@ -210,8 +289,12 @@ if __name__ == "__main__":
         scheduler = APScheduler()
         scheduler.add_job(id="Checkin", func=checkin, trigger="interval", seconds=60, max_instances=1, next_run_time=first_run_time, kwargs={
             "db": db, "app": app, "task_id": task_id})
+        # Add periodic frame upload job that runs every 5 minutes
+        first_upload_run_time = dt.datetime.now() + dt.timedelta(seconds=10)
+        scheduler.add_job(id="FrameUpload", func=upload_frames_periodically, trigger="interval", seconds=300, max_instances=1, next_run_time=first_upload_run_time, kwargs={
+            "db": db, "app": app, "task_id": task_id})
         scheduler.start()
-        DAEMON_LOGGER.info("Scheduler started, keeping process alive")
+        DAEMON_LOGGER.info("Scheduler started with Checkin (60s) and FrameUpload (300s) jobs, keeping process alive")
         
         # Keep the main thread alive so the scheduler can run
         # The checkin job will call sys.exit(0) when the task completes or times out

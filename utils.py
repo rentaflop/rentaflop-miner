@@ -1022,3 +1022,141 @@ def handle_pc_partial_frames(task_id, task_dir):
         return True
 
     return False
+
+
+def get_uploaded_frames(task_dir, task_id):
+    """
+    read the list of already uploaded frame ranges from a tracking file
+    returns list of tuples (start_frame, end_frame) that have been uploaded
+    """
+    upload_tracking_file = os.path.join(task_dir, ".uploaded_frames")
+    uploaded_ranges = []
+
+    if os.path.exists(upload_tracking_file):
+        try:
+            with open(upload_tracking_file, "r") as f:
+                uploaded_ranges = json.load(f)
+        except Exception as e:
+            DAEMON_LOGGER.error(f"Failed to read uploaded frames tracking file: {e}")
+
+    return uploaded_ranges
+
+
+def get_new_frames_for_upload(task_dir, start_frame, current_frame):
+    """
+    determine which frames are new (not yet uploaded) based on output directory
+    returns list of output file paths for frames that need uploading
+    """
+    output_dir = os.path.join(task_dir, "output")
+    if not os.path.isdir(output_dir):
+        return []
+
+    output_files = glob.glob(os.path.join(output_dir, "*"))
+
+    # filter out non-frame files (like tar.gz, etc)
+    frame_files = []
+    for f in output_files:
+        # skip non-file items or tracking files
+        if not os.path.isfile(f):
+            continue
+        basename = os.path.basename(f)
+        if basename.startswith("."):
+            continue
+        frame_files.append(f)
+
+    return sorted(frame_files)
+
+
+def create_frame_tarball(task_dir, job_id, task_id, frame_files):
+    """
+    create a tarball of frame files with the naming convention:
+    {job_id}/{task_id}_frames_{start}-{end}.tar.gz
+    where start and end are derived from the actual frame files
+
+    returns (tarball_path, start_frame_num, end_frame_num) or (None, None, None) if no frames
+    """
+    if not frame_files:
+        return None, None, None
+
+    # extract frame numbers from filenames to determine range
+    frame_numbers = []
+    for frame_file in frame_files:
+        basename = os.path.basename(frame_file)
+        # frame files are typically named like 0001.png, 0002.exr, etc
+        # some might be named like 0001-0500.mp4 for videos
+        name_part = basename.split('.')[0]
+        try:
+            # try to extract first frame number
+            if '-' in name_part:
+                # video file like 0001-0500
+                start = int(name_part.split('-')[0])
+                frame_numbers.append(start)
+            else:
+                # image file like 0001
+                frame_numbers.append(int(name_part))
+        except ValueError:
+            # couldn't parse frame number, skip
+            pass
+
+    if not frame_numbers:
+        return None, None, None
+
+    frame_numbers.sort()
+    start_frame_num = frame_numbers[0]
+    end_frame_num = frame_numbers[-1]
+
+    # create tarball path in format: job_id/task_id_frames_start-end.tar.gz
+    tarball_filename = f"{task_id}_frames_{start_frame_num:04d}-{end_frame_num:04d}.tar.gz"
+    tarball_dir = os.path.join(task_dir, "output_tarballs")
+    os.makedirs(tarball_dir, exist_ok=True)
+    tarball_path = os.path.join(tarball_dir, tarball_filename)
+
+    # create the tarball
+    try:
+        old_dir = os.getcwd()
+        os.chdir(task_dir)
+
+        # build list of files to tar, relative to task_dir
+        files_to_tar = " ".join([f"output/{os.path.basename(f)}" for f in frame_files])
+
+        cmd = f"tar -czf {os.path.basename(tarball_path)} {files_to_tar}"
+        tarball_rel_path = os.path.join("output_tarballs", os.path.basename(tarball_path))
+        cmd = f"tar -czf {tarball_rel_path} {files_to_tar}"
+        subprocess.check_output(cmd, shell=True, encoding="utf8", stderr=subprocess.STDOUT)
+
+        os.chdir(old_dir)
+        DAEMON_LOGGER.info(f"Created frame tarball: {tarball_path} with frames {start_frame_num:04d}-{end_frame_num:04d}")
+        return tarball_path, start_frame_num, end_frame_num
+    except subprocess.CalledProcessError as e:
+        os.chdir(old_dir)
+        DAEMON_LOGGER.error(f"Failed to create frame tarball: {e.output}")
+        return None, None, None
+
+
+def update_uploaded_frames_tracking(task_dir, start_frame, end_frame):
+    """
+    update the tracking file to record that frames in range [start_frame, end_frame] have been uploaded
+    """
+    upload_tracking_file = os.path.join(task_dir, ".uploaded_frames")
+    uploaded_ranges = get_uploaded_frames(task_dir, "")
+
+    # add new range, merging with adjacent ranges if needed
+    new_ranges = [(start_frame, end_frame)]
+    for existing_range in uploaded_ranges:
+        new_ranges.append(existing_range)
+
+    # sort and merge overlapping/adjacent ranges
+    new_ranges.sort()
+    merged_ranges = []
+    for s, e in new_ranges:
+        if merged_ranges and s <= merged_ranges[-1][1] + 1:
+            # overlapping or adjacent, merge
+            merged_ranges[-1] = (merged_ranges[-1][0], max(merged_ranges[-1][1], e))
+        else:
+            merged_ranges.append((s, e))
+
+    try:
+        with open(upload_tracking_file, "w") as f:
+            json.dump(merged_ranges, f)
+    except Exception as e:
+        DAEMON_LOGGER.error(f"Failed to update uploaded frames tracking file: {e}")
